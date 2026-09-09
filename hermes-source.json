@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/NousResearch/hermes-agent",
+  "release": "v2026.9.7",
+  "revision": "2237be355906fbe6065ce1815711eee52b2d646e",
+  "archive_url": "https://codeload.github.com/NousResearch/hermes-agent/tar.gz/2237be355906fbe6065ce1815711eee52b2d646e",
+  "archive_sha256": "c1f2401c8096e9372c46fa4ef8bdada18ed3cc84c0f5274562b86b7646ed3a87",
+  "license": "MIT",
+  "package_version": "0.21.1",
+  "python_tested": "3.13.5",
+  "installation": "Project-local source archive and editable base+acp install; runtime and private state are excluded from the public source repository."
+}

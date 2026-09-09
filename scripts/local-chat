@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+umask 077
+EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+export HERMES_HOME="$EILO_ROOT/.state/hermes"
+export TMPDIR="$EILO_ROOT/.tmp"
+export XDG_CACHE_HOME="$EILO_ROOT/.tmp/cache"
+export UV_CACHE_DIR="$EILO_ROOT/.tmp/uv-cache"
+export PYTHONDONTWRITEBYTECODE=1
+export GIT_CEILING_DIRECTORIES="$EILO_ROOT"
+mkdir -p "$TMPDIR" "$HERMES_HOME" "$EILO_ROOT/.state/workspace"
+cd "$EILO_ROOT"
+exec "$EILO_ROOT/.runtime/venv/bin/python" "$EILO_ROOT/app/server.py" "$@"

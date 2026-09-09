@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>eïlo Chrome context setup</title><link rel="stylesheet" href="/app.css"></head>
+<body><main class="app-shell"><section>
+<p><a href="/">Back to eïlo</a></p><h1>Optional Chrome study-site context</h1>
+<p>eïlo works with conversation and a coarse activity signal without an extension. This local extension adds the permitted origin and page title for your active Chrome tab. Opening this guide does not install it or grant access.</p>
+<ol>
+<li>In Chrome, open <strong>chrome://extensions</strong>. Turn on Developer mode if you choose to install this local, unpacked extension.</li>
+<li>Choose <strong>Load unpacked</strong> and select <strong>activity/extension (inside your eïlo checkout)</strong>.</li>
+<li>Open the eïlo extension's popup. Select the study sites you want to share and choose <strong>Grant selected sites</strong>. The available sites are LeetCode, NeetCode and Python documentation.</li>
+<li>Open <strong>http://127.0.0.1:8765/</strong> in Chrome. Review Optional local activity context and choose <strong>Enable activity context</strong>. The installed extension is detected automatically.</li>
+</ol>
+<p>The extension reads only the active tab of the focused Chrome window, on explicitly granted study sites, while the enabled eïlo page requests a fresh sample. Chrome withholds unapproved sites' URLs and titles. Paths, queries and fragments from approved URLs are removed locally before delivery. Selected observations may be sent to Luna and saved with your Hermes conversation.</p>
+<p>Chrome's host grants can support broader capabilities than these reads. This extension's code does not change tabs or pages and has no content scripts, browser-history, cookies, screenshot or keystroke collection.</p>
+<p><strong>To stop:</strong> use Pause or Turn off in eïlo, close its page, or revoke selected sites in the extension popup. You can also remove the extension through Chrome's extensions page. It does not run an independent collection loop.</p>
+</section></main></body></html>

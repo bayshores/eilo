@@ -1,0 +1,23 @@
+# Public starter configuration. Private runtime copy: .state/hermes/config.yaml.
+_config_version: 41
+model:
+  provider: openai-codex
+  # Verified in the connected subscription catalog and the native smoke test.
+  default: gpt-5.6-luna
+fallback_providers: []
+agent:
+  # The bundled kanban plugin otherwise adds tools even to an empty platform list.
+  disabled_toolsets: [kanban]
+platform_toolsets:
+  cli: []
+  api_server: []
+  acp: []
+context:
+  engine: compressor
+mcp_servers: {}
+telemetry:
+  shared_metrics:
+    enabled: false
+    send: false
+updates:
+  check: false

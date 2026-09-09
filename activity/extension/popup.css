@@ -1,0 +1,2 @@
+body { width: 330px; margin: 0; color: #25221e; background: #f6f1e9; font: 14px/1.45 system-ui, sans-serif; }
+main { padding: 18px; } h1 { font: 600 18px/1.1 Georgia, serif; } label { display: block; margin: 8px 0; } button { margin: 8px 6px 0 0; padding: 7px 9px; } #status { min-height: 1.4em; }

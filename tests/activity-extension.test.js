@@ -1,0 +1,115 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+const crypto = require("node:crypto");
+
+const extension = path.join(__dirname, "../activity/extension");
+const manifest = JSON.parse(fs.readFileSync(path.join(extension, "manifest.json"), "utf8"));
+assert.equal(Object.hasOwn(manifest, "permissions"), false, "no unsupported permissions namespace is declared");
+assert.deepEqual(manifest.optional_host_permissions, ["https://leetcode.com/*", "https://neetcode.io/*", "https://docs.python.org/*"]);
+assert.equal(manifest.externally_connectable.matches[0], "http://127.0.0.1/*");
+const manifestId = [...crypto.createHash("sha256").update(Buffer.from(manifest.key, "base64")).digest().subarray(0, 16)].map((byte) => "abcdefghijklmnop"[byte >> 4] + "abcdefghijklmnop"[byte & 15]).join("");
+const configContext = { window: {} };
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../app/web/activity-config.js"), "utf8"), configContext);
+assert.equal(manifestId, configContext.window.EILO_ACTIVITY_EXTENSION_ID, "public manifest key and page target resolve to the same Chrome ID");
+const coreContext = { URL, Set, globalThis: {} };
+coreContext.globalThis = coreContext;
+vm.runInNewContext(fs.readFileSync(path.join(extension, "core.js"), "utf8"), coreContext);
+const core = coreContext.EiloActivityExtensionCore;
+
+assert.equal(core.senderIsEiloPage({ url: "http://127.0.0.1:8765/", frameId: 0 }), true);
+assert.equal(core.senderIsEiloPage({ url: "http://127.0.0.1:8765/" }), true, "accepts only when this API omits frameId");
+assert.equal(core.senderIsEiloPage({ url: "http://127.0.0.1:8766/", frameId: 0 }), false);
+assert.equal(core.senderIsEiloPage({ url: "http://127.0.0.1:8765/", frameId: 1 }), false);
+assert.equal(core.validRequest({ type: "snapshot", nonce: "nonce-123", client_id: "client-123", expires_at: 1008 }, 1000), true);
+assert.equal(core.validRequest({ type: "snapshot", nonce: "nonce-123", client_id: "client-123", expires_at: 10001 }, 1000), false);
+assert.equal(JSON.stringify(core.observationForTab({ url: "https://leetcode.com/problems/two-sum/?secret=yes#answer", title: "  Two\nSum  " })), JSON.stringify({ kind: "approved_study_context", origin: "https://leetcode.com", title: "Two Sum" }));
+assert.equal(JSON.stringify(core.observationForTab({ url: "https://mail.google.com/mail/u/0", title: "private mail" })), JSON.stringify({ kind: "activity_unshared" }));
+assert.equal(core.approvedOrigin("https://docs.python.org/3/library/?q=private#frag"), "https://docs.python.org");
+assert.equal(core.approvedOrigin("http://docs.python.org/"), null);
+assert.equal(core.equivalentTab({ id: 1, windowId: 2, url: "https://leetcode.com/x", title: "A" }, { id: 1, windowId: 2, url: "https://leetcode.com/x", title: "A" }), true);
+assert.equal(core.equivalentTab({ id: 1, windowId: 2, url: "https://leetcode.com/x", title: "A" }, { id: 1, windowId: 2, url: "https://leetcode.com/y", title: "A" }), false);
+
+async function backgroundSnapshot({ granted = true, changed = false, disconnectDuringFirst = false } = {}) {
+  let listener;
+  let calls = 0;
+  let tabCalls = 0;
+  let stillAllowed = true;
+  const backgroundContext = {
+    URL, Set, console, __EILO_ACTIVITY_TEST__: {},
+    importScripts() { vm.runInNewContext(fs.readFileSync(path.join(extension, "core.js"), "utf8"), backgroundContext); },
+    chrome: {
+      runtime: { onConnectExternal: { addListener(fn) { listener = fn; } } },
+      permissions: { contains: async () => granted },
+      windows: { getLastFocused: async () => { if (disconnectDuringFirst) stillAllowed = false; return { id: 9, focused: true }; } },
+      tabs: { query: async () => { tabCalls++; return [{ id: changed && ++calls > 1 ? 2 : 1, windowId: 9, active: true, status: "complete", url: "https://leetcode.com/problems/private?secret=1", title: "Two Sum" }]; } },
+    },
+  };
+  backgroundContext.globalThis = backgroundContext;
+  vm.runInNewContext(fs.readFileSync(path.join(extension, "background.js"), "utf8"), backgroundContext);
+  return { result: await backgroundContext.__EILO_ACTIVITY_TEST__.activeSnapshot(() => stillAllowed), tabCalls };
+}
+const backgroundChecks = (async () => {
+  assert.equal(JSON.stringify((await backgroundSnapshot({ granted: false })).result), JSON.stringify({ observation: { kind: "activity_unshared" } }), "revoked/missing host grant never emits metadata");
+  assert.equal((await backgroundSnapshot({ changed: true })).result, null, "focus or navigation change drops the sample");
+  const aborted = await backgroundSnapshot({ disconnectDuringFirst: true });
+  assert.equal(aborted.result, null);
+  assert.equal(aborted.tabCalls, 0, "disconnect/expiry prevents later Chrome reads");
+})();
+
+async function extensionPortChecks() {
+  let connectListener, resolveWindow, windowCalls = 0;
+  const onMessage = event(), onDisconnect = event();
+  const testPort = { name: "eilo-metadata-v1", sender: { url: "http://127.0.0.1:8765/", frameId: 0 }, onMessage, onDisconnect, posted: [], postMessage(value) { this.posted.push(value); }, disconnect() {} };
+  const context = {
+    URL, Set, console, __EILO_ACTIVITY_TEST__: {},
+    importScripts() { vm.runInNewContext(fs.readFileSync(path.join(extension, "core.js"), "utf8"), context); },
+    chrome: {
+      runtime: { onConnectExternal: { addListener(fn) { connectListener = fn; } } },
+      permissions: { contains: async () => true },
+      windows: { getLastFocused: () => { windowCalls++; return windowCalls === 1 ? new Promise((resolve) => { resolveWindow = resolve; }) : Promise.resolve({ id: 9, focused: true }); } },
+      tabs: { query: async () => [{ id: 1, windowId: 9, active: true, status: "complete", url: "https://leetcode.com/problems/x?private=1", title: "One" }] },
+    },
+  };
+  context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync(path.join(extension, "background.js"), "utf8"), context);
+  connectListener(testPort);
+  const request = { type: "snapshot", nonce: "nonce-abc", client_id: "client-abc", expires_at: Date.now() + 8000 };
+  onMessage.emit(request); onMessage.emit(request); onMessage.emit({ ...request, nonce: "nonce-def" });
+  assert.equal(windowCalls, 1, "one port permits only one in-flight sample");
+  resolveWindow({ id: 9, focused: true });
+  await new Promise(setImmediate); await new Promise(setImmediate);
+  assert.equal(testPort.posted.length, 1);
+  const callsAfterFirst = windowCalls;
+  onMessage.emit(request);
+  await new Promise(setImmediate);
+  assert.equal(windowCalls, callsAfterFirst, "the completed nonce is retained as a duplicate");
+  assert.equal(testPort.posted.length, 1);
+}
+const portChecks = extensionPortChecks();
+
+function event() { const callbacks = []; return { addListener(fn) { callbacks.push(fn); }, emit(value) { callbacks.forEach((fn) => fn(value)); } }; }
+function port() { return { onMessage: event(), onDisconnect: event(), posted: [], postMessage(value) { this.posted.push(value); }, disconnect() { this.onDisconnect.emit(); } }; }
+const clientContext = { globalThis: {}, Date, console };
+clientContext.globalThis = clientContext;
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../app/web/activity-client.js"), "utf8"), clientContext);
+const bridge = clientContext.EiloActivityBridge;
+let statuses = [], observed = [], activePort;
+clientContext.globalThis.chrome = { runtime: { connect(id, options) { assert.equal(id, "a".repeat(32)); assert.equal(JSON.stringify(options), JSON.stringify({ name: "eilo-metadata-v1" })); activePort = port(); return activePort; } } };
+assert.equal(JSON.stringify(bridge.connect("a".repeat(32), "client-123", (nonce, value) => observed.push([nonce, value]), (connected, reason) => statuses.push([connected, reason]))), JSON.stringify({ ok: true }));
+assert.equal(bridge.update({ sample_request: { nonce: "nonce-123", client_id: "client-123", expires_at: Date.now() + 8000 } }), true);
+assert.equal(bridge.update({ sample_request: { nonce: "nonce-123", client_id: "client-123", expires_at: Date.now() + 8000 } }), false, "one request per nonce");
+assert.equal(bridge.update({ sample_request: { nonce: "nonce-456", client_id: "client-123", expires_at: Date.now() + 8000 } }), true, "a newer request replaces an unanswered nonce");
+activePort.onMessage.emit({ type: "observation", nonce: "nonce-123", observation: { kind: "approved_study_context", origin: "https://leetcode.com", title: "Two Sum" } });
+assert.equal(observed.length, 0, "a stale response cannot accumulate or be delivered");
+activePort.onMessage.emit({ type: "observation", nonce: "nonce-456", observation: { kind: "approved_study_context", origin: "https://leetcode.com", title: "Two Sum" } });
+assert.equal(observed.length, 1);
+activePort.onMessage.emit({ type: "observation", nonce: "nonce-456", observation: { kind: "approved_study_context", origin: "https://leetcode.com", title: "Two Sum" } });
+assert.equal(observed.length, 1, "duplicate observation dropped");
+activePort.onDisconnect.emit();
+assert.deepEqual(statuses.at(-1), [false, "extension_disconnected"]);
+assert.equal(JSON.stringify(bridge.connect("bad", "client-123", () => {}, () => {})), JSON.stringify({ ok: false, reason: "invalid_connection" }));
+Promise.all([backgroundChecks, portChecks]).then(() => process.stdout.write("activity extension and bridge checks passed\n")).catch((error) => { console.error(error); process.exitCode = 1; });

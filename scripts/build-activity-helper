@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SOURCE="$EILO_ROOT/activity/native/EiloActivityHelper.swift"
+PLIST="$EILO_ROOT/activity/native/Info.plist"
+APP="$EILO_ROOT/.runtime/eilo-activity-helper/eilo-activity-helper.app"
+MACOS="$APP/Contents/MacOS"
+
+mkdir -p "$MACOS" "$EILO_ROOT/.tmp/swift-module-cache"
+xcrun swiftc -module-cache-path "$EILO_ROOT/.tmp/swift-module-cache" -framework AppKit "$SOURCE" -o "$MACOS/EiloActivityHelper"
+cp "$PLIST" "$APP/Contents/Info.plist"
+codesign --force --sign - --timestamp=none "$APP"
+printf '%s\n' "$APP"
