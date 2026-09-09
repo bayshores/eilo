@@ -206,4 +206,4 @@ body { height:100dvh; overflow:hidden; }
 .editing .widget[data-h] .widget-content { padding-top:48px; }
 .editing .widget[data-type="today"][data-h="2"] .widget-subtitle { display:none; }
 .editing .widget[data-type="today"][data-h="2"] .agenda-items { margin-top:12px; row-gap:8px; }
-@media (min-width:701px) { .app-window { width:calc(100% - 64px); height:calc(100dvh - 156px); margin-top:24px; } }
+@media (min-width:701px) { .app-window { width:calc(100% - 64px); height:calc(100dvh - 168px); margin-top:24px; } }
