@@ -1,0 +1,23 @@
+[
+  {
+    "family": "Atkinson Hyperlegible Next",
+    "file": "atkinson-next.woff2",
+    "source": "https://fonts.gstatic.com/s/atkinsonhyperlegiblenext/v7/NaPNcYPdHfdVxJw0IfIP0lvYFqijb-UxCtm5_wdGseiJn3o.woff2",
+    "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/atkinsonhyperlegiblenext/OFL.txt",
+    "bytes": 33996
+  },
+  {
+    "family": "IBM Plex Sans",
+    "file": "ibm-plex-sans.woff2",
+    "source": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxeKYY.woff2",
+    "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexsans/OFL.txt",
+    "bytes": 45712
+  },
+  {
+    "family": "Source Sans 3",
+    "file": "source-sans-3.woff2",
+    "source": "https://fonts.gstatic.com/s/sourcesans3/v19/nwpStKy2OAdR1K-IwhWudF-R3w8aZQ.woff2",
+    "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/sourcesans3/OFL.txt",
+    "bytes": 28740
+  }
+]

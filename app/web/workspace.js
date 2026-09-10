@@ -24,7 +24,8 @@
   function schemaReady(next = state) { return next?.schema_version === 2 && next?.tasks && Array.isArray(next.tasks.tasks); }
   async function readResponse(response) { if (!(response.headers.get("content-type") || "").includes("application/json")) return {}; try { return await response.json(); } catch { return {}; } }
   async function getState(after, signal) { const response = await fetch(`/api/state${after ? `?after=${encodeURIComponent(after)}` : ""}`, { headers: clientHeaders, cache: "no-store", signal }); const payload = await readResponse(response); if (!response.ok) throw new Error(payload.error || `The local service returned ${response.status}.`); return payload; }
-  async function post(path, body) { const response = await fetch(path, { method: "POST", headers: { ...clientHeaders, "Content-Type": "application/json" }, body: JSON.stringify(body) }); const payload = await readResponse(response); if (!response.ok) { const error = new Error(payload.error || `The local service returned ${response.status}.`); error.status = response.status; throw error; } return payload; }
+  async function post(path, body) {
+    if (["/api/message", "/api/goal"].includes(path) && state?.workspace?.active_chat_id) body = {...body, chat_id:state.workspace.active_chat_id}; const response = await fetch(path, { method: "POST", headers: { ...clientHeaders, "Content-Type": "application/json" }, body: JSON.stringify(body) }); const payload = await readResponse(response); if (!response.ok) { const error = new Error(payload.error || `The local service returned ${response.status}.`); error.status = response.status; throw error; } return payload; }
   function acceptedHasRequest(next, id) { return Array.isArray(next.accepted_request_ids) && next.accepted_request_ids.includes(id); }
   function pendingLabel(status) { return ({ accepted: "Accepted", failed: "Reply failed · history not confirmed", interrupted: "Interrupted", rejected: "Not sent", unconfirmed: "Acceptance not confirmed", sending: "Sending" })[status] || "Sending"; }
   function messageEntries(next) { const entries = (Array.isArray(next.messages) ? next.messages : []).filter((item) => item && (item.role === "user" || item.role === "assistant") && typeof item.text === "string").map((item) => ({ ...item, displayStatus: null })); const pending = next.pending_message; if (pending && pending.request_id !== dismissedPendingRequestId) entries.push({ id: pending.request_id, role: "user", text: pending.text, displayStatus: pending.status }); if (localOptimistic && pending?.request_id !== localOptimistic.request_id) entries.push({ ...localOptimistic, role: "user", displayStatus: localOptimistic.status }); return entries; }
@@ -39,7 +40,7 @@
   function selectTask(id, { populate = true } = {}) { selectedTaskId = id; const task = selectedTask(); if (!task) { elements.detail.hidden = true; return; } elements.detail.hidden = false; if (populate) populateEditor(task); renderedTaskFingerprint = null; renderTasks(state); taskButtons.get(id)?.focus(); }
   function renderTasks(next) {
     const supported = schemaReady(next); elements.schemaMessage.hidden = supported; if (!supported) { setText(elements.schemaMessage, "This workspace needs a service update. Reload after the local service is updated.", "error"); elements.taskList.replaceChildren(); elements.taskEmpty.hidden = false; elements.detail.hidden = true; setTaskControlsDisabled(true); return; }
-    const tasks = next.tasks.tasks;
+    const tasks = next.tasks.tasks.filter(task => task.status !== "deleted");
     const openTasks = tasks.filter((task) => task.status === "open");
     const focusTask = openTasks.find((task) => task.id === next.tasks.focus_id);
     const focusSummary = $("#current-focus");

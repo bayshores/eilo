@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Import a developer-created Google Desktop OAuth client without printing its values."""
+import json
+import os
+from pathlib import Path
+import re
+import sys
+
+
+def main():
+    if len(sys.argv) != 2:
+        raise ValueError("Usage: scripts/configure-google-calendar /path/to/downloaded-desktop-client.json")
+    source = Path(sys.argv[1]).expanduser()
+    if source.stat().st_size > 16384:
+        raise ValueError("Choose a Google Desktop OAuth client JSON file.")
+    client = json.loads(source.read_text()).get("installed")
+    if not isinstance(client, dict) or not re.fullmatch(r"[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com", client.get("client_id", "")):
+        raise ValueError("Choose a Desktop app OAuth client, not a web or service-account credential.")
+    saved = {"client_id": client["client_id"]}
+    if "client_secret" in client:
+        if not isinstance(client["client_secret"], str) or not 1 <= len(client["client_secret"]) <= 300:
+            raise ValueError("The desktop client file is incomplete.")
+        saved["client_secret"] = client["client_secret"]
+    root = Path(__file__).resolve().parents[1]
+    directory = root / ".state"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    directory.chmod(0o700)
+    target = directory / "google-calendar-client.json"
+    temporary = target.with_suffix(".new")
+    with temporary.open("w") as stream:
+        temporary.chmod(0o600)
+        json.dump(saved, stream)
+        stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary.replace(target)
+    print("Google Calendar developer setup saved. Open Connections in eïlo to sign in.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, TypeError, OSError, AttributeError) as error:
+        # Never print a credential, full input document, or raw filesystem error.
+        print(str(error) if isinstance(error, ValueError) and not isinstance(error, json.JSONDecodeError)
+              else "The Google client file could not be imported. Check the downloaded file and try again.", file=sys.stderr)
+        raise SystemExit(1)

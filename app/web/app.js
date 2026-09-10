@@ -67,6 +67,7 @@
     return payload;
   }
   async function post(path, body) {
+    if (["/api/message", "/api/goal"].includes(path) && state?.workspace?.active_chat_id) body = {...body, chat_id:state.workspace.active_chat_id};
     const response = await fetch(path, { method: "POST", headers: { ...clientHeaders, "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const payload = await readResponse(response);
     if (!response.ok) { const error = new Error(payload.error || `The local service returned ${response.status}.`); error.status = response.status; throw error; }

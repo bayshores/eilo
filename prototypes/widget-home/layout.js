@@ -48,6 +48,32 @@ export function createDefaultState() {
   return { version: 1, widgets: DEFAULT_WIDGETS.map(widget => ({ ...widget })), positions: { wide: DEFAULT_WIDE.map(position => ({ ...position })) } };
 }
 
+function isUntouchedDefault(state) {
+  return state.widgets.length === DEFAULT_WIDGETS.length && state.widgets.every((widget, index) =>
+    widget.id === DEFAULT_WIDGETS[index].id && widget.type === DEFAULT_WIDGETS[index].type && widget.size === DEFAULT_WIDGETS[index].size && !widget.footprints)
+    && Object.keys(state.positions).length === 1 && Array.isArray(state.positions.wide)
+    && state.positions.wide.length === DEFAULT_WIDE.length && state.positions.wide.every((position, index) =>
+      position.id === DEFAULT_WIDE[index].id && position.x === DEFAULT_WIDE[index].x && position.y === DEFAULT_WIDE[index].y);
+}
+
+/** Convert view-only Conversation widgets into the single bottom dock presentation. */
+export function withConversationDock(rawState) {
+  const normalized = normalizeState(rawState);
+  const defaultLayout = isUntouchedDefault(normalized);
+  const next = cloneState(normalized);
+  const removed = new Set(next.widgets.filter(widget => widget.type === 'conversation').map(widget => widget.id));
+  next.widgets = next.widgets.filter(widget => !removed.has(widget.id));
+  for (const mode of Object.keys(next.positions)) next.positions[mode] = next.positions[mode].filter(position => !removed.has(position.id));
+  if (defaultLayout) {
+    const progress = next.widgets.find(widget => widget.id === 'progress-1');
+    if (progress) {
+      progress.footprints = { ...(progress.footprints || {}), wide: { w: 8, h: 2 } };
+      next.positions.wide = next.positions.wide.map(position => position.id === progress.id ? { ...position, x: 4, y: 2 } : position);
+    }
+  }
+  return next;
+}
+
 export function normalizeState(rawObject) {
   if (!isObject(rawObject) || rawObject.version !== 1 || !Array.isArray(rawObject.widgets)) return createDefaultState();
   const ids = new Set();
@@ -113,7 +139,248 @@ export function projectLayout(state, mode = 'wide') {
   return placed;
 }
 
+function previewSlots(item, columns, rows, preferredX, preferredY) {
+  const slots = [];
+  for (let y = 0; y <= rows - item.h; y++) for (let x = 0; x <= columns - item.w; x++) {
+    const distance = Math.abs(x - preferredX) + Math.abs(y - preferredY);
+    slots.push({ x, y, distance });
+  }
+  slots.sort((a, b) => a.distance - b.distance || a.y - b.y || a.x - b.x);
+  return slots;
+}
+function previewSlot(item, placed, columns, rows, preferredX, preferredY) {
+  const slots = previewSlots(item, columns, rows, preferredX, preferredY);
+  for (const slot of slots) {
+    const candidate = { ...item, x: slot.x, y: slot.y };
+    if (!placed.some(other => overlaps(candidate, other))) return candidate;
+  }
+  return null;
+}
+
+function constrainedPeers(peers) {
+  return [...peers].sort((a, b) => b.w * b.h - a.w * a.h || b.w - a.w || b.h - a.h || a.id.localeCompare(b.id));
+}
+
+/**
+ * Computes transient drag reflow for one responsive mode. The caller supplies
+ * the unmodified state for every pointer update; this never commits metadata.
+ */
+export function previewMove(state, { id, x, y, mode = 'wide', rows = 4 } = {}) {
+  if (!Object.hasOwn(MODES, mode) || typeof id !== 'string' || !Number.isFinite(x) || !Number.isFinite(y) ||
+    !Number.isInteger(rows) || rows < 1 || rows > ROW_LIMIT) return state;
+  const layout = projectLayout(state, mode), target = layout.find(item => item.id === id);
+  if (!target || target.y + target.h > rows || target.h > rows) return state;
+  const columns = MODES[mode];
+  const desiredX = Math.max(0, Math.min(columns - target.w, Math.floor(x)));
+  const desiredY = Math.max(0, Math.min(rows - target.h, Math.floor(y)));
+  if (target.x === desiredX && target.y === desiredY) return state;
+  const visible = layout.filter(item => item.y + item.h <= rows);
+  // Cards beyond Home remain in More, but cards crossing its lower edge still
+  // occupy real grid space and must not be overwritten by a drag preview.
+  const reserved = layout.filter(item => item.id !== id && item.y + item.h > rows);
+  const peers = visible.filter(item => item.id !== id);
+  const candidates = [];
+  for (let candidateY = 0; candidateY <= rows - target.h; candidateY++) {
+    for (let candidateX = 0; candidateX <= columns - target.w; candidateX++) {
+      candidates.push({
+        x: candidateX, y: candidateY,
+        distance: Math.abs(candidateX - desiredX) + Math.abs(candidateY - desiredY),
+        collisions: peers.filter(peer => overlaps({ ...target, x: candidateX, y: candidateY }, peer)).length,
+      });
+    }
+  }
+  candidates.sort((a, b) => a.distance - b.distance || a.collisions - b.collisions || a.y - b.y || a.x - b.x);
+  let packed = null;
+  // This shared cap makes the exact-target fallback safe for repeated pointer
+  // updates. It is a bounded search for a feasible arrangement, not optimal packing.
+  let searchVisits = 0;
+  const SEARCH_LIMIT = 5000;
+  for (const candidate of candidates) {
+    const dragged = { ...target, x: candidate.x, y: candidate.y };
+    if (reserved.some(item => overlaps(dragged, item))) continue;
+    const placed = [...reserved, dragged];
+    const displaced = [];
+    // Keep every peer whose current rectangle is still clear. This avoids an
+    // earlier displaced card stealing a later untouched card's exact anchor.
+    for (const peer of peers) {
+      if (!placed.some(item => overlaps(peer, item))) placed.push(peer);
+      else displaced.push(peer);
+    }
+    let failed = false;
+    for (const peer of constrainedPeers(displaced)) {
+      const slot = previewSlot(peer, placed, columns, rows, peer.x, peer.y);
+      if (!slot) { failed = true; break; }
+      placed.push(slot);
+    }
+    if (!failed) { packed = placed; break; }
+    // A constrained displaced card can require a slot held by an otherwise
+    // untouched peer. Retry deterministically with all peers movable.
+    const retry = [...reserved, dragged];
+    failed = false;
+    for (const peer of constrainedPeers(peers)) {
+      const slot = previewSlot(peer, retry, columns, rows, peer.x, peer.y);
+      if (!slot) { failed = true; break; }
+      retry.push(slot);
+    }
+    if (!failed) { packed = retry; break; }
+    // Greedy nearest-slot placement can reject a feasible dense layout because
+    // a large peer needs a slot currently held by another peer. Backtrack only
+    // within this candidate target before considering a farther snap location.
+    const ordered = constrainedPeers(peers);
+    const search = placed => {
+      if (ordered.length === placed.length - reserved.length - 1) return placed;
+      if (searchVisits >= SEARCH_LIMIT) return null;
+      const peer = ordered[placed.length - reserved.length - 1];
+      for (const slot of previewSlots(peer, columns, rows, peer.x, peer.y)) {
+        if (searchVisits++ >= SEARCH_LIMIT) return null;
+        const next = { ...peer, x: slot.x, y: slot.y };
+        if (placed.some(item => overlaps(next, item))) continue;
+        const result = search([...placed, next]);
+        if (result) return result;
+      }
+      return null;
+    };
+    const solved = search([...reserved, dragged]);
+    if (solved) { packed = solved; break; }
+  }
+  if (!packed) return state;
+  const packedById = new Map(packed.map(item => [item.id, item]));
+  if (visible.every(item => {
+    const next = packedById.get(item.id);
+    return next && next.x === item.x && next.y === item.y;
+  })) return state;
+  const positions = new Map(layout.map(item => [item.id, { id: item.id, x: item.x, y: item.y }]));
+  for (const item of packed) positions.set(item.id, { id: item.id, x: item.x, y: item.y });
+  const next = cloneState(normalizeState(state));
+  next.positions[mode] = layout.map(item => positions.get(item.id));
+  return next;
+}
+
 function savedPositions(layout) { return layout.map(({ id, x, y }) => ({ id, x, y })); }
+
+function minimumWidth(item, mode) {
+  return mode === 'stacked' ? 1 : mode === 'compact' ? 3 : CATALOG[item.type].sizes.small.w;
+}
+function insideHome(item, columns, rows) {
+  return item.x >= 0 && item.y >= 0 && item.x + item.w <= columns && item.y + item.h <= rows;
+}
+function compactChoices(item, columns, rows, mode) {
+  const choices = [];
+  for (let h = Math.min(item.h, rows); h >= 2; h--) {
+    for (let w = Math.min(item.w, columns); w >= minimumWidth(item, mode); w--) {
+      for (let y = 0; y <= rows - h; y++) for (let x = 0; x <= columns - w; x++) {
+        const loss = item.w * item.h - w * h;
+        const distance = Math.abs(x - item.x) + Math.abs(y - item.y);
+        choices.push({ ...item, x, y, w, h, score: loss * 3 + distance });
+      }
+    }
+  }
+  choices.sort((a, b) => a.score - b.score || Math.abs(a.y-item.y) - Math.abs(b.y-item.y) || a.y - b.y || a.x - b.x);
+  return choices;
+}
+function packWithinHome(peers, fixed, columns, rows, mode, budget) {
+  const required = peers.reduce((sum, item) => sum + minimumWidth(item, mode) * 2, 0);
+  if (required + fixed.reduce((sum, item) => sum + item.w * item.h, 0) > columns * rows) return null;
+  const ordered = constrainedPeers(peers);
+  const choices = ordered.map(item => compactChoices(item, columns, rows, mode));
+  function place(index, placed) {
+    if (index === ordered.length) return placed;
+    for (const item of choices[index]) {
+      if (--budget.remaining < 0) return null;
+      if (placed.some(other => overlaps(item, other))) continue;
+      const solved = place(index + 1, [...placed, item]);
+      if (solved) return solved;
+    }
+    return null;
+  }
+  return place(0, fixed);
+}
+function keepPlacement(state, mode, layout, packed, rows) {
+  const map = new Map(packed.map(item => [item.id, item]));
+  const placed = [...packed];
+  // Existing drawer items keep their metadata. If a formerly off-screen anchor
+  // crosses a new visible rectangle, keep that drawer item below Home.
+  for (const item of layout) if (!map.has(item.id)) {
+    const next = placed.some(other => overlaps(item, other)) ? fit(item, placed, MODES[mode], rows) : item;
+    placed.push(next); map.set(item.id, next);
+  }
+  if (layout.every(item => {
+    const next = map.get(item.id);
+    return next.x === item.x && next.y === item.y && next.w === item.w && next.h === item.h;
+  })) return state;
+  const next = cloneState(normalizeState(state));
+  for (const widget of next.widgets) {
+    const prior = layout.find(item => item.id === widget.id), item = map.get(widget.id);
+    if (item.w !== prior.w || item.h !== prior.h) widget.footprints = {
+      ...(widget.footprints || {}), [mode]: { w: item.w, h: item.h },
+    };
+  }
+  next.positions[mode] = layout.map(item => {
+    const position = map.get(item.id); return { id: item.id, x: position.x, y: position.y };
+  });
+  return next;
+}
+function sharedEdges(target, resized, peers, columns, rows, mode) {
+  const dx = resized.w - target.w, dy = resized.h - target.h;
+  const packed = [resized];
+  for (const peer of peers) {
+    const next = { ...peer };
+    if (peer.x === target.x + target.w && peer.y < target.y + target.h && peer.y + peer.h > target.y) {
+      next.x += dx; next.w -= dx;
+    }
+    if (peer.y === target.y + target.h && peer.x < target.x + target.w && peer.x + peer.w > target.x) {
+      next.y += dy; next.h -= dy;
+    }
+    if (next.w < minimumWidth(next, mode) || next.h < 2 || next.h > 8 || !insideHome(next, columns, rows) || packed.some(other => overlaps(next, other))) return null;
+    packed.push(next);
+  }
+  return packed;
+}
+
+/** Resize within the visible canvas. A resize never evicts a visible peer. */
+export function resizeWithinHome(state, { id, w, h, mode = 'wide', rows = 4 } = {}) {
+  if (!Object.hasOwn(MODES, mode) || (w !== undefined && !Number.isFinite(w)) || (h !== undefined && !Number.isFinite(h)) || !Number.isInteger(rows) || rows < 2 || rows > ROW_LIMIT) return state;
+  const layout = projectLayout(state, mode), target = layout.find(item => item.id === id), columns = MODES[mode];
+  if (!target || !insideHome(target, columns, rows)) return state;
+  w ??= target.w; h ??= target.h;
+  const desiredW = Math.max(minimumWidth(target, mode), Math.min(columns-target.x, Math.floor(w)));
+  const desiredH = Math.max(2, Math.min(8, rows-target.y, Math.floor(h)));
+  if (desiredW === target.w && desiredH === target.h) return state;
+  const peers = layout.filter(item => item.id !== id && insideHome(item, columns, rows));
+  const widths = [], heights = [];
+  for (let width = desiredW; width >= Math.min(desiredW,target.w); width--) widths.push(width);
+  for (let height = desiredH; height >= Math.min(desiredH,target.h); height--) heights.push(height);
+  const sizes = widths.flatMap(width => heights.map(height => ({ w:width, h:height, distance:desiredW-width+desiredH-height })));
+  sizes.sort((a,b)=>a.distance-b.distance || b.w-a.w);
+  const budget = {remaining:12000};
+  for (const size of sizes) {
+    const resized = {...target,w:size.w,h:size.h};
+    let packed = sharedEdges(target,resized,peers,columns,rows,mode);
+    if (!packed) {
+      // Reserve untouched rectangles first, so a displaced item does not steal
+      // an otherwise unaffected widget's position.
+      const fixed = peers.filter(item => !overlaps(item,resized));
+      const displaced = peers.filter(item => overlaps(item,resized));
+      packed = packWithinHome(displaced,[resized,...fixed],columns,rows,mode,budget);
+      if (!packed) packed = packWithinHome(peers,[resized],columns,rows,mode,budget);
+    }
+    if (packed) return keepPlacement(state,mode,layout,packed,rows);
+  }
+  return state;
+}
+
+/** Recover overflow into unused room, keeping already visible widgets stable. */
+export function fitWithinHome(state, { mode = 'wide', rows = 4 } = {}) {
+  if (!Object.hasOwn(MODES,mode) || !Number.isInteger(rows) || rows < 2 || rows > ROW_LIMIT) return state;
+  const layout = projectLayout(state,mode), columns=MODES[mode];
+  const visible=layout.filter(item=>insideHome(item,columns,rows)), hidden=layout.filter(item=>!insideHome(item,columns,rows));
+  if (!hidden.length) return state;
+  const firstRow=Math.min(...hidden.map(item=>item.y));
+  const peers=hidden.map(item=>({...item,y:Math.max(0,item.y-firstRow)}));
+  const packed=packWithinHome(peers,visible,columns,rows,mode,{remaining:12000});
+  return packed ? keepPlacement(state,mode,layout,packed,rows) : state;
+}
+
 function cloneState(state) { return { version: 1, widgets: state.widgets.map(widget => ({ ...widget, ...(widget.footprints ? { footprints: Object.fromEntries(Object.entries(widget.footprints).map(([mode, footprint]) => [mode, { ...footprint }])) } : {}) })), positions: Object.fromEntries(Object.entries(state.positions).map(([mode, list]) => [mode, list.map(position => ({ ...position }))])) }; }
 function settle(state, mode, targetId, x, y) {
   const columns = MODES[mode], current = projectLayout(state, mode), target = current.find(item => item.id === targetId);
@@ -171,4 +438,20 @@ export function updateLayout(state, action) {
     return next;
   }
   return state;
+}
+
+// A one-time, URL-fragment handoff carries view metadata only, never task or chat content.
+export function layoutTransferHash(layout, prefs = {}) {
+  return '#home-layout=' + encodeURIComponent(JSON.stringify({ layout: normalizeState(layout),
+    preferences: { pin: prefs.pin === true, reducedMotion: prefs.reducedMotion === true } }));
+}
+export function readLayoutTransfer(hash) {
+  if (typeof hash !== 'string' || !hash.startsWith('#home-layout=') || hash.length > 32768) return null;
+  try {
+    const value = JSON.parse(decodeURIComponent(hash.slice('#home-layout='.length)));
+    if (value?.layout?.version !== 1 || !Array.isArray(value.layout.widgets)) return null;
+    return { layout: normalizeState(value.layout), preferences: {
+      pin: value.preferences?.pin === true, reducedMotion: value.preferences?.reducedMotion === true,
+    } };
+  } catch { return null; }
 }

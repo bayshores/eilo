@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
 import re
 import time
 import uuid
@@ -90,6 +91,10 @@ def apply_operations(state: dict, operations: list, *, based_on_revision: int,
         task["updated_at"] = now
         task["last_source"] = {**source, "request_id": request_id}
 
+    def require_available(task):
+        if task["status"] == "deleted":
+            raise TaskError("Restore this task before changing it.")
+
     for operation in operations:
         if not isinstance(operation, dict):
             raise TaskError("Invalid task change.")
@@ -120,6 +125,7 @@ def apply_operations(state: dict, operations: list, *, based_on_revision: int,
             if len(operation) == 2:
                 raise TaskError("Choose something to change on this task.")
             task = resolve(operation["task_id"])
+            require_available(task)
             for key, maximum in (("title", 500), ("due_text", 120), ("unit", 60)):
                 if key in operation:
                     task[key] = _text(operation[key], key.replace("_", " "), maximum, nullable=key != "title")
@@ -134,6 +140,8 @@ def apply_operations(state: dict, operations: list, *, based_on_revision: int,
         elif name == "focus":
             _shape(operation, ("op", "task_id"))
             task = resolve(operation["task_id"], optional=True)
+            if task:
+                require_available(task)
             if task and task["status"] != "open":
                 raise TaskError("Reopen that task before making it your focus.")
             updated["focus_id"] = task["id"] if task else None
@@ -141,6 +149,7 @@ def apply_operations(state: dict, operations: list, *, based_on_revision: int,
         elif name in ("complete", "cancel", "reopen"):
             _shape(operation, ("op", "task_id"))
             task = resolve(operation["task_id"])
+            require_available(task)
             task["status"] = {"complete": "completed", "cancel": "cancelled", "reopen": "open"}[name]
             if name == "complete" and task["target_count"] is not None:
                 task["completed_count"] = task["target_count"]
@@ -148,9 +157,35 @@ def apply_operations(state: dict, operations: list, *, based_on_revision: int,
                 updated["focus_id"] = None
             provenance(task)
             acknowledgments.append(f'{ {"complete": "Completed", "cancel": "Cancelled", "reopen": "Reopened"}[name]} “{task["title"]}”.')
+        elif name == "delete":
+            _shape(operation, ("op", "task_id"))
+            task = resolve(operation["task_id"])
+            if task["status"] == "deleted":
+                acknowledgments.append(f'“{task["title"]}” is already in Trash.')
+                continue
+            task["deleted_from_status"] = task["status"]
+            task["deleted_at"] = now
+            task["status"] = "deleted"
+            if updated["focus_id"] == task["id"]:
+                updated["focus_id"] = None
+            provenance(task)
+            acknowledgments.append(f'Moved “{task["title"]}” to Trash.')
+        elif name == "restore":
+            _shape(operation, ("op", "task_id"))
+            task = resolve(operation["task_id"])
+            if task["status"] != "deleted":
+                raise TaskError("Only a task in Trash can be restored.")
+            prior_status = task.get("deleted_from_status")
+            if prior_status not in ("open", "completed", "cancelled"):
+                raise TaskError("This deleted task cannot be safely restored.")
+            task["status"] = task.pop("deleted_from_status")
+            task.pop("deleted_at", None)
+            provenance(task)
+            acknowledgments.append(f'Restored “{task["title"]}”.')
         elif name == "progress":
             _shape(operation, ("op", "task_id", "completed_count"))
             task = resolve(operation["task_id"])
+            require_available(task)
             count = _count(operation["completed_count"])
             if task["status"] != "open" or task["target_count"] is None or count > task["target_count"]:
                 raise TaskError("Progress needs an open task and cannot exceed its target quantity.")
@@ -170,6 +205,37 @@ def apply_operations(state: dict, operations: list, *, based_on_revision: int,
     return updated, " ".join(acknowledgments)
 
 
+def bind_model_proposal(raw, *, request_id, revision):
+    """Attach caller-owned correlation to one proven current-turn model row.
+
+    The native driver proves the row follows this request before calling here;
+    recovery proves it through the matching user/proposal publication metadata.
+    Model-generated IDs are not transport identity or concurrency protection.
+    Legacy five-field output is accepted, but its correlation fields have no
+    authority. The server still validates the receipt and current task revision.
+    """
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate proposal key")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(raw, object_pairs_hook=unique_keys) if isinstance(raw, str) else None
+    except (ValueError, TypeError):
+        return None
+    fields = {"kind", "reply", "operations"}
+    if not isinstance(value, dict) or set(value) not in (fields, fields | {"request_id", "based_on_revision"}):
+        return None
+    if (not isinstance(value.get("kind"), str) or value["kind"] not in {"update", "chat", "clarify"}
+            or not isinstance(value.get("reply"), str) or not isinstance(value.get("operations"), list)):
+        return None
+    return {"request_id": request_id, "based_on_revision": revision,
+            **{key: value[key] for key in ("kind", "reply", "operations")}}
+
+
 def validate_proposal(value, *, request_id, revision):
     _shape(value, ("request_id", "based_on_revision", "kind", "reply", "operations"))
     if value["request_id"] != request_id or type(value["based_on_revision"]) is not int or value["based_on_revision"] != revision:
@@ -177,7 +243,7 @@ def validate_proposal(value, *, request_id, revision):
     if value["kind"] not in ("update", "chat", "clarify") or not isinstance(value["operations"], list):
         raise TaskError("The response did not contain a valid task decision.")
     reply = value["reply"]
-    if (not isinstance(reply, str) or not reply.strip() or len(reply) > 8000
+    if (not isinstance(reply, str) or (value['kind'] != 'update' and not reply.strip()) or len(reply) > 8000
             or any(ord(ch) < 32 and ch not in "\n\t" for ch in reply)):
         raise TaskError("The response did not contain a usable reply.")
     if bool(value["operations"]) != (value["kind"] == "update"):

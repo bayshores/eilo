@@ -1,0 +1,40 @@
+#!/bin/sh
+# Installs only eilo's local whisper.cpp runtime and English speech model.
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+RUNTIME="$ROOT/.runtime/stt"
+VERSION="v1.9.3"
+COMMIT="371b5a7561823ab2bb32142d2751e35e7534727b"
+MODEL="$RUNTIME/models/ggml-small.en.bin"
+MODEL_SHA1="db8a495a91d927739e50b3fc1cc4c6b8f6c2d022"
+SOURCE="$RUNTIME/whisper.cpp"
+
+command -v cmake >/dev/null || { echo "cmake is required" >&2; exit 1; }
+command -v git >/dev/null || { echo "git is required" >&2; exit 1; }
+command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+command -v shasum >/dev/null || { echo "shasum is required" >&2; exit 1; }
+command -v cc >/dev/null || { echo "a C/C++ compiler is required" >&2; exit 1; }
+
+umask 077
+mkdir -p "$RUNTIME/models"
+if [ ! -d "$SOURCE/.git" ]; then
+  git clone --depth 1 --branch "$VERSION" https://github.com/ggml-org/whisper.cpp.git "$SOURCE"
+fi
+git -C "$SOURCE" fetch --depth 1 origin "refs/tags/$VERSION:refs/tags/$VERSION"
+git -C "$SOURCE" checkout --detach "$VERSION"
+case "$(git -C "$SOURCE" rev-parse HEAD)" in
+  "$COMMIT") ;;
+  *) echo "whisper.cpp tag did not resolve to expected release commit" >&2; exit 1 ;;
+esac
+
+if [ ! -f "$MODEL" ] || [ "$(shasum -a 1 "$MODEL" | awk '{print $1}')" != "$MODEL_SHA1" ]; then
+  rm -f "$MODEL.part"
+  curl --fail --location --retry 3 --output "$MODEL.part" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin"
+  [ "$(shasum -a 1 "$MODEL.part" | awk '{print $1}')" = "$MODEL_SHA1" ] || { rm -f "$MODEL.part"; echo "model checksum mismatch" >&2; exit 1; }
+  mv "$MODEL.part" "$MODEL"
+fi
+cmake -S "$SOURCE" -B "$SOURCE/build" -DCMAKE_BUILD_TYPE=Release
+cmake --build "$SOURCE/build" --config Release --target whisper-cli -j 4
+test -x "$SOURCE/build/bin/whisper-cli"
+echo "Local transcription ready: $VERSION, ggml-small.en.bin"

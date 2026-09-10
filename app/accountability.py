@@ -98,9 +98,13 @@ def admit(state: dict, observation: dict, *, now: float, stable_since: float,
 
 
 def validate_decision(value: object, event_id: str) -> dict | None:
-    if not isinstance(value, dict) or set(value) != {"event_id", "decision", "message"}:
+    if not isinstance(value, dict) or set(value) not in ({"event_id", "decision", "message"}, {"event_id", "decision", "message", "related_task_ids"}):
         return None
     if value["event_id"] != event_id or value["decision"] not in ("quiet", "ask", "check_in"):
+        return None
+    related = value.get("related_task_ids", [])
+    if (not isinstance(related, list) or len(related) > 32 or any(not isinstance(item,str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}",item) for item in related)
+            or len(set(related)) != len(related)):
         return None
     message = value["message"]
     if not isinstance(message, str) or len(message) > 400 or any(ord(ch) < 32 and ch != "\n" for ch in message):

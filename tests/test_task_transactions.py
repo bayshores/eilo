@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from app.server import ChatError, LocalChat, visible_messages
-from app.tasks import TaskConflict, TaskError
+from app.tasks import TaskConflict, TaskError, bind_model_proposal
 
 
 def update_receipt(chat, request_id="request_task_001"):
@@ -69,17 +69,55 @@ class TransactionTests(unittest.IsolatedAsyncioTestCase):
             await self.chat.send("Another message", "request_task_002")
 
     async def test_recovery_stages_once_without_model_call_or_user_duplication(self):
-        raw = json.dumps(update_receipt(self.chat)["proposal"])
+        proposal = update_receipt(self.chat)["proposal"]
+        raw = json.dumps({key:proposal[key] for key in ("kind", "reply", "operations")})
         self.chat.native_record = {"messages": [
-            {"id": 1, "role": "user", "content": "Read notes", "display_metadata": {"lane": "eilo_human", "request_id": "request_task_001"}},
+            {"id": 1, "role": "user", "content": "Read notes", "display_metadata": {"lane": "eilo_human", "request_id": "request_task_001", "based_on_revision": 0}},
             {"id": 2, "role": "assistant", "content": raw, "display_kind": "eilo_human_proposal",
-             "display_metadata": {"request_id": "request_task_001"}},
+             "display_metadata": {"request_id": "request_task_001", "based_on_revision": 0}},
         ]}
         with patch.object(self.chat, "refresh", new=unittest.mock.AsyncMock()):
             await self.chat.recover_publication()
         self.assertEqual([task["title"] for task in self.chat.meta["tasks"]["tasks"]], ["Read notes"])
         self.assertEqual(len([call for call in self.commands if call[0][0] == "--input"]), 0)
         self.assertEqual(len([row for row in self.chat.native_record["messages"] if row["role"] == "user"]), 1)
+
+    async def test_wrong_model_echo_does_not_replace_ordinary_chat_with_a_task_error(self):
+        raw = json.dumps({"request_id":"wrong-echo", "based_on_revision":44, "kind":"chat",
+                          "reply":"Fair. That nudge missed.", "operations":[]})
+        receipt = update_receipt(self.chat)
+        receipt['proposal'] = bind_model_proposal(raw, request_id='request_task_001', revision=0)
+        before = deepcopy(self.chat.meta['tasks'])
+        self.chat.stage_publication(receipt)
+        self.assertEqual(self.chat.meta['pending_publication']['public_reply'], 'Fair. That nudge missed.')
+        self.assertEqual(self.chat.meta['pending_publication']['disposition'], 'chat')
+        self.assertEqual(self.chat.meta['tasks'], before)
+
+    async def test_wrong_transport_identity_is_still_rejected(self):
+        receipt = update_receipt(self.chat, request_id='another-request')
+        before = deepcopy(self.chat.meta['tasks'])
+        with self.assertRaises(ChatError):
+            self.chat.stage_publication(receipt)
+        self.assertEqual(self.chat.meta['tasks'], before)
+        self.assertIsNone(self.chat.meta.get('pending_publication'))
+
+    async def test_stale_task_revision_still_prevents_a_model_update(self):
+        self.chat.meta['tasks']['revision'] = 1
+        before = deepcopy(self.chat.meta['tasks'])
+        self.chat.stage_publication(update_receipt(self.chat))
+        self.assertEqual(self.chat.meta['pending_publication']['disposition'], 'rejected')
+        self.assertEqual(self.chat.meta['tasks'], before)
+
+    async def test_recovery_requires_matching_native_revision_metadata(self):
+        self.chat.native_record = {'messages':[
+            {'id':1,'role':'user','content':'hello','display_metadata':{'lane':'eilo_human','request_id':'request_task_001','based_on_revision':0}},
+            {'id':2,'role':'assistant','content':'{"kind":"chat","reply":"Hello","operations":[]}',
+             'display_kind':'eilo_human_proposal','display_metadata':{'request_id':'request_task_001','based_on_revision':99}},
+        ]}
+        with self.assertRaises(ChatError):
+            await self.chat.recover_publication()
+        self.assertIsNone(self.chat.meta.get('pending_publication'))
+        self.assertEqual(self.commands, [])
 
     async def test_malformed_proposal_keeps_user_visible_but_hides_raw_and_changes_no_tasks(self):
         self.chat.native_record = {"messages": [
@@ -94,6 +132,8 @@ class TransactionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.chat.messages, [{"id": "1", "role": "user", "text": "Could you add this?"}])
         self.assertNotIn("not JSON", [message["text"] for message in self.chat.messages])
         self.assertEqual(self.chat.meta["pending_publication"]["disposition"], "rejected")
+        self.assertNotIn('task controls', self.chat.meta['pending_publication']['public_reply'])
+        self.assertNotIn('clarify', self.chat.meta['pending_publication']['public_reply'])
 
     async def test_direct_controls_use_task_validator(self):
         with self.assertRaises(TaskError):

@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from app import human_driver
+from app.tasks import validate_proposal, TaskError
 
 
 def fixture_input(**changes):
@@ -25,11 +26,30 @@ class ValidationTests(unittest.TestCase):
         result = human_driver.validate_input(fixture_input(text=text))
         self.assertEqual(result["text"], text)
 
-    def test_proposal_requires_matching_envelope(self):
-        valid = '{"request_id":"request_human_001","based_on_revision":7,"kind":"chat","reply":"I can help.","operations":[]}'
-        self.assertIsNotNone(human_driver._parse_proposal(valid, request_id="request_human_001", revision=7))
-        self.assertIsNone(human_driver._parse_proposal(valid, request_id="other", revision=7))
+    def test_runtime_binds_new_and_legacy_model_output_to_the_actual_turn(self):
+        legacy = '{"request_id":"stale-model-id","based_on_revision":99,"kind":"chat","reply":"Fair. That nudge missed.","operations":[]}'
+        compact = '{"kind":"chat","reply":"Fair. That nudge missed.","operations":[]}'
+        for raw in (legacy, compact):
+            result = human_driver._parse_proposal(raw, request_id="request_human_001", revision=7)
+            self.assertEqual(result, {"request_id":"request_human_001", "based_on_revision":7,
+                                     "kind":"chat", "reply":"Fair. That nudge missed.", "operations":[]})
         self.assertIsNone(human_driver._parse_proposal("not json", request_id="request_human_001", revision=7))
+
+    def test_duplicate_keys_and_extra_fields_cannot_change_the_proposal(self):
+        for raw in ('{"kind":"chat","kind":"update","reply":"Saved","operations":[]}',
+                    '{"kind":[],"reply":"Hello","operations":[]}',
+                    '{"kind":{},"reply":"Hello","operations":[]}',
+                    '{"kind":"chat","reply":"Hello","operations":[],"unexpected":true}'):
+            self.assertIsNone(human_driver._parse_proposal(raw, request_id="request_human_001", revision=7))
+
+    def test_app_owned_update_acknowledgment_does_not_require_model_reply(self):
+        raw='{"kind":"update","reply":"","operations":[{"op":"break","active":true}]}'
+        proposal=human_driver._parse_proposal(raw,request_id='request_human_001',revision=7)
+        self.assertIs(validate_proposal(proposal,request_id='request_human_001',revision=7),proposal)
+        for kind in ('chat','clarify'):
+            invalid={**proposal,'kind':kind,'operations':[]}
+            with self.assertRaises(TaskError):
+                validate_proposal(invalid,request_id='request_human_001',revision=7)
 
 
 class RuntimeConstructionTests(unittest.TestCase):
@@ -112,7 +132,7 @@ class RunHumanTests(unittest.TestCase):
         self.assertEqual(fake_agent.kwargs["persist_user_display_metadata"], {
             "request_id": event["request_id"], "based_on_revision": 7, "lane": "eilo_human"})
         ephemeral = runtime.call_args.kwargs["ephemeral_system_prompt"]
-        self.assertIn(event["request_id"], ephemeral)
+        self.assertNotIn(event["request_id"], ephemeral)
         self.assertIn('"revision":7', ephemeral)
         self.assertNotIn(event["request_id"], fake_agent.kwargs["system_message"])
         self.assertEqual(receipt["user_id"], 11)

@@ -179,7 +179,7 @@ class FakeChat:
         self.commands.append(args)
         if args == ["--sample"]:
             return 1, "", ""
-        event_id = Path(args[-1]).stem.removeprefix("event-")
+        event_id = Path(args[args.index("--input") + 1]).stem.removeprefix("event-")
         return 0, json.dumps({"audit": {"model": MODEL, "provider": PROVIDER, "tool_schema_count": 0},
                               "decision": {"event_id": event_id, "decision": "check_in", "message": "How is the notes review going?"},
                               "assistant_id": 42}), ""
@@ -347,7 +347,7 @@ class TranscriptVisibilityTests(unittest.TestCase):
         self.assertEqual(visible, [
             {"id": "1", "role": "user", "text": "Please add a review task."},
             {"id": "2", "role": "assistant", "text": "Added your review task."},
-            {"id": "4", "role": "assistant", "text": "Want a short reset?", "origin": "check_in"},
+            {"id": "4", "role": "assistant", "text": "Want a short reset?", "origin": "check_in", "event_id": "event-delivered"},
             {"id": "5", "role": "user", "text": "I am still working on it."},
         ])
         self.assertNotIn('"operations"', json.dumps(visible))
@@ -368,7 +368,7 @@ class TranscriptVisibilityTests(unittest.TestCase):
         self.assertEqual(visible, [
             {"id": "1", "role": "user", "text": "Set my goal to review notes"},
             {"id": "2", "role": "assistant", "text": "Okay."},
-            {"id": "6", "role": "assistant", "text": "Want a short reset?", "origin": "check_in"},
+            {"id": "6", "role": "assistant", "text": "Want a short reset?", "origin": "check_in", "event_id": "event-delivered"},
         ])
 
 

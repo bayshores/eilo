@@ -1,12 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-typography="plex">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>eïlo — Widget home prototype</title>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
+  <link rel="preload" href="./assets/fonts/ibm-plex-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./typography.css">
+  <link rel="stylesheet" href="./home-live.css">
+  <link rel="stylesheet" href="./speech.css">
+  <link rel="stylesheet" href="./workspace-views.css">
+  <link rel="stylesheet" href="./checkin-center.css">
+  <link rel="stylesheet" href="./item-controls.css">
+<link rel="stylesheet" href="./calendar-connection.css">
+  <link rel="stylesheet" href="./briefing-sources.css">
+  <link rel="stylesheet" href="./workflow-progress.css">
+  <link rel="stylesheet" href="./connections-manager.css">
+  <link rel="stylesheet" href="./chat-library.css">
+  <link rel="stylesheet" href="./chat-switcher.css">
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
   <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -33,9 +46,7 @@
     <symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
     <symbol id="mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></symbol>
   </svg>
-  <div class="desktop-menubar" aria-hidden="true"><span class="apple-mark"></span><strong>eïlo</strong><span>File</span><span>Edit</span><span>View</span><span>Window</span><span>Help</span><span class="desktop-time"></span></div>
   <main class="app-window" aria-label="eïlo widget home prototype">
-    <div class="titlebar"><div class="traffic-lights" aria-hidden="true"><span></span><span></span><span></span></div><span>eïlo</span></div>
     <div class="workspace nav-collapsed">
       <header class="home-header"><div><h1>Home</h1><p>Sample home</p></div><div class="header-actions"><button class="button overflow-toggle" hidden>More widgets</button><span class="save-state" role="status"></span><button class="button add-toggle" hidden><svg><use href="#plus"/></svg>Add widgets</button><button class="button edit-toggle"><svg><use href="#pencil"/></svg><span>Edit home</span></button></div></header>
       <div class="rail-zone">
@@ -50,8 +61,6 @@
       <div class="board-scroll"><div class="storage-warning" hidden role="status"></div><div class="board" role="region" aria-label="Your widgets"></div><div class="empty-home" hidden><svg><use href="#plus"/></svg><h2>Make room for what matters</h2><p>Add a widget to bring it onto your home.</p><button class="button primary empty-add">Add widgets</button></div></div>
     </div>
   </main>
-  <footer class="prototype-footer">Interactive prototype · Sample data · Your layout stays in this browser</footer>
-  <div class="desktop-dock" aria-hidden="true"><span class="dock-finder">☺</span><span class="dock-browser">◉</span><span class="dock-mail"><svg><use href="#mail"/></svg></span><span class="dock-calendar"><small>APR</small>28</span><span class="dock-notes"></span><span class="dock-eilo">eïlo</span></div>
   <dialog class="gallery" aria-labelledby="gallery-title">
     <div class="dialog-heading"><h2 id="gallery-title">Add widgets</h2><button class="icon-button gallery-close" aria-label="Close widget gallery"><svg><use href="#x"/></svg></button></div>
     <label class="search-field"><svg><use href="#search"/></svg><input type="search" id="widget-search" placeholder="Find a widget" aria-label="Find a widget" autocomplete="off"></label>
@@ -63,5 +72,6 @@
   <div class="sr-only" role="status" aria-live="polite" aria-atomic="true" id="announcement"></div>
   <p class="sr-only" id="move-help">Press Space or Enter to start moving. Use arrow keys to move one grid position. Press Enter to finish or Escape to cancel.</p>
   <p class="sr-only" id="resize-help">Drag this corner to resize. With a keyboard, use arrow keys to change the widget's width or height.</p>
+  <p class="sr-only" id="widget-arrange-help">Press and hold an empty area of this panel to rearrange it, or choose Edit home for keyboard controls.</p>
 </body>
 </html>

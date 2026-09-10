@@ -29,6 +29,7 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
                 return 0, json.dumps({"session_id": "fixture_session" if self.records else None,
                                       "session_title": arguments[1]}), ""
             if arguments[0] == "--input":
+                self.request_started.set()
                 self.native_calls += 1
                 self.request = json.loads(Path(arguments[1]).read_text())
                 await self.release.wait()
@@ -42,7 +43,7 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
                                       "proposal": {"request_id": self.request["request_id"], "based_on_revision": 0,
                                                    "kind": "chat", "reply": self.records[0]["messages"][-1]["content"],
                                                    "operations": []},
-                                      "audit": {"model": MODEL, "provider": PROVIDER, "tool_schema_count": 0}}), ""
+                                      "audit": {"model": MODEL, "provider": PROVIDER, "tool_schema_count": 4}}), ""
             if arguments[0] == "--finalize":
                 publication = json.loads(Path(arguments[1]).read_text())
                 assistant = self.records[0]["messages"][-1]
@@ -52,6 +53,7 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
                                       "assistant_id": publication["assistant_id"], "published": True}), ""
             return 0, "\n".join(json.dumps(record) for record in self.records), ""
 
+        self.request_started = asyncio.Event()
         self.chat.command = command
 
     async def asyncTearDown(self):
@@ -149,7 +151,7 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_interrupted_restart_retains_pending_receipt_without_replay(self):
         await self.chat.send("Interrupted fixture", "request_interrupted_001")
-        await asyncio.sleep(0)
+        await asyncio.wait_for(self.request_started.wait(), 2)
         await self.chat.close()
         restored = LocalChat(meta_path=self.path)
         restored.command = self.chat.command
@@ -160,6 +162,29 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(state["can_send"])
         self.assertEqual(self.native_calls, 1)
         await restored.close()
+
+    async def test_source_cancel_stops_work_without_changing_tasks_or_replaying(self):
+        before = json.dumps(self.chat.meta['tasks'], sort_keys=True)
+        await self.chat.send('Check the fictional inbox', 'request_cancel_tools_001')
+        await asyncio.wait_for(self.request_started.wait(), 2)
+        turn = self.chat.briefing.current
+        turn.touched = True
+        turn.step('read', 'Read relevant emails', 'running')
+        state = await self.chat.briefing.cancel('request_cancel_tools_001')
+        self.assertEqual(state['workflow_run']['status'], 'cancelled')
+        self.assertFalse(state['workflow_run']['can_cancel'])
+        self.assertIsNone(self.chat.meta['pending_turn'])
+        self.assertIsNone(self.chat.briefing.current)
+        self.assertEqual(json.dumps(self.chat.meta['tasks'], sort_keys=True), before)
+        self.assertEqual(self.native_calls, 1)
+
+    async def test_cancel_cannot_target_a_different_request(self):
+        from app.google_calendar import CalendarError
+        await self.chat.send('Check the fictional inbox', 'request_cancel_tools_002')
+        await asyncio.wait_for(self.request_started.wait(), 2)
+        with self.assertRaises(CalendarError):
+            await self.chat.briefing.cancel('wrong_request')
+        self.assertTrue(self.chat.busy)
 
     async def test_long_poll_wakes_for_acceptance_and_native_completion(self):
         waiting = asyncio.create_task(self.chat.wait_for_state(self.chat.revision))

@@ -1,0 +1,17 @@
+{
+  "name": "eilo-desktop",
+  "productName": "eïlo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The eïlo desktop host for the local Hermes workspace",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test *.test.cjs",
+    "package:mac": "node scripts/package-mac.cjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "44.3.0"
+  }
+}

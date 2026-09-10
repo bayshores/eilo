@@ -1,0 +1,30 @@
+/* IBM Plex Sans: approved typography study B, September 9, 2026. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(./assets/fonts/ibm-plex-sans.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+:root[data-typography="plex"] { --font-ui:'IBM Plex Sans',sans-serif; --weight-heading:500; --weight-medium:500; --tracking-heading:-.022em; --size-body:16.5px; --size-page-title:35px; --size-progress-number:58px; }
+:root[data-typography="plex"] { font-family:var(--font-ui); font-weight:400; font-optical-sizing:auto; }
+:root[data-typography="plex"] h1 { font-size:var(--size-page-title); font-weight:500; letter-spacing:var(--tracking-heading); line-height:1.12; }
+:root[data-typography="plex"] :is(.widget-content h2,.gallery-type-title,.dialog-heading h2,.empty-home h2) { font-size:25px; font-weight:var(--weight-heading); letter-spacing:var(--tracking-heading); line-height:1.2; }
+:root[data-typography="plex"] :is(.agenda-row,.sample-message,.note-input) { font-size:var(--size-body); font-weight:400; line-height:1.45; letter-spacing:0; }
+:root[data-typography="plex"] :is(.agenda-label,.goal-step strong) { font-size:var(--size-body); font-weight:var(--weight-medium); letter-spacing:0; line-height:1.35; }
+:root[data-typography="plex"] :is(.button,.text-button,.home-header p,.widget-subtitle,.goal-step p,.composer-preview input,.clock-day,.chat-preview-note,.account-menu button,.detail-body,.widget-menu button) { font-size:15.5px; font-weight:400; letter-spacing:0; line-height:1.4; }
+:root[data-typography="plex"] .button { font-weight:500; }
+:root[data-typography="plex"] .practice-count strong { font-size:var(--size-progress-number); font-weight:500; letter-spacing:-.035em; line-height:1; }
+:root[data-typography="plex"] .practice-count span { font-size:16px; font-weight:400; }
+:root[data-typography="plex"] .week-day { font-size:14px; font-weight:400; }
+:root[data-typography="plex"] :is(.agenda-time,.clock-time) { font-variant-numeric:tabular-nums; }
+:root[data-typography="plex"] .wordmark { font-weight:var(--weight-medium); letter-spacing:-.04em; }
+:root[data-typography="plex"] .agenda-time { font-size:15.5px; font-feature-settings:'zero' 1; }
+@container widget (max-width:310px) {
+  :root[data-typography="plex"] .widget-content h2 { font-size:23px; }
+  :root[data-typography="plex"] :is(.agenda-row,.agenda-label,.goal-step strong,.sample-message) { font-size:15.5px; }
+  :root[data-typography="plex"] .goal-step p { font-size:14px; }
+  :root[data-typography="plex"] .practice-count strong { font-size:52px; }
+}
