@@ -5,7 +5,7 @@ model:
 fallback_providers: []
 agent:
   disabled_toolsets:
-  - kanban
+    - kanban
 platform_toolsets:
   cli: []
   api_server: []

@@ -1,14 +1,15 @@
 """Bounded, local-only speech-to-text for eilo's browser-recorded WAV input."""
+
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import os
-from pathlib import Path
 import re
 import signal
 import struct
 import tempfile
+from pathlib import Path
 
 MAX_WAV_BYTES = 4 * 1024 * 1024
 MAX_SECONDS = 120
@@ -48,7 +49,7 @@ def _wav_frames(audio: bytes) -> int:
     while offset < len(audio):
         if offset + 8 > len(audio):
             raise InvalidAudioError("Audio WAV chunk is incomplete.")
-        kind = audio[offset:offset + 4]
+        kind = audio[offset : offset + 4]
         size = struct.unpack_from("<I", audio, offset + 4)[0]
         start, end = offset + 8, offset + 8 + size
         if end > len(audio):
@@ -63,7 +64,14 @@ def _wav_frames(audio: bytes) -> int:
     if offset != len(audio) or fmt is None or data is None or len(fmt) < 16:
         raise InvalidAudioError("Audio WAV format is invalid.")
     encoding, channels, rate, byte_rate, block_align, bits = struct.unpack_from("<HHIIHH", fmt)
-    if (encoding, channels, rate, byte_rate, block_align, bits) != (1, 1, SAMPLE_RATE, 32_000, 2, 16):
+    if (encoding, channels, rate, byte_rate, block_align, bits) != (
+        1,
+        1,
+        SAMPLE_RATE,
+        32_000,
+        2,
+        16,
+    ):
         raise InvalidAudioError("Audio must be 16 kHz mono PCM WAV.")
     if not data or len(data) % block_align:
         raise InvalidAudioError("Audio frame data is invalid.")
@@ -76,11 +84,21 @@ def _wav_frames(audio: bytes) -> int:
 class Transcriber:
     """Serial local whisper.cpp runner. It never contacts a recognition service."""
 
-    def __init__(self, root: Path | str, *, timeout_seconds: int = 150,
-                 executable: Path | str | None = None, model: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        root: Path | str,
+        *,
+        timeout_seconds: int = 150,
+        executable: Path | str | None = None,
+        model: Path | str | None = None,
+    ) -> None:
         self.root = Path(root).resolve()
         self.runtime = self.root / ".runtime" / "stt"
-        self.executable = Path(executable) if executable else self.runtime / "whisper.cpp" / "build" / "bin" / "whisper-cli"
+        self.executable = (
+            Path(executable)
+            if executable
+            else self.runtime / "whisper.cpp" / "build" / "bin" / "whisper-cli"
+        )
         self.model = Path(model) if model else self.runtime / "models" / MODEL_NAME
         self.recordings = self.root / ".tmp" / "transcription"
         self.timeout_seconds = timeout_seconds
@@ -91,9 +109,15 @@ class Transcriber:
         self._spawn_task: asyncio.Task | None = None
 
     def status(self) -> dict:
-        return {"ready": self.executable.is_file() and os.access(self.executable, os.X_OK) and self.model.is_file(),
-                "runtime": "local_whisper_cpp", "version": WHISPER_CPP_VERSION,
-                "model": MODEL_NAME, "model_sha1": MODEL_SHA1}
+        return {
+            "ready": self.executable.is_file()
+            and os.access(self.executable, os.X_OK)
+            and self.model.is_file(),
+            "runtime": "local_whisper_cpp",
+            "version": WHISPER_CPP_VERSION,
+            "model": MODEL_NAME,
+            "model_sha1": MODEL_SHA1,
+        }
 
     async def cancel(self, request_id: str) -> bool:
         if request_id != self._request_id:
@@ -137,7 +161,9 @@ class Transcriber:
                     path.unlink()
 
     def _write_recording(self, audio: bytes) -> Path:
-        with tempfile.NamedTemporaryFile(mode="wb", dir=self.recordings, prefix="recording-", suffix=".wav", delete=False) as stream:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=self.recordings, prefix="recording-", suffix=".wav", delete=False
+        ) as stream:
             os.chmod(stream.name, 0o600)
             stream.write(audio)
             stream.flush()
@@ -145,12 +171,26 @@ class Transcriber:
             return Path(stream.name)
 
     async def _run(self, path: Path) -> str:
-        self._spawn_task = asyncio.create_task(asyncio.create_subprocess_exec(
-            str(self.executable), "--model", str(self.model), "--file", str(path),
-            "--language", "en", "--threads", "4", "--no-timestamps", "--no-prints",
-            cwd=self.root, stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            start_new_session=True))
+        self._spawn_task = asyncio.create_task(
+            asyncio.create_subprocess_exec(
+                str(self.executable),
+                "--model",
+                str(self.model),
+                "--file",
+                str(path),
+                "--language",
+                "en",
+                "--threads",
+                "4",
+                "--no-timestamps",
+                "--no-prints",
+                cwd=self.root,
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                start_new_session=True,
+            )
+        )
         try:
             try:
                 self._process = await asyncio.shield(self._spawn_task)
@@ -161,7 +201,7 @@ class Transcriber:
                 await self._stop_process(self._process)
                 raise
             out, _ = await asyncio.wait_for(self._process.communicate(), self.timeout_seconds)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             if self._process is not None:
                 await self._stop_process(self._process)
             raise
@@ -182,7 +222,7 @@ class Transcriber:
             os.killpg(process.pid, signal.SIGTERM)
         try:
             await asyncio.wait_for(process.wait(), 5)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(process.pid, signal.SIGKILL)
             await process.wait()

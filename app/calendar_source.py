@@ -9,10 +9,10 @@ UTC: from 00:00:00 UTC on ``now``'s UTC date through (exclusive) 30 days later.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta, timezone
-from typing import Any, Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import quote
-
 
 API_ROOT = "https://www.googleapis.com/calendar/v3"
 MAX_CALENDAR_PAGES = 20
@@ -41,11 +41,12 @@ class CalendarSourceError(RuntimeError):
 def _clean_text(value: object, fallback: str, limit: int = 200) -> str:
     if not isinstance(value, str):
         return fallback
-    cleaned = " ".join("".join(
-        "" if ord(character) < 32 or ord(character) == 127 else character
-        for character in value
-    ).split())
-    return (cleaned[:limit] or fallback)
+    cleaned = " ".join(
+        "".join(
+            "" if ord(character) < 32 or ord(character) == 127 else character for character in value
+        ).split()
+    )
+    return cleaned[:limit] or fallback
 
 
 def _calendar_id(value: object) -> str | None:
@@ -69,7 +70,9 @@ async def _get(request: Request, url: str, params: Mapping[str, str] | None) -> 
     except Exception as exc:  # The adapter must not expose token/network internals.
         code = getattr(exc, "code", None)
         safe_code = code if isinstance(code, str) and code in _SAFE_TRANSPORT_CODES else None
-        raise CalendarSourceError("Calendar could not be read. Please try reconnecting it.", safe_code) from exc
+        raise CalendarSourceError(
+            "Calendar could not be read. Please try reconnecting it.", safe_code
+        ) from exc
     if not isinstance(response, dict):
         raise CalendarSourceError("Calendar returned an invalid response. Please try again.")
     return response
@@ -80,7 +83,9 @@ def _page_items(response: Mapping[str, Any], label: str, expected_kind: str) -> 
     if items is None and response.get("kind") == expected_kind:
         return []
     if not isinstance(items, list):
-        raise CalendarSourceError(f"Calendar returned an incomplete {label} response. Please try again.")
+        raise CalendarSourceError(
+            f"Calendar returned an incomplete {label} response. Please try again."
+        )
     return items
 
 
@@ -94,7 +99,9 @@ def _next_token(response: Mapping[str, Any], kind: str) -> str | None:
         or len(token) > _MAX_PAGE_TOKEN_LENGTH
         or any(ord(character) < 32 or ord(character) == 127 for character in token)
     ):
-        raise CalendarSourceError(f"Calendar returned an invalid {kind} page token. Please try again.")
+        raise CalendarSourceError(
+            f"Calendar returned an invalid {kind} page token. Please try again."
+        )
     return token
 
 
@@ -105,7 +112,7 @@ async def fetch_calendars(request: Request) -> list[dict[str, object]]:
     page_token: str | None = None
     seen_tokens: set[str] = set()
 
-    for page_number in range(MAX_CALENDAR_PAGES):
+    for _ in range(MAX_CALENDAR_PAGES):
         params: dict[str, str] = {"maxResults": "250", "fields": _CALENDAR_FIELDS}
         if page_token is not None:
             params["pageToken"] = page_token
@@ -119,30 +126,40 @@ async def fetch_calendars(request: Request) -> list[dict[str, object]]:
             if calendar_id in seen_ids:
                 continue
             seen_ids.add(calendar_id)
-            result.append({
-                "id": calendar_id,
-                "name": _clean_text(item.get("summaryOverride") or item.get("summary"), "Untitled calendar"),
-                "primary": item.get("primary") is True,
-                "selected": False,
-            })
+            result.append(
+                {
+                    "id": calendar_id,
+                    "name": _clean_text(
+                        item.get("summaryOverride") or item.get("summary"), "Untitled calendar"
+                    ),
+                    "primary": item.get("primary") is True,
+                    "selected": False,
+                }
+            )
             if len(result) > MAX_CALENDARS:
-                raise CalendarSourceError("More than 100 readable calendars were found. Narrow the connected account first.")
+                raise CalendarSourceError(
+                    "More than 100 readable calendars were found. Narrow the connected account first."
+                )
         next_token = _next_token(response, "calendar list")
         if next_token is None:
             return result
         if next_token in seen_tokens:
-            raise CalendarSourceError("Calendar pagination repeated unexpectedly. Please try again.")
+            raise CalendarSourceError(
+                "Calendar pagination repeated unexpectedly. Please try again."
+            )
         seen_tokens.add(next_token)
         page_token = next_token
 
-    raise CalendarSourceError("Calendar list exceeded the 20-page safety limit. Please narrow the connected account first.")
+    raise CalendarSourceError(
+        "Calendar list exceeded the 20-page safety limit. Please narrow the connected account first."
+    )
 
 
 def _window(now: datetime | None) -> tuple[datetime, datetime]:
-    current = now or datetime.now(timezone.utc)
+    current = now or datetime.now(UTC)
     if current.tzinfo is None or current.utcoffset() is None:
         raise CalendarSourceError("Calendar refresh needs a time with a timezone.")
-    start = datetime.combine(current.astimezone(timezone.utc).date(), datetime.min.time(), tzinfo=timezone.utc)
+    start = datetime.combine(current.astimezone(UTC).date(), datetime.min.time(), tzinfo=UTC)
     return start, start + timedelta(days=30)
 
 
@@ -167,7 +184,9 @@ def _normalize_event(event: object, calendar: Mapping[str, object]) -> dict[str,
         return None
     attendees = event.get("attendees")
     if isinstance(attendees, list) and any(
-        isinstance(attendee, dict) and attendee.get("self") is True and attendee.get("responseStatus") == "declined"
+        isinstance(attendee, dict)
+        and attendee.get("self") is True
+        and attendee.get("responseStatus") == "declined"
         for attendee in attendees
     ):
         return None
@@ -181,7 +200,10 @@ def _normalize_event(event: object, calendar: Mapping[str, object]) -> dict[str,
         if not isinstance(start_date, str) or not isinstance(end_date, str):
             return None
         try:
-            if datetime.fromisoformat(start_date).date().isoformat() != start_date or datetime.fromisoformat(end_date).date().isoformat() != end_date:
+            if (
+                datetime.fromisoformat(start_date).date().isoformat() != start_date
+                or datetime.fromisoformat(end_date).date().isoformat() != end_date
+            ):
                 return None
         except ValueError:
             return None
@@ -189,7 +211,10 @@ def _normalize_event(event: object, calendar: Mapping[str, object]) -> dict[str,
             return None
         start, end, all_day = start_date, end_date, True
     else:
-        start, end = _parse_timed(start_value.get("dateTime")), _parse_timed(end_value.get("dateTime"))
+        start, end = (
+            _parse_timed(start_value.get("dateTime")),
+            _parse_timed(end_value.get("dateTime")),
+        )
         if start is None or end is None:
             return None
         if datetime.fromisoformat(end) <= datetime.fromisoformat(start):
@@ -232,7 +257,9 @@ async def fetch_events(
     chosen: list[str] = []
     for calendar_id in selected_ids:
         if not isinstance(calendar_id, str) or calendar_id not in known:
-            raise CalendarSourceError("A selected calendar is no longer available. Refresh your calendar list.")
+            raise CalendarSourceError(
+                "A selected calendar is no longer available. Refresh your calendar list."
+            )
         if calendar_id not in chosen:
             chosen.append(calendar_id)
     if len(chosen) > MAX_SELECTED_CALENDARS:
@@ -264,14 +291,20 @@ async def fetch_events(
                     seen_event_ids.add(str(normalized["id"]))
                     events.append(normalized)
                     if len(events) > MAX_EVENTS:
-                        raise CalendarSourceError("More than 1,000 calendar events matched this refresh. Narrow the selected calendars.")
+                        raise CalendarSourceError(
+                            "More than 1,000 calendar events matched this refresh. Narrow the selected calendars."
+                        )
             next_token = _next_token(response, "event list")
             if next_token is None:
                 break
             if next_token in seen_tokens:
-                raise CalendarSourceError("Event pagination repeated unexpectedly. Please try again.")
+                raise CalendarSourceError(
+                    "Event pagination repeated unexpectedly. Please try again."
+                )
             seen_tokens.add(next_token)
             page_token = next_token
         else:
-            raise CalendarSourceError("Event list exceeded the 20-page safety limit. Narrow the selected calendars.")
+            raise CalendarSourceError(
+                "Event list exceeded the 20-page safety limit. Narrow the selected calendars."
+            )
     return events

@@ -1,0 +1,36 @@
+# Final hackathon platform recommendation
+
+September 9, 2026. Sean selected this path and authorized the first Electron build. The checkout-linked macOS development app now exists; its ownership/close/reopen/Quit lifecycle is verified. This records the final-platform direction, not standalone release readiness. See [the desktop build evidence](../../desktop/electron/README.md).
+
+**Use Electron for the final eïlo desktop application, with macOS as the first fully verified submission platform.** Keep the approved HTML/CSS/JavaScript UI and the Python/Hermes coordinator. Electron's main process should own the app window, menu-bar/tray lifecycle, notification callbacks and the packaged backend process. The renderer remains a restricted UI client.
+
+This recommendation replaces the assumption that the narrow Swift menu-bar proof should also determine the final package. No separate full Swift UI rewrite is needed. The existing small native foreground helper and a reviewed Chrome Native Messaging bridge may still be needed; Electron does not supply approved activity context automatically.
+
+## Why Electron fits this deliverable
+
+- **Preserve the frontend.** Electron renders web UI in Chromium and provides a main process for native desktop operations. A pinned browser runtime reduces the number of webview variants the existing layout, streaming and microphone flow must be checked against. Compatibility is still a test requirement. [Process model](https://www.electronjs.org/docs/latest/tutorial/process-model).
+- **Support the core outreach flow.** Its tray/window lifecycle can keep the owner process alive after the main window closes, with explicit Quit stopping the service. Native notification APIs expose click, action and reply events, subject to platform/version/signing requirements. Pin and test the exact selected release; do not promise feature parity from a current documentation page. [Tray lifecycle](https://www.electronjs.org/docs/latest/tutorial/tray), [notification API](https://www.electronjs.org/docs/latest/api/notification).
+- **Keep a Windows route.** The desktop shell can be shared, but the current eïlo backend includes macOS/POSIX-specific helper, locking and process code. Windows packaging and behavior need their own adaptation and verification; an Electron choice does not make the current backend Windows-ready. [Current server](../../app/server.py), [foreground helper](../../activity/native/EiloActivityHelper.swift).
+- **Spend the next implementation effort on useful outreach.** Electron provides a comparatively direct JavaScript host for this existing web/Python project. That is an integration judgment, not a measured development-speed benchmark.
+
+The material cost is a bundled Chromium/Node runtime. Measure installer size, idle CPU, resident memory and startup on the packaged app. No resource benchmark has been run; do not claim Electron is universally faster or more efficient.
+
+## Other options
+
+| Option            | Assessment for this submission                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tauri 2           | Viable, particularly when a smaller OS-webview package is a priority. It supports tray, sidecars and ordinary desktop notifications. Its documented Actions API is mobile-only, so desktop reply/action behavior needs additional native integration. It is not rejected as incapable. [Architecture](https://v2.tauri.app/concept/architecture/), [notification actions](https://v2.tauri.app/plugin/notification/#actions). |
+| Swift/AppKit host | Useful for the earlier narrow Mac notification proof, but a full separate host creates a second shell to maintain and does not provide the Windows UI path. Native Swift can remain a small helper where required.                                                                                                                                                                                                            |
+| Browser-only/PWA  | The current app can stay useful as a browser client, but the requested resident process, scoped local integration and background desktop delivery need a reliable host. A hosted preview alone would not demonstrate that entire behavior.                                                                                                                                                                                    |
+
+## What the hackathon actually requires
+
+The current rules permit a URL to a working demo, hosted application **or test build** and require the project to work on its stated intended platform. They do not mandate Electron, Tauri, a browser frontend or multiple operating systems. A macOS desktop test build is therefore a supported submission form, provided the other requirements are met. The app must separately include qualifying NVIDIA open-source model use and Nebius runtime use; changing the shell does not satisfy that requirement. No provider/billing change is authorized here. [Official rules, Project and Submission Requirements](https://nebiusglobalaihackathon.devpost.com/rules).
+
+## Gate before committing to release
+
+Build one isolated packaged-Mac slice: existing Home renders correctly; microphone capture reaches local transcription; closing the window leaves the permitted coordinator alive; a permitted check-in produces a native notification; interaction returns to the same conversation; explicit Quit stops the worker. Include the staging/recovery protections in the outreach plan. Verify signing, notification callbacks, OS Focus behavior and packaged Python/whisper resources. Do not infer success from browser-only tests.
+
+Keep Node access out of the renderer, enable context isolation/sandboxing, expose narrowly defined preload IPC, validate message senders, and restrict navigation/permission grants. Local process supervision belongs in the main process; model-generated text must never become a shell command or privileged IPC request. [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
+
+The existing coordinator, queue, consent and scaling architecture still applies. The user accepted Electron; its main process now supplies the first host lifecycle. Continue the host role described in the outreach plan without building a separate Swift menu-bar shell first. The durable native conversation and task validator stay authoritative; this is packaging, not a new agent or a claim that proactivity is complete.

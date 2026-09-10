@@ -1,0 +1,809 @@
+/* Live content shares the selected Home surfaces and typography. */
+:root[data-source='live'] .live-content {
+  gap: 0;
+}
+.live-content h2,
+.live-task-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.live-content > h2 {
+  flex-shrink: 0;
+}
+.widget:has(.live-content) {
+  container-type: size;
+}
+.live-content h2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.live-empty {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 18px 0;
+}
+.live-content .live-bottom {
+  align-self: flex-start;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+.live-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin: 28px 0 20px;
+}
+.live-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  font-size: 16.5px;
+  line-height: 1.4;
+  min-width: 0;
+}
+.live-task strong {
+  display: block;
+  font-weight: 500;
+}
+.live-due {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.live-task-copy {
+  flex: 1;
+}
+.live-task-meta {
+  color: var(--muted);
+  display: block;
+  font-size: 14.5px;
+  margin-top: 5px;
+}
+.live-goals {
+  display: flex;
+  gap: 32px;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
+  align-items: center;
+  padding: 20px 0;
+}
+.live-goals .live-task {
+  flex: 1;
+}
+.live-progress-copy {
+  font-size: 15px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+.live-progress-copy strong {
+  font-weight: 500;
+}
+.live-progress-copy p {
+  margin-top: 6px;
+}
+.live-meter {
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 18px 0;
+  background: #20201f26;
+}
+.live-meter::-webkit-progress-bar {
+  background: #20201f26;
+  border-radius: 10px;
+}
+.live-meter::-webkit-progress-value {
+  background: #38302b;
+  border-radius: 10px;
+  transition: width 300ms ease;
+}
+.live-meter::-moz-progress-bar {
+  background: #38302b;
+  border-radius: 10px;
+}
+.widget[data-type='progress'] .live-empty {
+  color: #52443a;
+}
+.widget[data-type='progress'] .text-button {
+  color: #29211b;
+}
+.live-content .practice-count {
+  margin: 22px 0 20px;
+}
+.live-content .practice-count span {
+  max-width: 120px;
+}
+.live-snippets {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  margin: 12px 0;
+}
+.live-snippet {
+  margin: 0 0 20px;
+  min-width: 0;
+}
+.live-snippet p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.live-speaker {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+.live-delivery {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 6px;
+}
+.live-snippets .live-snippet {
+  margin-bottom: 12px;
+}
+.live-snippets .live-snippet:not(:last-child) {
+  display: none;
+}
+.live-snippets .live-snippet p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.live-detail-tasks {
+  display: grid;
+  gap: 26px;
+  margin: 26px 0;
+}
+.live-chat {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.live-messages {
+  flex: 1;
+  overflow: auto;
+  min-height: 80px;
+  padding: 8px 14px 8px 0;
+  scrollbar-width: thin;
+}
+.live-messages .live-snippet-user {
+  background: #3b3d43;
+  border-radius: 17px;
+  padding: 14px 17px;
+  margin-left: 28px;
+}
+.live-messages .live-snippet-assistant {
+  padding: 8px 6px;
+}
+.live-composer {
+  margin-top: 12px;
+  padding: 13px 16px 12px;
+  border-radius: 18px;
+  background: #222428;
+}
+.live-input {
+  display: block;
+  width: 100%;
+  min-height: 65px;
+  max-height: 140px;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  font: inherit;
+  line-height: 1.5;
+}
+.live-input::placeholder {
+  color: var(--muted);
+}
+.live-composer-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.live-chat-status {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.live-chat-error {
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--peach);
+  padding: 8px 0;
+}
+.live-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live-recovery:not(:has(button:not([hidden]))) {
+  display: none;
+}
+:root[data-source='live'] .button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+.hold-cue circle:nth-child(1) {
+  --dot: 0;
+}
+.hold-cue circle:nth-child(2) {
+  --dot: 1;
+}
+.hold-cue circle:nth-child(3) {
+  --dot: 2;
+}
+.hold-cue circle:nth-child(4) {
+  --dot: 3;
+}
+.hold-cue circle:nth-child(5) {
+  --dot: 4;
+}
+.hold-cue circle:nth-child(6) {
+  --dot: 5;
+}
+@container widget (max-width:420px) {
+  .live-goals {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .live-goals .live-task {
+    flex: initial;
+  }
+  .live-due {
+    width: 76px;
+  }
+  .live-task {
+    gap: 12px;
+  }
+}
+.widget[data-h='2'] .live-agenda {
+  gap: 14px;
+  margin: 16px 0 10px;
+}
+.widget[data-h='2'] .live-agenda .live-task:nth-child(n + 3) {
+  display: none;
+}
+.widget[data-h='2'] .live-goals {
+  padding: 12px 0;
+}
+@container widget (max-height:320px) {
+  .live-content .practice-count {
+    flex-shrink: 0;
+    margin: 16px 0;
+  }
+  .live-content .live-progress-copy,
+  .live-content .live-meter {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  :root[data-source='live'] .home-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+  :root[data-source='live'] .header-actions {
+    flex-wrap: wrap;
+  }
+  .live-conversation-dialog {
+    padding: 18px;
+  }
+  .live-chat-status {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-meter::-webkit-progress-value {
+    transition: none;
+  }
+}
+.reduce-motion .live-meter::-webkit-progress-value {
+  transition: none;
+}
+
+/* Conversation lives on Home. Only the bounded history section expands. */
+.connections-page,
+.library-page {
+  height: 100%;
+  min-height: 0;
+}
+.workspace[data-page='connections'] .workspace-page,
+.workspace[data-page='chats'] .workspace-page,
+.workspace[data-page='projects'] .workspace-page {
+  grid-row: 1 / 3;
+  padding-top: 32px;
+}
+.connections-page {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.workspace[data-page='connections'] .home-header,
+.workspace[data-page='chats'] .home-header,
+.workspace[data-page='projects'] .home-header {
+  display: none;
+}
+:root[data-source='live'] .workspace .nav-rail {
+  height: min(540px, calc(100dvh - 42px));
+  max-height: 540px;
+  min-height: 0;
+}
+:root[data-source='live'] .workspace .nav-items {
+  gap: 8px;
+}
+@media (max-height: 640px) {
+  :root[data-source='live'] .workspace .nav-item {
+    height: 51px;
+  }
+  :root[data-source='live'] .workspace .nav-rail {
+    padding-top: 14px;
+  }
+  :root[data-source='live'] .workspace .wordmark {
+    margin-bottom: 12px;
+  }
+}
+.dock-history span {
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dock-library {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.dock-library svg {
+  width: 19px;
+  height: 19px;
+}
+.dock-library:hover {
+  background: #41434b;
+  color: var(--ink);
+}
+.local-commands {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: min(400px, 100%);
+  padding: 7px;
+  border-radius: 17px;
+  background: #303238;
+  box-shadow: 0 8px 35px #0006;
+  z-index: 4;
+}
+.local-command {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.local-command:hover,
+.local-command:focus-visible {
+  background: #41434b;
+}
+.local-command strong {
+  min-width: 92px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.local-command span {
+  font-size: 14px;
+  color: var(--muted);
+}
+.local-command:focus-visible,
+.dock-library:focus-visible {
+  outline: 3px solid var(--peach);
+  outline-offset: 2px;
+}
+:root[data-source='live'] .workspace {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.conversation-dock {
+  grid-column: 2;
+  grid-row: 3;
+  position: relative;
+  justify-self: center;
+  width: min(820px, 100%);
+  margin-top: 16px;
+  z-index: 25;
+  min-width: 0;
+}
+.workflow-progress-host {
+  margin: 0 0 10px;
+}
+.workflow-progress-host .workflow-progress {
+  padding: 14px 16px;
+  border-radius: 18px;
+  box-shadow: 0 5px 20px #0002;
+}
+.workflow-progress-host .workflow-progress__title {
+  font-size: 18px;
+}
+.workflow-progress-host .workflow-progress__current {
+  margin-top: 9px;
+  font-size: 15px;
+}
+.workflow-progress-host .workflow-progress__details {
+  max-height: min(230px, 30dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.workflow-progress-host .workflow-progress__actions {
+  margin-top: 11px;
+}
+.conversation-dock .live-chat {
+  height: auto;
+}
+.conversation-dock .live-composer {
+  margin: 0;
+  padding: 13px 17px 10px;
+  border-radius: 23px;
+  background: #303238;
+  box-shadow: 0 5px 20px #0002;
+}
+.conversation-dock .live-input {
+  min-height: 28px;
+  max-height: 100px;
+  height: 28px;
+  padding: 1px 3px;
+  resize: none;
+  font-size: 16px;
+  line-height: 26px;
+  border-radius: 7px;
+}
+.conversation-dock .live-input:focus-visible {
+  outline-offset: 4px;
+}
+.conversation-dock .speech-controls {
+  margin-top: 8px;
+}
+.conversation-dock .speech-actions {
+  gap: 9px;
+}
+.conversation-dock .speech-mic {
+  background: transparent;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.conversation-dock .speech-mic:hover,
+.dock-history:hover {
+  background: #41434b;
+}
+.conversation-dock .speech-mic[aria-pressed='true'] {
+  background: var(--peach);
+  color: #272321;
+}
+.conversation-dock .speech-actions select {
+  background: #383a42;
+  font-size: 13.5px;
+  max-width: 147px;
+}
+.conversation-dock .speech-wave {
+  display: none;
+}
+.conversation-dock .speech-controls[data-state='recording'] .speech-wave {
+  display: flex;
+}
+.conversation-dock .speech-controls[data-state='idle'] .speech-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.conversation-dock .speech-status {
+  font-size: 14px;
+}
+.conversation-dock .live-send {
+  min-height: 42px;
+  padding: 8px 18px;
+  border-radius: 14px;
+  font-size: 14.5px;
+}
+.dock-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+}
+.dock-history svg {
+  width: 18px;
+  height: 18px;
+}
+.dock-history[aria-expanded='true'] {
+  color: var(--ink);
+  background: #41434b;
+}
+.conversation-thread {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  height: clamp(160px, 29dvh, 280px);
+  padding: 14px 17px;
+  background: #303238;
+  border-radius: 23px;
+  box-shadow: 0 16px 55px #0006;
+}
+.conversation-thread:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  animation: dock-reveal 180ms var(--ease-settle);
+}
+.conversation-thread .live-messages {
+  min-height: 0;
+  padding: 0 10px 0 0;
+  scroll-padding: 12px;
+  overscroll-behavior: contain;
+}
+.conversation-thread .live-snippet {
+  margin: 0 0 18px;
+}
+.conversation-thread .live-snippet:last-child {
+  margin-bottom: 0;
+}
+.conversation-thread .live-messages .live-snippet-user {
+  padding: 10px 14px;
+  margin-left: 36px;
+  background: #41434a;
+}
+.conversation-thread .live-messages .live-snippet-assistant {
+  padding: 6px 2px;
+}
+.conversation-thread .live-snippet p {
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+.conversation-thread .live-speaker {
+  font-size: 13.5px;
+}
+.conversation-dock .live-chat-error {
+  padding: 8px 12px;
+}
+.conversation-dock .live-recovery {
+  margin-top: 8px;
+}
+.conversation-dock .live-update {
+  bottom: calc(100% + 12px);
+  right: 0;
+  width: min(520px, 100%);
+}
+@keyframes dock-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 700px) {
+  .conversation-dock {
+    margin-top: 12px;
+  }
+  .workflow-progress-host {
+    margin-bottom: 8px;
+  }
+  .workflow-progress-host .workflow-progress {
+    padding: 13px;
+  }
+  .conversation-dock .live-composer {
+    padding: 11px 12px 9px;
+  }
+  .conversation-dock .speech-actions {
+    gap: 4px;
+  }
+  .conversation-dock .speech-actions select {
+    max-width: 131px;
+    font-size: 13px;
+    padding-left: 7px;
+  }
+  .conversation-dock .live-send {
+    padding: 8px 13px;
+  }
+  .dock-history {
+    padding: 8px;
+  }
+  .dock-history span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .conversation-thread:not([hidden]) {
+    animation: none;
+  }
+}
+.reduce-motion .conversation-thread:not([hidden]) {
+  animation: none;
+}
+
+/* One speech control with a discoverable mode arrow, rather than duplicate labels. */
+.speech-method {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.speech-mode-caret {
+  display: none;
+  pointer-events: none;
+}
+.conversation-dock .speech-method {
+  border-radius: 12px;
+}
+.conversation-dock .speech-method:hover {
+  background: #3b3d45;
+}
+.conversation-dock .speech-method select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 32px;
+  max-width: 32px;
+  padding: 0;
+  color: transparent;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.conversation-dock .speech-method select option {
+  color: var(--ink);
+  background: #303238;
+}
+.conversation-dock .speech-mode-caret {
+  display: block;
+  position: absolute;
+  right: 8px;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+.conversation-dock .speech-mode-caret svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+.conversation-dock[data-open='true'] .live-composer {
+  border-radius: 0 0 23px 23px;
+}
+.conversation-thread {
+  bottom: calc(100% - 1px);
+  height: clamp(160px, 24dvh, 240px);
+  border-radius: 23px 23px 0 0;
+  box-shadow: 0 -12px 40px #0003;
+}
+@container widget (min-width:520px) and (max-height:340px) {
+  .live-content:has(> .practice-count) {
+    display: grid;
+    grid-template-columns: minmax(160px, 0.8fr) minmax(0, 1.2fr);
+    grid-template-rows: auto 1fr auto auto;
+    column-gap: 26px;
+    row-gap: 6px;
+  }
+  .live-content:has(> .practice-count) > h2 {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .live-content:has(> .practice-count) > .practice-count {
+    grid-column: 1;
+    grid-row: 2 / 5;
+    margin: 8px 0 0;
+    align-self: center;
+  }
+  .live-content:has(> .practice-count) > .live-progress-copy {
+    display: block;
+    grid-column: 2;
+    font-size: 15px;
+  }
+  .live-content:has(> .practice-count) > .live-progress-copy:first-of-type {
+    grid-row: 2;
+    align-self: end;
+  }
+  .live-content:has(> .practice-count) > .live-bottom {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: 0;
+  }
+}
+/* A single compact receipt; details open only on request. */
+.workflow-progress-host .workflow-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 18px;
+  align-items: center;
+}
+.workflow-progress-host .workflow-progress__heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.workflow-progress-host .workflow-progress__current {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-weight: 500;
+}
+.workflow-progress-host .workflow-progress__facts {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 13.5px;
+}
+.workflow-progress-host .workflow-progress__actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+  gap: 4px;
+}
+.workflow-progress-host .workflow-progress__details {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin: 9px 0 0;
+}
+.workflow-progress-host .workflow-progress__button {
+  padding: 9px 11px;
+}
+@media (max-width: 650px) {
+  .workflow-progress-host .workflow-progress {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workflow-progress-host .workflow-progress__actions {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 5px;
+    display: flex;
+  }
+  .workflow-progress-host .workflow-progress__details {
+    grid-row: 4;
+  }
+}

@@ -2,6 +2,13 @@
 /.runtime/
 /.state/
 /.tmp/
+/.venv/
+/.ruff_cache/
+/.pytest_cache/
+/.coverage
+/htmlcov/
+*.tsbuildinfo
+/coverage/
 .env
 .env.*
 *.env

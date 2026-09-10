@@ -3,15 +3,14 @@ import hashlib
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 from aiohttp import web
 from multidict import MultiDict
 
 from app.google_calendar import CalendarError
-from app.google_mail import GoogleMail, MAIL_SCOPE, SCOPES, TOKEN_URL
-
+from app.google_mail import MAIL_SCOPE, SCOPES, TOKEN_URL, GoogleMail
 
 CLIENT_ID = "1234-local_test.apps.googleusercontent.com"
 
@@ -45,7 +44,11 @@ class TestStores:
 
 class CalendarDouble:
     def __init__(self):
-        self.data = {"state": "connected", "selected_ids": ["selected"], "account": {"sub": "calendar-sub", "email": "calendar@example.com"}}
+        self.data = {
+            "state": "connected",
+            "selected_ids": ["selected"],
+            "account": {"sub": "calendar-sub", "email": "calendar@example.com"},
+        }
 
     def config(self):
         return {"client_id": CLIENT_ID}
@@ -64,6 +67,7 @@ class _SocketDouble:
 
 class LocalSiteDouble:
     """Avoid binding a TCP port while preserving the runner address used in OAuth."""
+
     def __init__(self, runner, host, port):
         self._server = type("Server", (), {"sockets": [_SocketDouble()]})()
         runner._reg_site(self)
@@ -92,7 +96,9 @@ class GoogleMailTests(unittest.TestCase):
             self.calls.append((method, url, kwargs))
             raise AssertionError("this test must not contact a provider")
 
-        self.mail = GoogleMail(self.root, self.calendar, store_factory=self.stores, transport=transport)
+        self.mail = GoogleMail(
+            self.root, self.calendar, store_factory=self.stores, transport=transport
+        )
 
     def tearDown(self):
         self.run_async(self.mail.close())
@@ -137,7 +143,10 @@ class GoogleMailTests(unittest.TestCase):
         self.assertEqual(query["state"], [flow["state"]])
         self.assertEqual(query["code_challenge_method"], ["S256"])
         expected = hashlib.sha256(flow["verifier"].encode()).digest()
-        self.assertEqual(query["code_challenge"], [__import__("base64").urlsafe_b64encode(expected).decode().rstrip("=")])
+        self.assertEqual(
+            query["code_challenge"],
+            [__import__("base64").urlsafe_b64encode(expected).decode().rstrip("=")],
+        )
 
     def test_denied_or_mismatched_callback_never_writes_keychain(self):
         self.run_async(self.mail.control(self.body("connect_gmail", allow_model=True)))
@@ -149,13 +158,25 @@ class GoogleMailTests(unittest.TestCase):
         self.run_async(self.mail.end_flow())
         self.run_async(self.mail.control(self.body("connect_gmail", allow_model=True)))
         flow = self.mail.flow
-        response = self.run_async(self.mail.callback(RequestDouble(flow["host"], [("state", "wrong"), ("code", "x")])))
+        response = self.run_async(
+            self.mail.callback(RequestDouble(flow["host"], [("state", "wrong"), ("code", "x")]))
+        )
         self.assertEqual(response.status, 400)
         self.assertEqual(sum(len(store.writes) for store in self.stores.values.values()), 0)
 
-    def test_local_remove_deletes_only_mail_credentials_without_calendar_mutation_or_revocation(self):
+    def test_local_remove_deletes_only_mail_credentials_without_calendar_mutation_or_revocation(
+        self,
+    ):
         identity = "mail_" + "a" * 24
-        self.mail.data["accounts"] = [{"id": identity, "sub": "mail-sub", "email": "mail@example.com", "enabled": True, "state": "connected"}]
+        self.mail.data["accounts"] = [
+            {
+                "id": identity,
+                "sub": "mail-sub",
+                "email": "mail@example.com",
+                "enabled": True,
+                "state": "connected",
+            }
+        ]
         self.stores(identity).value = {"saved": "mail-token"}
         calendar_before = dict(self.calendar.data)
         self.run_async(self.mail.control(self.body("remove_gmail", account_id=identity)))
@@ -166,9 +187,23 @@ class GoogleMailTests(unittest.TestCase):
 
     def test_disabled_source_blocks_reads_and_disable_during_refresh_prevents_keychain_write(self):
         identity = "mail_" + "b" * 24
-        self.mail.data["accounts"] = [{"id": identity, "sub": "mail-sub", "email": "mail@example.com", "enabled": True, "state": "connected"}]
-        self.stores(identity).value = {"access_token": "old", "refresh_token": "refresh", "expires_at": 1,
-                                      "client_id": CLIENT_ID, "sub": "mail-sub", "scopes": list(SCOPES)}
+        self.mail.data["accounts"] = [
+            {
+                "id": identity,
+                "sub": "mail-sub",
+                "email": "mail@example.com",
+                "enabled": True,
+                "state": "connected",
+            }
+        ]
+        self.stores(identity).value = {
+            "access_token": "old",
+            "refresh_token": "refresh",
+            "expires_at": 1,
+            "client_id": CLIENT_ID,
+            "sub": "mail-sub",
+            "scopes": list(SCOPES),
+        }
         started, release = asyncio.Event(), asyncio.Event()
 
         async def delayed_transport(method, url, **kwargs):
@@ -182,9 +217,13 @@ class GoogleMailTests(unittest.TestCase):
         self.mail.transport = delayed_transport
 
         async def scenario():
-            reading = asyncio.create_task(self.mail.get(identity, "https://gmail.googleapis.com/gmail/v1/users/me/threads"))
+            reading = asyncio.create_task(
+                self.mail.get(identity, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+            )
             await started.wait()
-            await self.mail.control(self.body("set_mail_enabled", account_id=identity, enabled=False))
+            await self.mail.control(
+                self.body("set_mail_enabled", account_id=identity, enabled=False)
+            )
             release.set()
             with self.assertRaises(CalendarError) as caught:
                 await reading
@@ -194,7 +233,9 @@ class GoogleMailTests(unittest.TestCase):
         self.assertEqual(self.stores(identity).writes, [])
         self.assertFalse(self.mail.account(identity)["enabled"])
         with self.assertRaises(CalendarError) as caught:
-            self.run_async(self.mail.get(identity, "https://gmail.googleapis.com/gmail/v1/users/me/threads"))
+            self.run_async(
+                self.mail.get(identity, "https://gmail.googleapis.com/gmail/v1/users/me/threads")
+            )
         self.assertEqual(caught.exception.code, "not_enabled")
 
 

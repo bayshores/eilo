@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import base64
 import binascii
-import re
+from collections.abc import Awaitable, Callable, Mapping
 from html.parser import HTMLParser
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any
 from urllib.parse import quote
-
 
 API_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me"
 MAX_THREADS = 30
@@ -52,7 +51,9 @@ def _safe_string(value: object, *, limit: int, label: str) -> str:
 def _text(value: object, fallback: str, limit: int = 500) -> str:
     if not isinstance(value, str):
         return fallback
-    cleaned = " ".join("".join("" if ord(char) < 32 or ord(char) == 127 else char for char in value).split())
+    cleaned = " ".join(
+        "".join("" if ord(char) < 32 or ord(char) == 127 else char for char in value).split()
+    )
     return cleaned[:limit] or fallback
 
 
@@ -64,7 +65,9 @@ async def _get(request: Request, url: str, params: Mapping[str, str] | None) -> 
     except Exception as exc:
         code = getattr(exc, "code", None)
         safe_code = code if isinstance(code, str) and code in _SAFE_TRANSPORT_CODES else None
-        raise GmailSourceError("Gmail could not be read. Please try reconnecting it.", safe_code) from exc
+        raise GmailSourceError(
+            "Gmail could not be read. Please try reconnecting it.", safe_code
+        ) from exc
     if not isinstance(response, dict):
         raise GmailSourceError("Gmail returned an invalid response. Please try again.")
     return response
@@ -81,7 +84,11 @@ def _provider_id(value: object, label: str) -> str | None:
     if not isinstance(value, str):
         return None
     value = value.strip()
-    if not value or len(value) > MAX_ID_LENGTH or any(ord(char) < 32 or ord(char) == 127 for char in value):
+    if (
+        not value
+        or len(value) > MAX_ID_LENGTH
+        or any(ord(char) < 32 or ord(char) == 127 for char in value)
+    ):
         return None
     return value
 
@@ -91,7 +98,11 @@ async def search_threads(
 ) -> dict[str, object]:
     """Return one bounded Gmail search page without claiming a complete mailbox scan."""
     query = _safe_string(query, limit=MAX_QUERY_LENGTH, label="search query")
-    if isinstance(max_threads, bool) or not isinstance(max_threads, int) or not 1 <= max_threads <= MAX_THREADS:
+    if (
+        isinstance(max_threads, bool)
+        or not isinstance(max_threads, int)
+        or not 1 <= max_threads <= MAX_THREADS
+    ):
         raise GmailSourceError(f"Gmail search must request between 1 and {MAX_THREADS} threads.")
     if page_token is not None:
         page_token = _safe_string(page_token, limit=MAX_PAGE_TOKEN_LENGTH, label="page token")
@@ -117,11 +128,17 @@ async def search_threads(
         if len(thread_ids) >= max_threads:
             break
     next_token = _next_page_token(response)
-    return {"thread_ids": thread_ids, "nextPageToken": next_token, "has_more": next_token is not None}
+    return {
+        "thread_ids": thread_ids,
+        "nextPageToken": next_token,
+        "has_more": next_token is not None,
+    }
 
 
 class _HtmlText(HTMLParser):
-    _BLOCK_TAGS = frozenset({"address", "article", "br", "div", "li", "p", "section", "table", "tr"})
+    _BLOCK_TAGS = frozenset(
+        {"address", "article", "br", "div", "li", "p", "section", "table", "tr"}
+    )
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -147,7 +164,9 @@ class _HtmlText(HTMLParser):
             self.parts.append(data)
 
     def readable(self) -> str:
-        return "\n".join(" ".join(line.split()) for line in "".join(self.parts).splitlines() if line.strip())
+        return "\n".join(
+            " ".join(line.split()) for line in "".join(self.parts).splitlines() if line.strip()
+        )
 
 
 def _html_to_text(value: str) -> str:
@@ -167,9 +186,7 @@ def _decode_body(body: object, budget: list[int]) -> tuple[str | None, bool]:
     if len(encoded) > (MAX_DECODED_PART_BYTES * 4 // 3) + 8:
         return None, True
     try:
-        raw = base64.b64decode(
-            encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True
-        )
+        raw = base64.b64decode(encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
     except (ValueError, binascii.Error):
         return None, True
     if len(raw) > MAX_DECODED_PART_BYTES or budget[0] + len(raw) > MAX_DECODED_TOTAL_BYTES:
@@ -225,13 +242,20 @@ def _headers(payload: object) -> dict[str, str]:
     return result
 
 
-def _message_record(message: object, requested_thread_id: str, max_chars: int) -> tuple[dict[str, object] | None, bool]:
+def _message_record(
+    message: object, requested_thread_id: str, max_chars: int
+) -> tuple[dict[str, object] | None, bool]:
     if not isinstance(message, dict):
         return None, False
     message_id = _provider_id(message.get("id"), "message ID")
     thread_id = _provider_id(message.get("threadId"), "thread ID")
     payload = message.get("payload")
-    if message_id is None or thread_id is None or thread_id != requested_thread_id or not isinstance(payload, dict):
+    if (
+        message_id is None
+        or thread_id is None
+        or thread_id != requested_thread_id
+        or not isinstance(payload, dict)
+    ):
         return None, False
     body, mime_truncated = _mime_text(payload)
     excerpt = body[:max_chars]
@@ -249,15 +273,33 @@ def _message_record(message: object, requested_thread_id: str, max_chars: int) -
 
 
 async def read_thread(
-    request: Request, thread_id: str, *, max_messages: int = MAX_MESSAGES, max_chars: int = MAX_CHARS
+    request: Request,
+    thread_id: str,
+    *,
+    max_messages: int = MAX_MESSAGES,
+    max_chars: int = MAX_CHARS,
 ) -> dict[str, object]:
     """Read bounded, text-only excerpts from one Gmail thread; never fetch attachments."""
     thread_id = _safe_string(thread_id, limit=MAX_ID_LENGTH, label="thread ID")
-    if isinstance(max_messages, bool) or not isinstance(max_messages, int) or not 1 <= max_messages <= MAX_MESSAGES:
-        raise GmailSourceError(f"Gmail thread reads must request between 1 and {MAX_MESSAGES} messages.")
-    if isinstance(max_chars, bool) or not isinstance(max_chars, int) or not 1 <= max_chars <= MAX_CHARS:
+    if (
+        isinstance(max_messages, bool)
+        or not isinstance(max_messages, int)
+        or not 1 <= max_messages <= MAX_MESSAGES
+    ):
+        raise GmailSourceError(
+            f"Gmail thread reads must request between 1 and {MAX_MESSAGES} messages."
+        )
+    if (
+        isinstance(max_chars, bool)
+        or not isinstance(max_chars, int)
+        or not 1 <= max_chars <= MAX_CHARS
+    ):
         raise GmailSourceError(f"Gmail excerpts must request between 1 and {MAX_CHARS} characters.")
-    response = await _get(request, f"{API_ROOT}/threads/{quote(thread_id, safe='')}", {"format": "full", "fields": _THREAD_FIELDS})
+    response = await _get(
+        request,
+        f"{API_ROOT}/threads/{quote(thread_id, safe='')}",
+        {"format": "full", "fields": _THREAD_FIELDS},
+    )
     response_id = _provider_id(response.get("id"), "thread ID")
     messages = response.get("messages")
     if response_id != thread_id or not isinstance(messages, list):

@@ -1,64 +1,210 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>eïlo — Widget home prototype</title>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
-</head>
-<body>
-  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <symbol id="home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></symbol>
-    <symbol id="target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></symbol>
-    <symbol id="calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6m10-6v6M3 11h18"/></symbol>
-    <symbol id="sliders" viewBox="0 0 24 24"><path d="M5 3v7m0 4v7m7-18v12m0 4v2m7-18v3m0 4v11M2 10h6m1 5h6m1-9h6"/></symbol>
-    <symbol id="note" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
-    <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-    <symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
-    <symbol id="x" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
-    <symbol id="search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
-    <symbol id="pencil" viewBox="0 0 24 24"><path d="m15 4 5 5M4 15 15 4a3.5 3.5 0 0 1 5 5L9 20l-6 1Z"/></symbol>
-    <symbol id="more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
-    <symbol id="grip" viewBox="0 0 24 24"><circle cx="8" cy="5" r="1"/><circle cx="16" cy="5" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/><circle cx="8" cy="19" r="1"/><circle cx="16" cy="19" r="1"/></symbol>
-    <symbol id="arrow-up" viewBox="0 0 24 24"><path d="M12 20V4m-7 7 7-7 7 7"/></symbol>
-    <symbol id="arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7"/></symbol>
-    <symbol id="arrow-down" viewBox="0 0 24 24"><path d="M12 4v16m-7-7 7 7 7-7"/></symbol>
-    <symbol id="arrow-left" viewBox="0 0 24 24"><path d="M20 12H4m7-7-7 7 7 7"/></symbol>
-    <symbol id="external" viewBox="0 0 24 24"><path d="M7 17 19 5M8 5h11v11"/></symbol>
-    <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
-    <symbol id="chat" viewBox="0 0 24 24"><path d="M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-1l-5 2 2-5a9 9 0 1 1 16-5Z"/></symbol>
-    <symbol id="pin" viewBox="0 0 24 24"><path d="m9 3 6 0-1 6 4 4v2H6v-2l4-4Zm3 12v7"/></symbol>
-    <symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
-    <symbol id="mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 5 10 8L22 5"/></symbol>
-  </svg>
-  <main class="app-window" aria-label="eïlo widget home prototype">
-    <div class="workspace nav-collapsed">
-      <header class="home-header"><div><h1>Home</h1><p>Sample home</p></div><div class="header-actions"><button class="button overflow-toggle" hidden>More widgets</button><span class="save-state" role="status"></span><button class="button add-toggle" hidden><svg><use href="#plus"/></svg>Add widgets</button><button class="button edit-toggle"><svg><use href="#pencil"/></svg><span>Edit home</span></button></div></header>
-      <div class="rail-zone">
-        <button class="nav-hint" aria-label="Open navigation" aria-controls="main-rail" aria-expanded="false"><span></span></button>
-        <nav id="main-rail" class="nav-rail is-hidden" aria-label="Main navigation" aria-hidden="true" inert>
-          <span class="wordmark">eïlo</span>
-          <div class="nav-items"><button class="nav-item active" data-detail="home" aria-label="Home" aria-current="page" title="Home"><svg><use href="#home"/></svg></button><button class="nav-item" data-detail="goals" aria-label="Goals" title="Goals"><svg><use href="#target"/></svg></button><button class="nav-item" data-detail="today" aria-label="Today" title="Today"><svg><use href="#calendar"/></svg></button><button class="nav-item" data-detail="progress" aria-label="Progress" title="Progress"><svg><use href="#sliders"/></svg></button><button class="nav-item" data-detail="activity" aria-label="Recent updates" title="Recent updates"><svg><use href="#note"/></svg></button></div>
-          <button class="account-trigger" aria-label="Account menu" aria-expanded="false" aria-controls="account-menu">S</button>
-          <div id="account-menu" class="account-menu" hidden><div class="account-name">Sean<span>Prototype profile</span></div><button data-account-action="profile">Account</button><button data-account-action="settings">Settings</button><button data-account-action="connections">Connections &amp; privacy</button><button data-account-action="help">Help</button></div>
-        </nav>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>eïlo — Widget home prototype</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="home" viewBox="0 0 24 24">
+        <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" />
+      </symbol>
+      <symbol id="target" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="4" />
+      </symbol>
+      <symbol id="calendar" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M7 2v6m10-6v6M3 11h18" />
+      </symbol>
+      <symbol id="sliders" viewBox="0 0 24 24">
+        <path d="M5 3v7m0 4v7m7-18v12m0 4v2m7-18v3m0 4v11M2 10h6m1 5h6m1-9h6" />
+      </symbol>
+      <symbol id="note" viewBox="0 0 24 24">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 8h8M8 12h8M8 16h5" />
+      </symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </symbol>
+      <symbol id="pencil" viewBox="0 0 24 24">
+        <path d="m15 4 5 5M4 15 15 4a3.5 3.5 0 0 1 5 5L9 20l-6 1Z" />
+      </symbol>
+      <symbol id="more" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1" />
+        <circle cx="12" cy="12" r="1" />
+        <circle cx="19" cy="12" r="1" />
+      </symbol>
+      <symbol id="grip" viewBox="0 0 24 24">
+        <circle cx="8" cy="5" r="1" />
+        <circle cx="16" cy="5" r="1" />
+        <circle cx="8" cy="12" r="1" />
+        <circle cx="16" cy="12" r="1" />
+        <circle cx="8" cy="19" r="1" />
+        <circle cx="16" cy="19" r="1" />
+      </symbol>
+      <symbol id="arrow-up" viewBox="0 0 24 24"><path d="M12 20V4m-7 7 7-7 7 7" /></symbol>
+      <symbol id="arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7" /></symbol>
+      <symbol id="arrow-down" viewBox="0 0 24 24"><path d="M12 4v16m-7-7 7 7 7-7" /></symbol>
+      <symbol id="arrow-left" viewBox="0 0 24 24"><path d="M20 12H4m7-7-7 7 7 7" /></symbol>
+      <symbol id="external" viewBox="0 0 24 24"><path d="M7 17 19 5M8 5h11v11" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 6v6l4 2" />
+      </symbol>
+      <symbol id="chat" viewBox="0 0 24 24">
+        <path d="M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-1l-5 2 2-5a9 9 0 1 1 16-5Z" />
+      </symbol>
+      <symbol id="pin" viewBox="0 0 24 24"><path d="m9 3 6 0-1 6 4 4v2H6v-2l4-4Zm3 12v7" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6" /></symbol>
+      <symbol id="mail" viewBox="0 0 24 24">
+        <rect x="2" y="4" width="20" height="16" rx="2" />
+        <path d="m2 5 10 8L22 5" />
+      </symbol>
+    </svg>
+    <main class="app-window" aria-label="eïlo widget home prototype">
+      <div class="workspace nav-collapsed">
+        <header class="home-header"
+          ><div><h1>Home</h1><p>Sample home</p></div
+          ><div class="header-actions"
+            ><button class="button overflow-toggle" hidden>More widgets</button
+            ><span class="save-state" role="status"></span
+            ><button class="button add-toggle" hidden
+              ><svg><use href="#plus" /></svg>Add widgets</button
+            ><button class="button edit-toggle"
+              ><svg><use href="#pencil" /></svg><span>Edit home</span></button
+            ></div
+          ></header
+        >
+        <div class="rail-zone">
+          <button
+            class="nav-hint"
+            aria-label="Open navigation"
+            aria-controls="main-rail"
+            aria-expanded="false"
+            ><span></span
+          ></button>
+          <nav
+            id="main-rail"
+            class="nav-rail is-hidden"
+            aria-label="Main navigation"
+            aria-hidden="true"
+            inert
+          >
+            <span class="wordmark">eïlo</span>
+            <div class="nav-items"
+              ><button
+                class="nav-item active"
+                data-detail="home"
+                aria-label="Home"
+                aria-current="page"
+                title="Home"
+                ><svg><use href="#home" /></svg></button
+              ><button class="nav-item" data-detail="goals" aria-label="Goals" title="Goals"
+                ><svg><use href="#target" /></svg></button
+              ><button class="nav-item" data-detail="today" aria-label="Today" title="Today"
+                ><svg><use href="#calendar" /></svg></button
+              ><button
+                class="nav-item"
+                data-detail="progress"
+                aria-label="Progress"
+                title="Progress"
+                ><svg><use href="#sliders" /></svg></button
+              ><button
+                class="nav-item"
+                data-detail="activity"
+                aria-label="Recent updates"
+                title="Recent updates"
+                ><svg><use href="#note" /></svg></button
+            ></div>
+            <button
+              class="account-trigger"
+              aria-label="Account menu"
+              aria-expanded="false"
+              aria-controls="account-menu"
+              >S</button
+            >
+            <div id="account-menu" class="account-menu" hidden
+              ><div class="account-name">Sean<span>Prototype profile</span></div
+              ><button data-account-action="profile">Account</button
+              ><button data-account-action="settings">Settings</button
+              ><button data-account-action="connections">Connections &amp; privacy</button
+              ><button data-account-action="help">Help</button></div
+            >
+          </nav>
+        </div>
+        <div class="board-scroll"
+          ><div class="storage-warning" hidden role="status"></div
+          ><div class="board" role="region" aria-label="Your widgets"></div
+          ><div class="empty-home" hidden
+            ><svg><use href="#plus" /></svg><h2>Make room for what matters</h2
+            ><p>Add a widget to bring it onto your home.</p
+            ><button class="button primary empty-add">Add widgets</button></div
+          ></div
+        >
       </div>
-      <div class="board-scroll"><div class="storage-warning" hidden role="status"></div><div class="board" role="region" aria-label="Your widgets"></div><div class="empty-home" hidden><svg><use href="#plus"/></svg><h2>Make room for what matters</h2><p>Add a widget to bring it onto your home.</p><button class="button primary empty-add">Add widgets</button></div></div>
-    </div>
-  </main>
-  <dialog class="gallery" aria-labelledby="gallery-title">
-    <div class="dialog-heading"><h2 id="gallery-title">Add widgets</h2><button class="icon-button gallery-close" aria-label="Close widget gallery"><svg><use href="#x"/></svg></button></div>
-    <label class="search-field"><svg><use href="#search"/></svg><input type="search" id="widget-search" placeholder="Find a widget" aria-label="Find a widget" autocomplete="off"></label>
-    <div class="gallery-content"><nav class="widget-categories" aria-label="Widget types"></nav><div class="gallery-selection"><h3 class="gallery-type-title">Progress</h3><div class="widget-preview" inert aria-hidden="true"></div><button class="button primary confirm-add">Add widget</button></div></div><p class="no-results" hidden role="status">No widgets match that search.</p>
-  </dialog>
-  <dialog class="detail-dialog" aria-labelledby="detail-title"><div class="dialog-heading"><h2 id="detail-title"></h2><button class="icon-button detail-close" aria-label="Close details"><svg><use href="#x"/></svg></button></div><div class="detail-body"></div></dialog>
-  <div class="widget-menu" hidden role="group" aria-label="Widget options"></div>
-  <div class="toast" hidden><span class="toast-message"></span><button class="toast-undo" hidden>Undo</button></div>
-  <div class="sr-only" role="status" aria-live="polite" aria-atomic="true" id="announcement"></div>
-  <p class="sr-only" id="move-help">Press Space or Enter to start moving. Use arrow keys to move one grid position. Press Enter to finish or Escape to cancel.</p>
-  <p class="sr-only" id="resize-help">Drag this corner to resize. With a keyboard, use arrow keys to change the widget's width or height.</p>
-  <p class="sr-only" id="widget-arrange-help">Press and hold an empty area of this panel to rearrange it, or choose Edit home for keyboard controls.</p>
-</body>
+    </main>
+    <dialog class="gallery" aria-labelledby="gallery-title">
+      <div class="dialog-heading"
+        ><h2 id="gallery-title">Add widgets</h2
+        ><button class="icon-button gallery-close" aria-label="Close widget gallery"
+          ><svg><use href="#x" /></svg></button
+      ></div>
+      <label class="search-field"
+        ><svg><use href="#search" /></svg
+        ><input
+          type="search"
+          id="widget-search"
+          placeholder="Find a widget"
+          aria-label="Find a widget"
+          autocomplete="off"
+      /></label>
+      <div class="gallery-content"
+        ><nav class="widget-categories" aria-label="Widget types"></nav
+        ><div class="gallery-selection"
+          ><h3 class="gallery-type-title">Progress</h3
+          ><div class="widget-preview" inert aria-hidden="true"></div
+          ><button class="button primary confirm-add">Add widget</button></div
+        ></div
+      ><p class="no-results" hidden role="status">No widgets match that search.</p>
+    </dialog>
+    <dialog class="detail-dialog" aria-labelledby="detail-title"
+      ><div class="dialog-heading"
+        ><h2 id="detail-title"></h2
+        ><button class="icon-button detail-close" aria-label="Close details"
+          ><svg><use href="#x" /></svg></button></div
+      ><div class="detail-body"></div
+    ></dialog>
+    <div class="widget-menu" hidden role="group" aria-label="Widget options"></div>
+    <div class="toast" hidden
+      ><span class="toast-message"></span><button class="toast-undo" hidden>Undo</button></div
+    >
+    <div
+      class="sr-only"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      id="announcement"
+    ></div>
+    <p class="sr-only" id="move-help"
+      >Press Space or Enter to start moving. Use arrow keys to move one grid position. Press Enter
+      to finish or Escape to cancel.</p
+    >
+    <p class="sr-only" id="resize-help"
+      >Drag this corner to resize. With a keyboard, use arrow keys to change the widget's width or
+      height.</p
+    >
+    <p class="sr-only" id="widget-arrange-help"
+      >Press and hold an empty area of this panel to rearrange it, or choose Edit home for keyboard
+      controls.</p
+    >
+  </body>
 </html>

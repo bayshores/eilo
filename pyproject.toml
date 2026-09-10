@@ -1,0 +1,42 @@
+[project]
+name = "eilo"
+version = "0.1.0"
+description = "Local conversation, commitment, and permitted-context service"
+requires-python = ">=3.13,<3.14"
+# These application dependencies match the pinned runtime manifests. Hermes itself
+# remains a separately provisioned runtime; unit tests never need its credentials.
+dependencies = [
+    "aiohttp==3.14.3",
+    "psutil==7.2.2",
+    "PyYAML==6.0.3",
+    "keyring==25.7.0",
+]
+
+[dependency-groups]
+dev = ["ruff==0.16.7"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = [".runtime", ".state", ".tmp", "node_modules"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+# Entry points retain direct-file invocation for the desktop supervisor and the
+# isolated Hermes launchers. They add the repository to sys.path before imports.
+"app/server.py" = ["E402"]
+"app/human_driver.py" = ["E402"]
+"app/event_driver.py" = ["E402"]
+"app/mcp_probe.py" = ["E402"]
+# These tests intentionally perform tiny synchronous reads of isolated fixtures.
+"tests/test_local_chat.py" = ["ASYNC240"]
+"tests/test_record_transactions.py" = ["ASYNC240"]
+"tests/test_task_transactions.py" = ["ASYNC240"]
+
+[tool.ruff.format]
+docstring-code-format = true

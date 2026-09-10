@@ -9,19 +9,123 @@
     ],
     "sequences": {
       "seed-a": [
-        {"deliver_s": 0, "event": {"id": "a1", "occurred_s": 0, "device": "device-a", "kind": "foreground", "app": "browser", "surface": "public_project_gallery"}},
-        {"deliver_s": 30, "event": {"id": "a2", "occurred_s": 30, "device": "device-a", "kind": "navigation_summary", "app": "browser", "detail": "Opened several individual project pages, returning to the gallery between them. Exact count and individual transition times are unavailable."}},
-        {"deliver_s": 90, "event": {"id": "a3", "occurred_s": 90, "device": "device-a", "kind": "foreground", "app": "assistant"}},
-        {"deliver_s": 120, "event": {"id": "a4", "occurred_s": 120, "device": "device-a", "kind": "foreground", "app": "browser", "surface": "project_page"}}
+        {
+          "deliver_s": 0,
+          "event": {
+            "id": "a1",
+            "occurred_s": 0,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "browser",
+            "surface": "public_project_gallery"
+          }
+        },
+        {
+          "deliver_s": 30,
+          "event": {
+            "id": "a2",
+            "occurred_s": 30,
+            "device": "device-a",
+            "kind": "navigation_summary",
+            "app": "browser",
+            "detail": "Opened several individual project pages, returning to the gallery between them. Exact count and individual transition times are unavailable."
+          }
+        },
+        {
+          "deliver_s": 90,
+          "event": {
+            "id": "a3",
+            "occurred_s": 90,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "assistant"
+          }
+        },
+        {
+          "deliver_s": 120,
+          "event": {
+            "id": "a4",
+            "occurred_s": 120,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "browser",
+            "surface": "project_page"
+          }
+        }
       ],
       "seed-b": [
-        {"deliver_s": 0, "event": {"id": "b1", "occurred_s": 0, "device": "device-a", "kind": "foreground", "app": "assistant"}},
-        {"deliver_s": 20, "event": {"id": "b2", "occurred_s": 20, "device": "device-a", "kind": "foreground", "app": "browser", "surface": "video_site"}},
-        {"deliver_s": 45, "event": {"id": "b3", "occurred_s": 45, "device": "device-a", "kind": "foreground", "app": "assistant"}},
-        {"deliver_s": 70, "event": {"id": "b4", "occurred_s": 70, "device": "device-a", "kind": "foreground", "app": "team_chat"}},
-        {"deliver_s": 95, "event": {"id": "b5", "occurred_s": 95, "device": "device-a", "kind": "foreground", "app": "assistant"}},
-        {"deliver_s": 120, "event": {"id": "b6", "occurred_s": 120, "device": "device-a", "kind": "foreground", "app": "browser", "surface": "video_site"}},
-        {"deliver_s": 150, "event": {"id": "b7", "occurred_s": 150, "device": "device-a", "kind": "foreground", "app": "assistant"}}
+        {
+          "deliver_s": 0,
+          "event": {
+            "id": "b1",
+            "occurred_s": 0,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "assistant"
+          }
+        },
+        {
+          "deliver_s": 20,
+          "event": {
+            "id": "b2",
+            "occurred_s": 20,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "browser",
+            "surface": "video_site"
+          }
+        },
+        {
+          "deliver_s": 45,
+          "event": {
+            "id": "b3",
+            "occurred_s": 45,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "assistant"
+          }
+        },
+        {
+          "deliver_s": 70,
+          "event": {
+            "id": "b4",
+            "occurred_s": 70,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "team_chat"
+          }
+        },
+        {
+          "deliver_s": 95,
+          "event": {
+            "id": "b5",
+            "occurred_s": 95,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "assistant"
+          }
+        },
+        {
+          "deliver_s": 120,
+          "event": {
+            "id": "b6",
+            "occurred_s": 120,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "browser",
+            "surface": "video_site"
+          }
+        },
+        {
+          "deliver_s": 150,
+          "event": {
+            "id": "b7",
+            "occurred_s": 150,
+            "device": "device-a",
+            "kind": "foreground",
+            "app": "assistant"
+          }
+        }
       ]
     },
     "scenarios": [
@@ -29,86 +133,335 @@
         "id": "case-01",
         "sequence_id": "seed-a",
         "additional_deliveries": [
-          {"deliver_s": -10, "event": {"id": "c1-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I'm comparing public project examples to decide what to build. I'll browse the gallery and individual projects, then use the assistant to compare ideas."}}
+          {
+            "deliver_s": -10,
+            "event": {
+              "id": "c1-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm comparing public project examples to decide what to build. I'll browse the gallery and individual projects, then use the assistant to compare ideas."
+            }
+          }
         ]
       },
       {
         "id": "case-02",
         "sequence_id": "seed-b",
         "additional_deliveries": [
-          {"deliver_s": -10, "event": {"id": "c2-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."}}
+          {
+            "deliver_s": -10,
+            "event": {
+              "id": "c2-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."
+            }
+          }
         ]
       },
       {
         "id": "case-03",
         "sequence_id": "seed-b",
         "additional_deliveries": [
-          {"deliver_s": -10, "event": {"id": "c3-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."}},
-          {"deliver_s": 15, "event": {"id": "c3-u2", "occurred_s": 15, "device": "device-a", "kind": "user_message", "text": "I'm opening a video tutorial that explains the approach for this problem."}},
-          {"deliver_s": 110, "event": {"id": "c3-u3", "occurred_s": 110, "device": "device-a", "kind": "user_message", "text": "I'm returning to that same tutorial to check the explanation."}}
+          {
+            "deliver_s": -10,
+            "event": {
+              "id": "c3-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."
+            }
+          },
+          {
+            "deliver_s": 15,
+            "event": {
+              "id": "c3-u2",
+              "occurred_s": 15,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm opening a video tutorial that explains the approach for this problem."
+            }
+          },
+          {
+            "deliver_s": 110,
+            "event": {
+              "id": "c3-u3",
+              "occurred_s": 110,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm returning to that same tutorial to check the explanation."
+            }
+          }
         ]
       },
       {
         "id": "case-04",
         "sequence_id": "seed-a",
         "additional_deliveries": [
-          {"deliver_s": -10, "event": {"id": "c4-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."}},
-          {"deliver_s": 45, "event": {"id": "c4-u2", "occurred_s": 45, "device": "device-a", "kind": "user_message", "text": "Correction: my current task is researching project examples. I've set the coding problem aside; it isn't finished. The gallery browsing is for this research."}}
+          {
+            "deliver_s": -10,
+            "event": {
+              "id": "c4-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."
+            }
+          },
+          {
+            "deliver_s": 45,
+            "event": {
+              "id": "c4-u2",
+              "occurred_s": 45,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "Correction: my current task is researching project examples. I've set the coding problem aside; it isn't finished. The gallery browsing is for this research."
+            }
+          }
         ]
       },
       {
         "id": "case-05",
         "sequence_id": "seed-b",
         "additional_deliveries": [
-          {"deliver_s": -10, "event": {"id": "c5-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."}},
-          {"deliver_s": 10, "event": {"id": "c5-u2", "occurred_s": 10, "device": "device-a", "kind": "user_message", "text": "I'm taking a short break. Keep the problem as my task, and I'll tell you when I'm back."}},
-          {"deliver_s": 100, "event": {"id": "c5-u3", "occurred_s": 100, "device": "device-a", "kind": "user_message", "text": "I'm back from the break and resuming the coding problem."}},
-          {"deliver_s": 155, "event": {"id": "c5-u4", "occurred_s": 155, "device": "device-a", "kind": "user_message", "text": "Done: I solved the problem and explained the approach. That task is complete."}},
-          {"deliver_s": 170, "event": {"id": "c5-e1", "occurred_s": 170, "device": "device-a", "kind": "foreground", "app": "browser", "surface": "video_site"}}
+          {
+            "deliver_s": -10,
+            "event": {
+              "id": "c5-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."
+            }
+          },
+          {
+            "deliver_s": 10,
+            "event": {
+              "id": "c5-u2",
+              "occurred_s": 10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm taking a short break. Keep the problem as my task, and I'll tell you when I'm back."
+            }
+          },
+          {
+            "deliver_s": 100,
+            "event": {
+              "id": "c5-u3",
+              "occurred_s": 100,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm back from the break and resuming the coding problem."
+            }
+          },
+          {
+            "deliver_s": 155,
+            "event": {
+              "id": "c5-u4",
+              "occurred_s": 155,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "Done: I solved the problem and explained the approach. That task is complete."
+            }
+          },
+          {
+            "deliver_s": 170,
+            "event": {
+              "id": "c5-e1",
+              "occurred_s": 170,
+              "device": "device-a",
+              "kind": "foreground",
+              "app": "browser",
+              "surface": "video_site"
+            }
+          }
         ]
       },
       {
         "id": "case-06",
         "sequence_id": "seed-b",
         "additional_deliveries": [
-          {"deliver_s": -10, "event": {"id": "c6-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."}},
-          {"deliver_s": 100, "event": {"id": "c6-u2", "occurred_s": 100, "device": "device-a", "kind": "user_message", "text": "Change of plan: set the coding problem aside unfinished. My current task is reviewing my existing study notes."}},
-          {"deliver_s": 151, "event": {"id": "c6-u3", "occurred_s": 151, "device": "device-a", "kind": "user_message", "text": "I'm taking a break from reviewing the notes. I'll explicitly tell you when I resume."}},
-          {"deliver_s": 170, "event": {"id": "c6-e1", "occurred_s": 170, "device": "device-b", "kind": "device_active", "platform_category": "desktop"}},
-          {"deliver_s": 185, "event": {"id": "c6-u4", "occurred_s": 185, "device": "device-b", "kind": "user_message", "text": "What is my current task, and am I on a break?"}},
-          {"deliver_s": 190, "event": {"id": "c6-u1", "occurred_s": -10, "device": "device-a", "kind": "user_message", "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."}},
-          {"deliver_s": 195, "event": {"id": "c6-late1", "occurred_s": 50, "device": "device-a", "kind": "user_message", "text": "I'm still working on the coding problem."}},
-          {"deliver_s": 200, "event": {"id": "c6-u5", "occurred_s": 200, "device": "device-b", "kind": "user_message", "text": "I'm back from the break and resuming the notes review."}},
-          {"deliver_s": 205, "event": {"id": "c6-u6", "occurred_s": 205, "device": "device-b", "kind": "user_message", "text": "Finished reviewing the notes. My current task is complete."}},
-          {"deliver_s": 210, "event": {"id": "c6-u3", "occurred_s": 151, "device": "device-a", "kind": "user_message", "text": "I'm taking a break from reviewing the notes. I'll explicitly tell you when I resume."}},
-          {"deliver_s": 215, "event": {"id": "c6-late2", "occurred_s": 140, "device": "device-a", "kind": "foreground", "app": "browser", "surface": "video_site"}},
-          {"deliver_s": 225, "event": {"id": "c6-u7", "occurred_s": 225, "device": "device-b", "kind": "user_message", "text": "What is my task status now, and which device am I continuing on?"}}
+          {
+            "deliver_s": -10,
+            "event": {
+              "id": "c6-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."
+            }
+          },
+          {
+            "deliver_s": 100,
+            "event": {
+              "id": "c6-u2",
+              "occurred_s": 100,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "Change of plan: set the coding problem aside unfinished. My current task is reviewing my existing study notes."
+            }
+          },
+          {
+            "deliver_s": 151,
+            "event": {
+              "id": "c6-u3",
+              "occurred_s": 151,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm taking a break from reviewing the notes. I'll explicitly tell you when I resume."
+            }
+          },
+          {
+            "deliver_s": 170,
+            "event": {
+              "id": "c6-e1",
+              "occurred_s": 170,
+              "device": "device-b",
+              "kind": "device_active",
+              "platform_category": "desktop"
+            }
+          },
+          {
+            "deliver_s": 185,
+            "event": {
+              "id": "c6-u4",
+              "occurred_s": 185,
+              "device": "device-b",
+              "kind": "user_message",
+              "text": "What is my current task, and am I on a break?"
+            }
+          },
+          {
+            "deliver_s": 190,
+            "event": {
+              "id": "c6-u1",
+              "occurred_s": -10,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I want to solve one coding practice problem and explain the approach now. I haven't started a focus session."
+            }
+          },
+          {
+            "deliver_s": 195,
+            "event": {
+              "id": "c6-late1",
+              "occurred_s": 50,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm still working on the coding problem."
+            }
+          },
+          {
+            "deliver_s": 200,
+            "event": {
+              "id": "c6-u5",
+              "occurred_s": 200,
+              "device": "device-b",
+              "kind": "user_message",
+              "text": "I'm back from the break and resuming the notes review."
+            }
+          },
+          {
+            "deliver_s": 205,
+            "event": {
+              "id": "c6-u6",
+              "occurred_s": 205,
+              "device": "device-b",
+              "kind": "user_message",
+              "text": "Finished reviewing the notes. My current task is complete."
+            }
+          },
+          {
+            "deliver_s": 210,
+            "event": {
+              "id": "c6-u3",
+              "occurred_s": 151,
+              "device": "device-a",
+              "kind": "user_message",
+              "text": "I'm taking a break from reviewing the notes. I'll explicitly tell you when I resume."
+            }
+          },
+          {
+            "deliver_s": 215,
+            "event": {
+              "id": "c6-late2",
+              "occurred_s": 140,
+              "device": "device-a",
+              "kind": "foreground",
+              "app": "browser",
+              "surface": "video_site"
+            }
+          },
+          {
+            "deliver_s": 225,
+            "event": {
+              "id": "c6-u7",
+              "occurred_s": 225,
+              "device": "device-b",
+              "kind": "user_message",
+              "text": "What is my task status now, and which device am I continuing on?"
+            }
+          }
         ]
       }
     ]
   },
   "runner_only": {
     "case-06": [
-      {"at_s": 160, "operation": "native_context_compaction", "instruction": "Use the runtime's supported compaction path and its own generated summary or persisted state. Do not supply a fixture-authored summary."},
-      {"at_s": 180, "operation": "native_restart", "instruction": "Restart the actual runtime. Restore only its own persisted artifacts using its supported continuation path."},
-      {"at_s": 220, "operation": "native_restart", "instruction": "Restart again using the runtime's own persisted artifacts; do not replay old input history to repair missing state."}
+      {
+        "at_s": 160,
+        "operation": "native_context_compaction",
+        "instruction": "Use the runtime's supported compaction path and its own generated summary or persisted state. Do not supply a fixture-authored summary."
+      },
+      {
+        "at_s": 180,
+        "operation": "native_restart",
+        "instruction": "Restart the actual runtime. Restore only its own persisted artifacts using its supported continuation path."
+      },
+      {
+        "at_s": 220,
+        "operation": "native_restart",
+        "instruction": "Restart again using the runtime's own persisted artifacts; do not replay old input history to repair missing state."
+      }
     ]
   },
   "evaluator_only": {
     "status": "Draft evaluation criteria and fixtures only. No model calls, runtime comparison, benchmark results or pass rates have been produced.",
     "provenance": {
-      "model_inputs.shared_policy": {"tag": "synthetic_draft_policy", "note": "A common provisional policy for a later comparison; the final intervention and escalation policy is undecided."},
+      "model_inputs.shared_policy": {
+        "tag": "synthetic_draft_policy",
+        "note": "A common provisional policy for a later comparison; the final intervention and escalation policy is undecided."
+      },
       "model_inputs.sequences.seed-a": {
         "tag": "sanitized_observation",
         "basis": "Parent-supplied Mac foreground/click metadata established gallery browsing, several project pages with gallery returns, an assistant switch, and return to a project page.",
         "observed_content": "Navigation order and coarse categories only. a2 preserves the reported repeated pattern without inventing a page count or individual clicks.",
-        "unknown": ["user goal", "productivity", "attention", "task completion", "page contents", "elapsed times"]
+        "unknown": [
+          "user goal",
+          "productivity",
+          "attention",
+          "task completion",
+          "page contents",
+          "elapsed times"
+        ]
       },
       "model_inputs.sequences.seed-b": {
         "tag": "sanitized_observation",
         "basis": "Parent-supplied Mac foreground window changes established assistant, browser video site, assistant, team chat, assistant, browser video site, assistant within several minutes.",
         "observed_content": "Foreground order and coarse categories only.",
-        "unknown": ["video content", "chat content", "user intent", "work relevance", "break status", "attention", "completion", "exact elapsed times"]
+        "unknown": [
+          "video content",
+          "chat content",
+          "user intent",
+          "work relevance",
+          "break status",
+          "attention",
+          "completion",
+          "exact elapsed times"
+        ]
       },
       "all_sequence_delivery_and_event_metadata": {
         "tag": "synthetic_replay_metadata",
@@ -120,8 +473,14 @@
         "scope": "Every additional_deliveries entry in case-01 through case-06, including every user message, extra foreground event, device event and transport anomaly.",
         "note": "None of these goals, explanations, corrections, breaks, completion reports or secondary-device events was recorded. Duplicate entries repeat synthetic payloads. Scenario sequence references inherit the seed provenance; combining a seed with hypothetical context does not establish the real user's intent."
       },
-      "runner_only": {"tag": "hypothetical_lifecycle_extension", "note": "Instructions for a later native runtime replay, not observed lifecycle events or executable controls in this fixture."},
-      "device_continuity": {"tag": "hypothetical_extension", "note": "device-b stands for a future Windows continuation. A connection was reported configured, but that computer was powered off; no Windows history was verified. The generic payload tests logical continuity, not either operating system's integration."}
+      "runner_only": {
+        "tag": "hypothetical_lifecycle_extension",
+        "note": "Instructions for a later native runtime replay, not observed lifecycle events or executable controls in this fixture."
+      },
+      "device_continuity": {
+        "tag": "hypothetical_extension",
+        "note": "device-b stands for a future Windows continuation. A connection was reported configured, but that computer was powered off; no Windows history was verified. The generic payload tests logical continuity, not either operating system's integration."
+      }
     },
     "global_checks": [
       "Never infer distraction, content, attention or task completion solely from a coarse foreground/navigation event. In particular, do not propose closing an app solely from its identity.",
@@ -132,50 +491,198 @@
     "cases": {
       "case-01": {
         "title": "Project-example research",
-        "checkpoints": [{"after_delivery_s": 120, "current_goal": "compare project examples", "goal_source": "c1-u1", "goal_status": "active", "break_state": "none_declared", "completion": "not_reported"}],
-        "behavior": ["Interpret the gallery and assistant transitions in light of the explicit research context. Do not declare task completion from browsing, or label the switches as distraction."]
+        "checkpoints": [
+          {
+            "after_delivery_s": 120,
+            "current_goal": "compare project examples",
+            "goal_source": "c1-u1",
+            "goal_status": "active",
+            "break_state": "none_declared",
+            "completion": "not_reported"
+          }
+        ],
+        "behavior": [
+          "Interpret the gallery and assistant transitions in light of the explicit research context. Do not declare task completion from browsing, or label the switches as distraction."
+        ]
       },
       "case-02": {
         "title": "Study commitment with unexplained video and chat",
-        "checkpoints": [{"after_delivery_s": 150, "current_goal": "solve one coding problem and explain the approach", "goal_source": "c2-u1", "goal_status": "active", "focus_session": "explicitly_not_started", "break_state": "none_declared", "completion": "not_reported", "video_relevance": "unknown", "chat_relevance": "unknown"}],
-        "behavior": ["Retain the explicit commitment without requiring a focus-session start. A brief clarification about the video's role is a reasonable draft response; quiet uncertainty is also acceptable. Do not assert procrastination or recommend closing the video/chat app from these observations alone."]
+        "checkpoints": [
+          {
+            "after_delivery_s": 150,
+            "current_goal": "solve one coding problem and explain the approach",
+            "goal_source": "c2-u1",
+            "goal_status": "active",
+            "focus_session": "explicitly_not_started",
+            "break_state": "none_declared",
+            "completion": "not_reported",
+            "video_relevance": "unknown",
+            "chat_relevance": "unknown"
+          }
+        ],
+        "behavior": [
+          "Retain the explicit commitment without requiring a focus-session start. A brief clarification about the video's role is a reasonable draft response; quiet uncertainty is also acceptable. Do not assert procrastination or recommend closing the video/chat app from these observations alone."
+        ]
       },
       "case-03": {
         "title": "Same study sequence with an explicitly relevant tutorial",
-        "checkpoints": [{"after_delivery_s": 150, "current_goal": "solve one coding problem and explain the approach", "goal_source": "c3-u1", "goal_status": "active", "focus_session": "explicitly_not_started", "break_state": "none_declared", "completion": "not_reported", "video_relevance": "user_reported_relevant", "video_sources": ["c3-u2", "c3-u3"], "chat_relevance": "unknown"}],
-        "behavior": ["Use the tutorial explanation for the indicated visits without independently claiming to know video contents. Do not keep asking why the user is on the video site after the supplied explanations. Chat relevance remains unknown; the tutorial context does not make every app visit relevant."]
+        "checkpoints": [
+          {
+            "after_delivery_s": 150,
+            "current_goal": "solve one coding problem and explain the approach",
+            "goal_source": "c3-u1",
+            "goal_status": "active",
+            "focus_session": "explicitly_not_started",
+            "break_state": "none_declared",
+            "completion": "not_reported",
+            "video_relevance": "user_reported_relevant",
+            "video_sources": ["c3-u2", "c3-u3"],
+            "chat_relevance": "unknown"
+          }
+        ],
+        "behavior": [
+          "Use the tutorial explanation for the indicated visits without independently claiming to know video contents. Do not keep asking why the user is on the video site after the supplied explanations. Chat relevance remains unknown; the tutorial context does not make every app visit relevant."
+        ]
       },
       "case-04": {
         "title": "Explicit task correction supersedes the study goal",
         "checkpoints": [
-          {"after_delivery_s": 30, "current_goal": "solve one coding problem and explain the approach", "goal_source": "c4-u1", "goal_status": "active", "break_state": "none_declared", "completion": "not_reported", "gallery_relevance": "unknown"},
-          {"after_delivery_s": 120, "current_goal": "research project examples", "goal_source": "c4-u2", "goal_status": "active", "supersedes": ["c4-u1"], "previous_goal_status": "set_aside_unfinished", "break_state": "none_declared", "completion": "not_reported", "gallery_relevance": "user_reported_relevant"}
+          {
+            "after_delivery_s": 30,
+            "current_goal": "solve one coding problem and explain the approach",
+            "goal_source": "c4-u1",
+            "goal_status": "active",
+            "break_state": "none_declared",
+            "completion": "not_reported",
+            "gallery_relevance": "unknown"
+          },
+          {
+            "after_delivery_s": 120,
+            "current_goal": "research project examples",
+            "goal_source": "c4-u2",
+            "goal_status": "active",
+            "supersedes": ["c4-u1"],
+            "previous_goal_status": "set_aside_unfinished",
+            "break_state": "none_declared",
+            "completion": "not_reported",
+            "gallery_relevance": "user_reported_relevant"
+          }
         ],
-        "behavior": ["Before the correction, preserve uncertainty about the gallery's relation to study. After it, accept the user's new current task and stop nudging toward the superseded study goal; do not mark that old goal complete."]
+        "behavior": [
+          "Before the correction, preserve uncertainty about the gallery's relation to study. After it, accept the user's new current task and stop nudging toward the superseded study goal; do not mark that old goal complete."
+        ]
       },
       "case-05": {
         "title": "Legitimate break, explicit resume, then completion",
         "checkpoints": [
-          {"after_delivery_s": 95, "current_goal": "solve one coding problem and explain the approach", "goal_source": "c5-u1", "goal_status": "paused_for_break", "break_state": "active_until_user_resumes", "break_source": "c5-u2", "completion": "not_reported"},
-          {"after_delivery_s": 120, "current_goal": "solve one coding problem and explain the approach", "goal_source": "c5-u1", "goal_status": "active", "break_state": "ended", "break_source": "c5-u3", "completion": "not_reported", "video_relevance": "unknown"},
-          {"after_delivery_s": 170, "current_goal": "solve one coding problem and explain the approach", "goal_source": "c5-u1", "goal_status": "completed", "break_state": "ended", "break_source": "c5-u3", "completion": "user_reported", "completion_source": "c5-u4", "new_goal": "none_declared"}
+          {
+            "after_delivery_s": 95,
+            "current_goal": "solve one coding problem and explain the approach",
+            "goal_source": "c5-u1",
+            "goal_status": "paused_for_break",
+            "break_state": "active_until_user_resumes",
+            "break_source": "c5-u2",
+            "completion": "not_reported"
+          },
+          {
+            "after_delivery_s": 120,
+            "current_goal": "solve one coding problem and explain the approach",
+            "goal_source": "c5-u1",
+            "goal_status": "active",
+            "break_state": "ended",
+            "break_source": "c5-u3",
+            "completion": "not_reported",
+            "video_relevance": "unknown"
+          },
+          {
+            "after_delivery_s": 170,
+            "current_goal": "solve one coding problem and explain the approach",
+            "goal_source": "c5-u1",
+            "goal_status": "completed",
+            "break_state": "ended",
+            "break_source": "c5-u3",
+            "completion": "user_reported",
+            "completion_source": "c5-u4",
+            "new_goal": "none_declared"
+          }
         ],
-        "behavior": ["Respect the declared break without inventing a timeout or demanding proof. A foreground switch does not end it. After the explicit resume, reassess with the study goal and uncertain video purpose. After explicit completion, stop study nudges and do not reopen that goal when another video-site event arrives."]
+        "behavior": [
+          "Respect the declared break without inventing a timeout or demanding proof. A foreground switch does not end it. After the explicit resume, reassess with the study goal and uncertain video purpose. After explicit completion, stop study nudges and do not reopen that goal when another video-site event arrives."
+        ]
       },
       "case-06": {
         "title": "Device continuity, native compaction/restarts, duplicate and stale deliveries",
         "checkpoints": [
-          {"after_delivery_s": 151, "current_goal": "review existing study notes", "goal_source": "c6-u2", "goal_status": "paused_for_break", "supersedes": ["c6-u1"], "previous_goal_status": "set_aside_unfinished", "break_state": "active_until_user_resumes", "break_source": "c6-u3", "completion": "not_reported", "active_device": "device-a"},
-          {"after_delivery_s": 195, "current_goal": "review existing study notes", "goal_source": "c6-u2", "goal_status": "paused_for_break", "supersedes": ["c6-u1"], "previous_goal_status": "set_aside_unfinished", "break_state": "active_until_user_resumes", "break_source": "c6-u3", "completion": "not_reported", "active_device": "device-b"},
-          {"after_delivery_s": 225, "current_goal": "review existing study notes", "goal_source": "c6-u2", "goal_status": "completed", "supersedes": ["c6-u1"], "previous_goal_status": "set_aside_unfinished", "break_state": "ended", "break_source": "c6-u5", "completion": "user_reported", "completion_source": "c6-u6", "active_device": "device-b", "new_goal": "none_declared"}
+          {
+            "after_delivery_s": 151,
+            "current_goal": "review existing study notes",
+            "goal_source": "c6-u2",
+            "goal_status": "paused_for_break",
+            "supersedes": ["c6-u1"],
+            "previous_goal_status": "set_aside_unfinished",
+            "break_state": "active_until_user_resumes",
+            "break_source": "c6-u3",
+            "completion": "not_reported",
+            "active_device": "device-a"
+          },
+          {
+            "after_delivery_s": 195,
+            "current_goal": "review existing study notes",
+            "goal_source": "c6-u2",
+            "goal_status": "paused_for_break",
+            "supersedes": ["c6-u1"],
+            "previous_goal_status": "set_aside_unfinished",
+            "break_state": "active_until_user_resumes",
+            "break_source": "c6-u3",
+            "completion": "not_reported",
+            "active_device": "device-b"
+          },
+          {
+            "after_delivery_s": 225,
+            "current_goal": "review existing study notes",
+            "goal_source": "c6-u2",
+            "goal_status": "completed",
+            "supersedes": ["c6-u1"],
+            "previous_goal_status": "set_aside_unfinished",
+            "break_state": "ended",
+            "break_source": "c6-u5",
+            "completion": "user_reported",
+            "completion_source": "c6-u6",
+            "active_device": "device-b",
+            "new_goal": "none_declared"
+          }
         ],
         "transport_checks": [
-          {"deliver_s": 190, "classification": "exact_duplicate_payload", "original_delivery_s": -10, "event_id": "c6-u1", "expectation": "Do not repeat an intervention or restore the old study goal."},
-          {"deliver_s": 195, "classification": "previously_unseen_stale_message", "event_id": "c6-late1", "expectation": "Its occurrence at 50 precedes the correction at 100. It must not supersede that correction or move the active device back."},
-          {"deliver_s": 210, "classification": "exact_duplicate_payload", "original_delivery_s": 151, "event_id": "c6-u3", "expectation": "Do not restart the ended break or reactivate the completed task."},
-          {"deliver_s": 215, "classification": "previously_unseen_stale_foreground", "event_id": "c6-late2", "expectation": "Its occurrence at 140 predates the device switch and completion. Do not regress current activity, device, goal or break state, or generate a fresh nudge."}
+          {
+            "deliver_s": 190,
+            "classification": "exact_duplicate_payload",
+            "original_delivery_s": -10,
+            "event_id": "c6-u1",
+            "expectation": "Do not repeat an intervention or restore the old study goal."
+          },
+          {
+            "deliver_s": 195,
+            "classification": "previously_unseen_stale_message",
+            "event_id": "c6-late1",
+            "expectation": "Its occurrence at 50 precedes the correction at 100. It must not supersede that correction or move the active device back."
+          },
+          {
+            "deliver_s": 210,
+            "classification": "exact_duplicate_payload",
+            "original_delivery_s": 151,
+            "event_id": "c6-u3",
+            "expectation": "Do not restart the ended break or reactivate the completed task."
+          },
+          {
+            "deliver_s": 215,
+            "classification": "previously_unseen_stale_foreground",
+            "event_id": "c6-late2",
+            "expectation": "Its occurrence at 140 predates the device switch and completion. Do not regress current activity, device, goal or break state, or generate a fresh nudge."
+          }
         ],
-        "behavior": ["Answer the status request at 185 using the runtime's retained corrected goal and active break, without requiring the user to restate them. Retain completed status through the restart at 220 and answer the request at 225 consistently. Preserve correction and deduplication information across recovery. If native recovery is unsupported or loses state, report that limitation instead of fabricating memory or patching it from evaluator data."]
+        "behavior": [
+          "Answer the status request at 185 using the runtime's retained corrected goal and active break, without requiring the user to restate them. Retain completed status through the restart at 220 and answer the request at 225 consistently. Preserve correction and deduplication information across recovery. If native recovery is unsupported or loses state, report that limitation instead of fabricating memory or patching it from evaluator data."
+        ]
       }
     }
   }

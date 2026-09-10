@@ -2,11 +2,11 @@
 
 The backend uses [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent). Its pinned revision and archive checksum are in `hermes-source.json`. Hermes is an external local runtime, not vendored here. Its MIT notice is preserved in `third_party/hermes-agent-LICENSE`; other installed dependencies retain their notices in the local runtime.
 
-`design/studies/coastline-wallpaper.png` was generated for this project with OpenAI's image generation tool in September 2026. It depicts a fictional coastline used for static mockup presentation and is not a user's desktop screenshot. It is retained as reference art and is not loaded or served by the application. No third-party photography or operating-system icon assets are bundled. UI controls use the locally licensed fonts below and source SVG/CSS.
+`docs/docs/design/studies/coastline-wallpaper.png` was generated for this project with OpenAI's image generation tool in September 2026. It depicts a fictional coastline used for static mockup presentation and is not a user's desktop screenshot. It is retained as reference art and is not loaded or served by the application. No third-party photography or operating-system icon assets are bundled. UI controls use the locally licensed fonts below and source SVG/CSS.
 
 ## Typography
 
-The widget Home uses IBM Plex Sans, distributed under the SIL Open Font License 1.1. The unmodified Latin variable WOFF2 is served locally, and its copyright and license are in `prototypes/widget-home/assets/fonts/ibm-plex-sans-OFL.txt`. [IBM source](https://github.com/IBM/plex). The comparison study also bundles Source Sans 3 and Atkinson Hyperlegible Next with their respective OFL files and original download URLs in `prototypes/typography-study/`.
+The widget Home uses IBM Plex Sans, distributed under the SIL Open Font License 1.1. The unmodified Latin variable WOFF2 is served locally, and its copyright and license are in `web/assets/fonts/ibm-plex-sans-OFL.txt`. [IBM source](https://github.com/IBM/plex). The comparison study also bundles Source Sans 3 and Atkinson Hyperlegible Next with their respective OFL files and original download URLs in `prototypes/typography-study/`.
 
 ## Local speech recognition
 
@@ -22,9 +22,8 @@ The desktop development build pins [Electron](https://github.com/electron/electr
 
 The isolated Python runtime uses [keyring 25.7.0](https://pypi.org/project/keyring/), MIT licensed, for the macOS Keychain backend. Exact integration dependencies are pinned in `requirements.integrations.lock`; the library source and its license remain in the runtime installation. No credential data is included in this repository.
 
-
 ## MCP connection testing
 
 Explicit connection tests use the installed [official MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) 2.0.0 (MIT) through the pinned Hermes adapter. Added dependencies are recorded in `requirements.integrations.lock`; their license notices remain in the isolated runtime. No telemetry exporter or third-party MCP server is configured by installation.
 
-Mobbin's Sana AI chat, integration-detail and folder-creation flows were viewed as interaction references for the management UI; their screen images and source assets are not bundled. Reference URLs and design inferences are recorded in `design/connections-and-chats.md`.
+Mobbin's Sana AI chat, integration-detail and folder-creation flows were viewed as interaction references for the management UI; their screen images and source assets are not bundled. Reference URLs and design inferences are recorded in `docs/design/connections-and-chats.md`.

@@ -1,0 +1,60 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createWorkspaceRouter } from './router.js';
+
+function harness(hash = '') {
+  const listeners = new Map();
+  const location = { pathname: '/home/', search: '?demo=1', hash };
+  const windowRef = {
+    location,
+    history: {
+      pushes: [],
+      pushState(_state, _title, route) {
+        this.pushes.push(route);
+        const hashIndex = route.indexOf('#');
+        location.hash = hashIndex < 0 ? '' : route.slice(hashIndex);
+      },
+    },
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    },
+    removeEventListener(type) {
+      listeners.delete(type);
+    },
+  };
+  const documentRef = { title: '', querySelector: () => null, querySelectorAll: () => [] };
+  return { windowRef, documentRef, listeners };
+}
+
+test('restores only recognized hashes without adding a history entry', () => {
+  const h = harness('#connections'),
+    rendered = [];
+  const router = createWorkspaceRouter({ ...h, renderPage: (page) => rendered.push(page) });
+  router.start();
+  assert.deepEqual(rendered, ['connections']);
+  assert.deepEqual(h.windowRef.history.pushes, []);
+});
+
+test('navigation preserves search, pushes once, and applies route changes from browser history', () => {
+  const h = harness(),
+    rendered = [];
+  const router = createWorkspaceRouter({ ...h, renderPage: (page) => rendered.push(page) });
+  router.start();
+  router.showPage('goals');
+  router.showPage('goals');
+  assert.deepEqual(h.windowRef.history.pushes, ['/home/?demo=1#goals']);
+  h.windowRef.location.hash = '#activity';
+  h.listeners.get('hashchange')();
+  assert.deepEqual(rendered, ['home', 'goals', 'goals', 'activity']);
+});
+
+test('dispose unregisters history listeners and start can mount them again after a page restore', () => {
+  const h = harness(),
+    router = createWorkspaceRouter({ ...h });
+  router.start();
+  assert.equal(h.listeners.size, 2);
+  router.dispose();
+  assert.equal(h.listeners.size, 0);
+  router.start();
+  assert.equal(h.listeners.size, 2);
+});

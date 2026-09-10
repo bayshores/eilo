@@ -6,13 +6,12 @@ Goals, tasks, activity, and source permissions remain top-level global state.
 
 from __future__ import annotations
 
-from copy import deepcopy
-from datetime import datetime, timezone
-from hashlib import sha256
 import re
 import secrets
+from copy import deepcopy
+from datetime import UTC, datetime
+from hashlib import sha256
 from typing import Any
-
 
 CONVERSATION_KEYS = (
     "title",
@@ -43,7 +42,7 @@ class CatalogError(ValueError):
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _new_id(kind: str) -> str:
@@ -55,13 +54,20 @@ def _legacy_id(meta: dict[str, Any]) -> str:
     return "chat-legacy-" + sha256(source.encode("utf-8")).hexdigest()[:16]
 
 
-def _conversation_defaults(title: str | None = None, *, started: bool = False,
-                           session_id: str | None = None) -> dict[str, Any]:
+def _conversation_defaults(
+    title: str | None = None, *, started: bool = False, session_id: str | None = None
+) -> dict[str, Any]:
     return {
-        "title": title or _default_native_title(), "session_id": session_id,
-        "started": started, "pending": False, "request_id": None,
-        "accepted_requests": [], "pending_message": None, "pending_turn": None,
-        "pending_publication": None, "workflow_run": None,
+        "title": title or _default_native_title(),
+        "session_id": session_id,
+        "started": started,
+        "pending": False,
+        "request_id": None,
+        "accepted_requests": [],
+        "pending_message": None,
+        "pending_turn": None,
+        "pending_publication": None,
+        "workflow_run": None,
     }
 
 
@@ -92,7 +98,10 @@ def _validate_id(value: Any, label: str) -> str:
     return value
 
 
-def _assert_allowed_keys(body: dict[str, Any], required: set[str], optional: set[str] = set()) -> None:
+def _assert_allowed_keys(
+    body: dict[str, Any], required: set[str], optional: set[str] | None = None
+) -> None:
+    optional = optional or set()
     if not required.issubset(body) or not set(body).issubset(required | optional):
         raise CatalogError("Invalid control fields.")
 
@@ -165,8 +174,11 @@ def ensure_catalog(meta: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_catalog(catalog: dict[str, Any]) -> None:
-    if (not isinstance(catalog.get("revision"), int) or isinstance(catalog["revision"], bool)
-            or catalog["revision"] < 0):
+    if (
+        not isinstance(catalog.get("revision"), int)
+        or isinstance(catalog["revision"], bool)
+        or catalog["revision"] < 0
+    ):
         raise CatalogError("Invalid chat catalog.")
     if not isinstance(catalog.get("projects"), list) or not isinstance(catalog.get("chats"), list):
         raise CatalogError("Invalid chat catalog.")
@@ -189,7 +201,15 @@ def _validate_catalog(catalog: dict[str, Any]) -> None:
     chat_ids: set[str] = set()
     for chat in catalog["chats"]:
         if not isinstance(chat, dict) or set(chat) != {
-                "id", "name", "project_id", "archived", "pinned", "created_at", "updated_at", "conversation"}:
+            "id",
+            "name",
+            "project_id",
+            "archived",
+            "pinned",
+            "created_at",
+            "updated_at",
+            "conversation",
+        }:
             raise CatalogError("Invalid chat catalog.")
         chat_id = _validate_id(chat["id"], "chat id")
         if chat_id in chat_ids:
@@ -214,12 +234,15 @@ def _validate_conversation(conversation: Any) -> None:
         raise CatalogError("Invalid chat catalog.")
     if conversation["session_id"] is not None and not isinstance(conversation["session_id"], str):
         raise CatalogError("Invalid chat catalog.")
-    if not isinstance(conversation["started"], bool) or not isinstance(conversation["pending"], bool):
+    if not isinstance(conversation["started"], bool) or not isinstance(
+        conversation["pending"], bool
+    ):
         raise CatalogError("Invalid chat catalog.")
     if conversation["request_id"] is not None and not isinstance(conversation["request_id"], str):
         raise CatalogError("Invalid chat catalog.")
     if not isinstance(conversation["accepted_requests"], list) or not all(
-            isinstance(item, str) for item in conversation["accepted_requests"]):
+        isinstance(item, str) for item in conversation["accepted_requests"]
+    ):
         raise CatalogError("Invalid chat catalog.")
 
 
@@ -230,12 +253,18 @@ def snapshot_catalog(meta: dict[str, Any]) -> dict[str, Any]:
     chats = []
     for chat in catalog["chats"]:
         conversation = chat["conversation"]
-        chats.append({
-            "id": chat["id"], "name": chat["name"], "project_id": chat["project_id"],
-            "archived": chat["archived"], "pinned": chat["pinned"],
-            "created_at": chat["created_at"], "updated_at": chat["updated_at"],
-            "session_id": conversation.get("session_id"),
-        })
+        chats.append(
+            {
+                "id": chat["id"],
+                "name": chat["name"],
+                "project_id": chat["project_id"],
+                "archived": chat["archived"],
+                "pinned": chat["pinned"],
+                "created_at": chat["created_at"],
+                "updated_at": chat["updated_at"],
+                "session_id": conversation.get("session_id"),
+            }
+        )
     return {
         "revision": catalog["revision"],
         "active_chat_id": catalog["active_chat_id"],
@@ -285,10 +314,16 @@ def apply_catalog(meta: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
             project = _find(projects, _validate_id(project_id, "project id"), "project")
             if project["archived"]:
                 raise CatalogError("Restore this project before adding chats.")
-        chat = {"id": _new_id("chat"), "name": name, "project_id": project_id,
-                "archived": False, "pinned": False, "created_at": timestamp,
-                "updated_at": timestamp,
-                "conversation": _conversation_defaults(_default_native_title(), started=False)}
+        chat = {
+            "id": _new_id("chat"),
+            "name": name,
+            "project_id": project_id,
+            "archived": False,
+            "pinned": False,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "conversation": _conversation_defaults(_default_native_title(), started=False),
+        }
         chats.append(chat)
         _activate(result, chat)
         changed = True
@@ -304,19 +339,24 @@ def apply_catalog(meta: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
         if action == "rename_chat":
             value = _validate_text(body["name"], "Chat name", 120)
             if value != chat["name"]:
-                chat["name"] = value; changed = True
+                chat["name"] = value
+                changed = True
         elif action == "archive_chat":
             value = body["archived"]
-            if not isinstance(value, bool): raise CatalogError("Archived must be true or false.")
+            if not isinstance(value, bool):
+                raise CatalogError("Archived must be true or false.")
             if value and chat["id"] == catalog["active_chat_id"]:
                 raise CatalogError("Switch chats before archiving this one.")
             if value != chat["archived"]:
-                chat["archived"] = value; changed = True
+                chat["archived"] = value
+                changed = True
         elif action == "pin_chat":
             value = body["pinned"]
-            if not isinstance(value, bool): raise CatalogError("Pinned must be true or false.")
+            if not isinstance(value, bool):
+                raise CatalogError("Pinned must be true or false.")
             if value != chat["pinned"]:
-                chat["pinned"] = value; changed = True
+                chat["pinned"] = value
+                changed = True
         else:
             project_id = body["project_id"]
             if project_id is not None:
@@ -324,10 +364,13 @@ def apply_catalog(meta: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
                 if project["archived"]:
                     raise CatalogError("Restore this project before moving chats into it.")
             if project_id != chat["project_id"]:
-                chat["project_id"] = project_id; changed = True
-        if changed: chat["updated_at"] = timestamp
+                chat["project_id"] = project_id
+                changed = True
+        if changed:
+            chat["updated_at"] = timestamp
     elif action == "create_project":
-        if len(projects) >= _PROJECT_CAP: raise CatalogError("Project limit reached.")
+        if len(projects) >= _PROJECT_CAP:
+            raise CatalogError("Project limit reached.")
         name = _validate_text(body["name"], "Project name", 80)
         if any(project["name"].casefold() == name.casefold() for project in projects):
             raise CatalogError("A project with that name already exists.")
@@ -337,13 +380,21 @@ def apply_catalog(meta: dict[str, Any], body: dict[str, Any]) -> dict[str, Any]:
         project = _find(projects, _validate_id(body["project_id"], "project id"), "project")
         if action == "rename_project":
             name = _validate_text(body["name"], "Project name", 80)
-            if any(other["id"] != project["id"] and other["name"].casefold() == name.casefold() for other in projects):
+            if any(
+                other["id"] != project["id"] and other["name"].casefold() == name.casefold()
+                for other in projects
+            ):
                 raise CatalogError("A project with that name already exists.")
-            if name != project["name"]: project["name"] = name; changed = True
+            if name != project["name"]:
+                project["name"] = name
+                changed = True
         else:
             value = body["archived"]
-            if not isinstance(value, bool): raise CatalogError("Archived must be true or false.")
-            if value != project["archived"]: project["archived"] = value; changed = True
+            if not isinstance(value, bool):
+                raise CatalogError("Archived must be true or false.")
+            if value != project["archived"]:
+                project["archived"] = value
+                changed = True
 
     if changed:
         catalog["revision"] += 1
@@ -365,31 +416,55 @@ def import_sessions(meta: dict[str, Any], rows: list[dict[str, Any]]) -> dict[st
     additions: list[dict[str, Any]] = []
     renamed = False
     for row in rows:
-        if not isinstance(row, dict) or set(row) not in ({"id", "title", "created_at", "updated_at", "message_count"}, {"id", "title", "created_at", "updated_at", "message_count", "name"}):
+        if not isinstance(row, dict) or set(row) not in (
+            {"id", "title", "created_at", "updated_at", "message_count"},
+            {"id", "title", "created_at", "updated_at", "message_count", "name"},
+        ):
             raise CatalogError("Invalid session import.")
         session_id = row["id"]
         title = row["title"]
-        if (not isinstance(session_id, str) or not session_id or not isinstance(title, str)
-                or not _NATIVE_TITLE_RE.fullmatch(title) or not isinstance(row["created_at"], str)
-                or not isinstance(row["updated_at"], str) or not isinstance(row["message_count"], int)
-                or isinstance(row["message_count"], bool) or row["message_count"] < 0):
+        if (
+            not isinstance(session_id, str)
+            or not session_id
+            or not isinstance(title, str)
+            or not _NATIVE_TITLE_RE.fullmatch(title)
+            or not isinstance(row["created_at"], str)
+            or not isinstance(row["updated_at"], str)
+            or not isinstance(row["message_count"], int)
+            or isinstance(row["message_count"], bool)
+            or row["message_count"] < 0
+        ):
             raise CatalogError("Invalid session import.")
         name = _validate_text(row.get("name", "Earlier conversation"), "Chat name", 120)
         if title in existing_titles or session_id in existing_sessions:
-            existing = next((c for c in catalog["chats"] if c["conversation"]["title"] == title or c["conversation"]["session_id"] == session_id), None)
+            existing = next(
+                (
+                    c
+                    for c in catalog["chats"]
+                    if c["conversation"]["title"] == title
+                    or c["conversation"]["session_id"] == session_id
+                ),
+                None,
+            )
             if existing and existing["name"] == "Earlier conversation" and name != existing["name"]:
                 existing["name"] = name
                 renamed = True
             continue
         if len(catalog["chats"]) + len(additions) >= _CHAT_CAP:
             raise CatalogError("Chat limit reached.")
-        chat_id = "chat-import-" + sha256(f"{session_id}|{title}".encode("utf-8")).hexdigest()[:16]
-        additions.append({
-            "id": chat_id, "name": name, "project_id": None,
-            "archived": False, "pinned": False, "created_at": row["created_at"],
-            "updated_at": row["updated_at"],
-            "conversation": _conversation_defaults(title, started=True, session_id=session_id),
-        })
+        chat_id = "chat-import-" + sha256(f"{session_id}|{title}".encode()).hexdigest()[:16]
+        additions.append(
+            {
+                "id": chat_id,
+                "name": name,
+                "project_id": None,
+                "archived": False,
+                "pinned": False,
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "conversation": _conversation_defaults(title, started=True, session_id=session_id),
+            }
+        )
         existing_titles.add(title)
         existing_sessions.add(session_id)
     if additions or renamed:

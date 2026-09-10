@@ -12,14 +12,14 @@ No raw history, communications, URLs, titles, names, private identifiers, source
 
 ## Cases
 
-| Case | Seed | Hypothetical context or extension |
-| --- | --- | --- |
-| 01 | A | Explicit project-example research |
-| 02 | B | Coding-study commitment before focus activation; video/chat purpose unknown |
-| 03 | B | Same commitment and activity; user identifies relevant tutorial visits |
-| 04 | A | User corrects the current task from coding study to project research |
-| 05 | B | Declared break, explicit resume, completion, then another video-site visit |
-| 06 | B | Corrected goal, break and completion across device change, compaction/restarts, duplicates and stale events |
+| Case | Seed | Hypothetical context or extension                                                                           |
+| ---- | ---- | ----------------------------------------------------------------------------------------------------------- |
+| 01   | A    | Explicit project-example research                                                                           |
+| 02   | B    | Coding-study commitment before focus activation; video/chat purpose unknown                                 |
+| 03   | B    | Same commitment and activity; user identifies relevant tutorial visits                                      |
+| 04   | A    | User corrects the current task from coding study to project research                                        |
+| 05   | B    | Declared break, explicit resume, completion, then another video-site visit                                  |
+| 06   | B    | Corrected goal, break and completion across device change, compaction/restarts, duplicates and stale events |
 
 Cases 02/03 differ in the user's explanations, not app categories. Exact escalation policy remains undecided: quiet uncertainty or a brief useful clarification can both meet the draft criteria.
 
@@ -41,15 +41,15 @@ After separate authorization for runtime/model usage, pin actual Hermes/OpenClaw
 
 Use the same small repeat count and alternate runtime order. Add a separate case-06 baseline without lifecycle operations to distinguish ordinary state/transport failures from recovery failures. Review replies, proposal logs and inspectable runtime-owned state; mark unverifiable state unknown. Do not request private reasoning or grade exact wording.
 
-| Measure | Review |
-| --- | --- |
-| State retention | Current goal, superseded unfinished goal, break/resume and reported completion |
-| Uncertainty | Unknown purposes remain unknown; explicit explanations change assessments |
-| Interventions | Unwanted/repeated prompts, old-goal nudges, pressure during breaks, false action claims |
-| Recovery | State through native compaction/restarts; need for user restatement |
-| Events/devices | Duplicate/stale handling and continuity on the synthetic secondary desktop |
-| Latency/cost | Response and recovery latency, total tokens and actual cost including compaction, failures/timeouts |
-| Integration effort | Setup, adapters, persistence/device plumbing, unsupported hooks and required runtime changes |
+| Measure            | Review                                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
+| State retention    | Current goal, superseded unfinished goal, break/resume and reported completion                      |
+| Uncertainty        | Unknown purposes remain unknown; explicit explanations change assessments                           |
+| Interventions      | Unwanted/repeated prompts, old-goal nudges, pressure during breaks, false action claims             |
+| Recovery           | State through native compaction/restarts; need for user restatement                                 |
+| Events/devices     | Duplicate/stale handling and continuity on the synthetic secondary desktop                          |
+| Latency/cost       | Response and recovery latency, total tokens and actual cost including compaction, failures/timeouts |
+| Integration effort | Setup, adapters, persistence/device plumbing, unsupported hooks and required runtime changes        |
 
 Store future results separately. Replay examines responses to supplied context. Sensor fidelity, clock skew, real cross-device transport, OS control, privacy/permissions integration, intervention timing and daily usefulness remain untested.
 

@@ -28,7 +28,9 @@ function createNotificationPolicy({
     if (persisted && typeof persisted === 'object' && !Array.isArray(persisted)) {
       enabled = persisted.enabled === true;
       if (Array.isArray(persisted.seen)) {
-        seen = persisted.seen.filter((key) => typeof key === 'string' && key.length > 0).slice(-MAX_SEEN_KEYS);
+        seen = persisted.seen
+          .filter((key) => typeof key === 'string' && key.length > 0)
+          .slice(-MAX_SEEN_KEYS);
       }
     }
   } catch (error) {
@@ -61,19 +63,31 @@ function createNotificationPolicy({
   function checkInsFrom(snapshot) {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
     const conversationId = snapshot.conversation_id;
-    if (typeof conversationId !== 'string' || !ID_PATTERN.test(conversationId) || !Array.isArray(snapshot.messages)) return null;
+    if (
+      typeof conversationId !== 'string' ||
+      !ID_PATTERN.test(conversationId) ||
+      !Array.isArray(snapshot.messages)
+    )
+      return null;
 
-    return snapshot.messages.flatMap((message) => {
-      if (!message || typeof message !== 'object' || Array.isArray(message)) return [];
-      const { id: messageId, event_id: eventId, role, origin, text } = message;
-      if (
-        typeof messageId !== 'string' || !ID_PATTERN.test(messageId) ||
-        typeof eventId !== 'string' || !ID_PATTERN.test(eventId) ||
-        role !== 'assistant' || origin !== 'check_in' ||
-        typeof text !== 'string' || text.trim() === ''
-      ) return [];
-      return [{ conversationId, eventId, messageId, key: `${conversationId}\u0000${eventId}` }];
-    }).slice(-MAX_SEEN_KEYS);
+    return snapshot.messages
+      .flatMap((message) => {
+        if (!message || typeof message !== 'object' || Array.isArray(message)) return [];
+        const { id: messageId, event_id: eventId, role, origin, text } = message;
+        if (
+          typeof messageId !== 'string' ||
+          !ID_PATTERN.test(messageId) ||
+          typeof eventId !== 'string' ||
+          !ID_PATTERN.test(eventId) ||
+          role !== 'assistant' ||
+          origin !== 'check_in' ||
+          typeof text !== 'string' ||
+          text.trim() === ''
+        )
+          return [];
+        return [{ conversationId, eventId, messageId, key: `${conversationId}\u0000${eventId}` }];
+      })
+      .slice(-MAX_SEEN_KEYS);
   }
 
   function setEnabled(value) {

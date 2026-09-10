@@ -3,6 +3,7 @@
 JsonTextPreview.feed(delta) returns a cumulative decoded string only when it
 extends the previous preview. It never validates or commits a final response.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,17 +13,34 @@ class JsonTextPreview:
     """Incrementally reveal one direct top-level JSON string after strict gates."""
 
     def __init__(self, field, *, required=None, allowed=None, max_chars=400, max_input=65_536):
-        if not isinstance(field, str) or not field or not isinstance(max_chars, int) or max_chars < 0 or not isinstance(max_input, int) or max_input < 1:
+        if (
+            not isinstance(field, str)
+            or not field
+            or not isinstance(max_chars, int)
+            or max_chars < 0
+            or not isinstance(max_input, int)
+            or max_input < 1
+        ):
             raise ValueError("invalid preview configuration")
         if required is None:
             required = {}
         if allowed is None:
             allowed = {}
-        if (not isinstance(required, dict) or not isinstance(allowed, dict)
-                or any(not isinstance(key, str) for key in required)
-                or any(not isinstance(key, str) or not isinstance(values, set) for key, values in allowed.items())):
+        if (
+            not isinstance(required, dict)
+            or not isinstance(allowed, dict)
+            or any(not isinstance(key, str) for key in required)
+            or any(
+                not isinstance(key, str) or not isinstance(values, set)
+                for key, values in allowed.items()
+            )
+        ):
             raise ValueError("invalid preview gates")
-        self.field, self.required, self.allowed = field, dict(required), {key: set(values) for key, values in allowed.items()}
+        self.field, self.required, self.allowed = (
+            field,
+            dict(required),
+            {key: set(values) for key, values in allowed.items()},
+        )
         self.max_chars, self.max_input = max_chars, max_input
         self.buffer, self.emitted, self.failed = "", "", False
 
@@ -48,18 +66,31 @@ class JsonTextPreview:
             if char != "\\":
                 if 0xD800 <= ord(char) <= 0xDFFF:
                     raise ValueError("lone surrogate")
-                value.append(char); index += 1; continue
+                value.append(char)
+                index += 1
+                continue
             if index + 1 >= len(text):
                 return "".join(value), index, False
             escape = text[index + 1]
-            simple = {'"': '"', "\\": "\\", "/": "/", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t"}
+            simple = {
+                '"': '"',
+                "\\": "\\",
+                "/": "/",
+                "b": "\b",
+                "f": "\f",
+                "n": "\n",
+                "r": "\r",
+                "t": "\t",
+            }
             if escape in simple:
-                value.append(simple[escape]); index += 2; continue
+                value.append(simple[escape])
+                index += 2
+                continue
             if escape != "u":
                 raise ValueError("bad escape")
             if index + 6 > len(text):
                 return "".join(value), index, False
-            digits = text[index + 2:index + 6]
+            digits = text[index + 2 : index + 6]
             if any(digit not in "0123456789abcdefABCDEF" for digit in digits):
                 raise ValueError("bad unicode escape")
             codepoint = int(digits, 16)
@@ -67,22 +98,24 @@ class JsonTextPreview:
             if 0xD800 <= codepoint <= 0xDBFF:
                 if index + 6 > len(text):
                     return "".join(value), index - 6, False
-                if text[index:index + 2] != "\\u":
+                if text[index : index + 2] != "\\u":
                     raise ValueError("unpaired high surrogate")
-                low_digits = text[index + 2:index + 6]
+                low_digits = text[index + 2 : index + 6]
                 if any(digit not in "0123456789abcdefABCDEF" for digit in low_digits):
                     raise ValueError("bad unicode escape")
                 low = int(low_digits, 16)
                 if not 0xDC00 <= low <= 0xDFFF:
                     raise ValueError("unpaired high surrogate")
-                value.append(chr(0x10000 + (codepoint - 0xD800) * 0x400 + low - 0xDC00)); index += 6; continue
+                value.append(chr(0x10000 + (codepoint - 0xD800) * 0x400 + low - 0xDC00))
+                index += 6
+                continue
             if 0xDC00 <= codepoint <= 0xDFFF:
                 raise ValueError("unpaired low surrogate")
             value.append(chr(codepoint))
         return "".join(value), index, False
 
     def _emit(self, value):
-        value = value[:self.max_chars]
+        value = value[: self.max_chars]
         if len(value) > len(self.emitted) and value.startswith(self.emitted):
             self.emitted = value
             return value
@@ -118,7 +151,9 @@ class JsonTextPreview:
             index = self._space(text, index + 1)
             if index == len(text):
                 return None
-            gated = set(self.required).issubset(seen - {key}) and set(self.allowed).issubset(seen - {key})
+            gated = set(self.required).issubset(seen - {key}) and set(self.allowed).issubset(
+                seen - {key}
+            )
             if key == self.field:
                 if not gated or text[index] != '"':
                     raise ValueError("field before gate")

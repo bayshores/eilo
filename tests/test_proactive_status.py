@@ -1,21 +1,17 @@
 """Focused public status and independent check-in-permission coverage."""
+
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import json
-from pathlib import Path
-import sys
 import tempfile
 import unittest
+from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from app.accountability import MAX_CALLS_HOUR, initial_state, fingerprint
+from app.accountability import MAX_CALLS_HOUR, fingerprint, initial_state
 from app.proactive import ProactiveLoop
 from app.tasks import apply_operations, initial_tasks, public_state
-
 
 APPROVED = {"kind": "approved_study_context", "origin": "https://leetcode.com", "title": "private"}
 
@@ -23,16 +19,34 @@ APPROVED = {"kind": "approved_study_context", "origin": "https://leetcode.com", 
 class StatusChat:
     def __init__(self, directory):
         self.meta_path = Path(directory) / "meta.json"
-        self.meta = {"session_id": "fixture-session", "accountability": initial_state(), "tasks": initial_tasks()}
+        self.meta = {
+            "session_id": "fixture-session",
+            "accountability": initial_state(),
+            "tasks": initial_tasks(),
+        }
         self.native_lock = asyncio.Lock()
         self.blocked = self.busy = False
         self.changed_count = 0
 
     def add_open_task(self):
         self.meta["tasks"], _ = apply_operations(
-            self.meta["tasks"], [{"op": "add", "temp_id": "new_task", "title": "private task", "due_text": None,
-                                    "target_count": None, "unit": None}], based_on_revision=0,
-            request_id="fixture", source={"kind": "human"}, now=1, id_factory=lambda: "private-task")
+            self.meta["tasks"],
+            [
+                {
+                    "op": "add",
+                    "temp_id": "new_task",
+                    "title": "private task",
+                    "due_text": None,
+                    "target_count": None,
+                    "unit": None,
+                }
+            ],
+            based_on_revision=0,
+            request_id="fixture",
+            source={"kind": "human"},
+            now=1,
+            id_factory=lambda: "private-task",
+        )
 
     def save_meta(self):
         self.meta_path.write_text(json.dumps(self.meta))
@@ -45,9 +59,21 @@ class StatusChat:
 
     async def command(self, args, **kwargs):
         event_id = Path(args[args.index("--input") + 1]).stem.removeprefix("event-")
-        return 0, json.dumps({"audit": {"model": "gpt-5.6-luna", "provider": "openai-codex", "tool_schema_count": 0},
-                              "assistant_id": 7,
-                              "decision": {"event_id": event_id, "decision": "quiet", "message": ""}}), ""
+        return (
+            0,
+            json.dumps(
+                {
+                    "audit": {
+                        "model": "gpt-5.6-luna",
+                        "provider": "openai-codex",
+                        "tool_schema_count": 0,
+                    },
+                    "assistant_id": 7,
+                    "decision": {"event_id": event_id, "decision": "quiet", "message": ""},
+                }
+            ),
+            "",
+        )
 
 
 class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
@@ -59,7 +85,11 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
         self.chat = StatusChat(self.directory.name)
         self.chat.add_open_task()
         self.loop = ProactiveLoop(self.chat, helper=self.helper, now=lambda: self.clock[0])
-        self.loop.mode, self.loop.client_id, self.loop.lease_until = "active", "client-123456", 2_000
+        self.loop.mode, self.loop.client_id, self.loop.lease_until = (
+            "active",
+            "client-123456",
+            2_000,
+        )
 
     async def asyncTearDown(self):
         await self.loop.close()
@@ -70,14 +100,29 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
         self.loop.latest, self.loop.last_observation_at, self.loop.stable_since = APPROVED, 990, 990
         self.assertEqual(self.loop.snapshot()["check_ins"]["eligible_at"], 1035)
         self.loop.stable_since = 1
-        self.loop.state.update(last_human_at=950, last_decision_at=900, call_times=[999] * MAX_CALLS_HOUR)
+        self.loop.state.update(
+            last_human_at=950, last_decision_at=900, call_times=[999] * MAX_CALLS_HOUR
+        )
         status = self.loop.snapshot()["check_ins"]
         self.assertEqual((status["phase"], status["eligible_at"]), ("human_grace", 4599))
         self.loop.state.update(last_human_at=1, last_decision_at=1, call_times=[])
-        self.assertEqual((self.loop.snapshot()["check_ins"]["phase"], self.loop.snapshot()["check_ins"]["eligible_at"]),
-                         ("eligible", None))
-        self.assertEqual(status["rules"], {"stable_seconds": 45, "human_grace_seconds": 120,
-                                           "cooldown_seconds": 300, "max_per_hour": 3, "max_per_day": 8})
+        self.assertEqual(
+            (
+                self.loop.snapshot()["check_ins"]["phase"],
+                self.loop.snapshot()["check_ins"]["eligible_at"],
+            ),
+            ("eligible", None),
+        )
+        self.assertEqual(
+            status["rules"],
+            {
+                "stable_seconds": 45,
+                "human_grace_seconds": 120,
+                "cooldown_seconds": 300,
+                "max_per_hour": 3,
+                "max_per_day": 8,
+            },
+        )
 
     def test_phase_priority_table(self):
         cases = [
@@ -91,7 +136,11 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
         ]
         for expected, configure in cases:
             self.loop.state["check_ins_enabled"] = True
-            self.loop.mode, self.loop.client_id, self.loop.lease_until = "active", "client-123456", 2_000
+            self.loop.mode, self.loop.client_id, self.loop.lease_until = (
+                "active",
+                "client-123456",
+                2_000,
+            )
             self.chat.blocked = False
             self.chat.meta["session_id"] = "fixture-session"
             self.chat.meta["tasks"] = initial_tasks()
@@ -100,8 +149,13 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.loop.snapshot()["check_ins"]["phase"], expected)
 
     async def test_pause_invalidates_running_event_without_stopping_collection_or_lease(self):
-        event = {"status": "running", "task_revision": self.chat.meta["tasks"]["revision"],
-                 "human_epoch": self.loop.state["human_epoch"], "fingerprint": fingerprint(APPROVED), "created_at": 999}
+        event = {
+            "status": "running",
+            "task_revision": self.chat.meta["tasks"]["revision"],
+            "human_epoch": self.loop.state["human_epoch"],
+            "fingerprint": fingerprint(APPROVED),
+            "created_at": 999,
+        }
         self.loop.latest, self.loop.last_observation_at = APPROVED, 999
         self.loop.state["events"]["private-event"] = event
         self.loop.event_id = "private-event"
@@ -118,8 +172,13 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
 
     def test_history_is_bounded_content_free_and_omits_unknown_records(self):
         for index in range(35):
-            self.loop.state["events"][f"secret-{index}"] = {"status": "delivered", "created_at": index + 1,
-                "finished_at": index + 1.5, "fingerprint": "secret-fingerprint", "title": "private title"}
+            self.loop.state["events"][f"secret-{index}"] = {
+                "status": "delivered",
+                "created_at": index + 1,
+                "finished_at": index + 1.5,
+                "fingerprint": "secret-fingerprint",
+                "title": "private title",
+            }
         self.loop.state["events"]["orphan"] = {"status": "running", "created_at": 99}
         self.loop.state["events"]["unknown"] = {"status": "made_up", "created_at": 100}
         status = self.loop.snapshot()["check_ins"]
@@ -136,13 +195,22 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_terminal_event_records_finished_at(self):
         self.loop.latest, self.loop.last_observation_at = APPROVED, 999
-        event = {"status": "running", "task_revision": self.chat.meta["tasks"]["revision"],
-                 "human_epoch": self.loop.state["human_epoch"], "fingerprint": fingerprint(APPROVED), "created_at": 999,
-                 "assistant_id": None}
+        event = {
+            "status": "running",
+            "task_revision": self.chat.meta["tasks"]["revision"],
+            "human_epoch": self.loop.state["human_epoch"],
+            "fingerprint": fingerprint(APPROVED),
+            "created_at": 999,
+            "assistant_id": None,
+        }
         self.loop.state["events"]["event-finished"] = event
-        payload = {"session_id": "fixture-session", "event_id": "event-finished",
-                   "task_state": public_state(self.chat.meta["tasks"]), "human_epoch": event["human_epoch"],
-                   "observation": APPROVED}
+        payload = {
+            "session_id": "fixture-session",
+            "event_id": "event-finished",
+            "task_state": public_state(self.chat.meta["tasks"]),
+            "human_epoch": event["human_epoch"],
+            "observation": APPROVED,
+        }
         await self.loop.decide(payload)
         self.assertEqual((event["status"], event["finished_at"]), ("quiet", self.clock[0]))
 

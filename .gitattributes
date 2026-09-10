@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.icns binary
+*.woff2 binary
+
+# Preserve upstream license notices byte-for-byte, including their line endings.
+**/*-OFL.txt -text -whitespace
+third_party/* -text -whitespace

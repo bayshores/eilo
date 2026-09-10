@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" data-typography="plex"
+  ><head
+    ><meta charset="utf-8" /><meta
+      name="viewport"
+      content="width=device-width,initial-scale=1" /><meta
+      name="color-scheme"
+      content="dark" /><title>Chrome extension setup — eïlo</title
+    ><link rel="stylesheet" href="/home/styles/typography.css" /><link
+      rel="stylesheet"
+      href="/activity-connect.css"
+  /></head>
+  <body
+    ><main class="connect-page setup-page">
+      <a class="back-link" href="/home/#activity">Back to eïlo</a>
+      <section class="connect-intro" aria-labelledby="setup-title"
+        ><h1 id="setup-title">Connect your Chrome activity.</h1>
+        <p class="lede"
+          >Choose which study sites eïlo can notice. Opening this guide does not install the
+          extension or start sharing.</p
+        ></section
+      >
+      <section class="connection-card" aria-label="Extension setup steps"
+        ><ol class="setup-steps">
+          <li
+            >In Chrome, open <strong>chrome://extensions</strong>. Turn on Developer mode if you
+            choose to install this local, unpacked extension.</li
+          >
+          <li
+            >Choose <strong>Load unpacked</strong> and select
+            <strong>activity/extension (inside your eïlo checkout)</strong>.</li
+          >
+          <li
+            >Open the eïlo extension's popup. Select the study sites you want to share and choose
+            <strong>Grant selected sites</strong>. The available sites are LeetCode, NeetCode and
+            Python documentation.</li
+          >
+          <li
+            >Open <a href="/activity-connect">the Chrome connection page</a> in Chrome and choose
+            <strong>Connect Chrome</strong>. The installed extension is detected automatically. Keep
+            that connection page open while sharing.</li
+          >
+        </ol>
+      </section>
+      <section class="scope" aria-labelledby="sharing-heading"
+        ><h2 id="sharing-heading">What sharing allows</h2>
+        <p
+          >The extension reads the active tab of the focused Chrome window on the study sites you
+          grant. Chrome withholds unapproved sites’ URLs and titles. Paths, queries and fragments
+          are removed locally. Selected observations may be sent to Luna and saved with your Hermes
+          conversation.</p
+        >
+        <details class="setup-details"
+          ><summary>Access details</summary
+          ><p
+            >Chrome’s host grants can support broader capabilities than these reads. This extension
+            does not change tabs or pages and has no content scripts, browser-history, cookies,
+            screenshot or keystroke collection.</p
+          ></details
+        >
+        <p
+          ><strong>To stop:</strong> use Pause or Turn off on the connection page, close that page,
+          or revoke sites in the extension popup. You can also remove the extension through Chrome’s
+          extensions page.</p
+        >
+      </section>
+      <aside class="next-step"
+        ><p>Return to Activity to see connection status, check-in conditions and the agent log.</p
+        ><a href="/home/#activity">Return to Activity</a></aside
+      >
+    </main></body
+  ></html
+>

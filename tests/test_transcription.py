@@ -1,8 +1,8 @@
 import asyncio
-from pathlib import Path
 import struct
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from app.transcription import InvalidAudioError, Transcriber, TranscriberBusyError, _wav_frames
@@ -11,7 +11,9 @@ from app.transcription import InvalidAudioError, Transcriber, TranscriberBusyErr
 def wav(frames=16_000):
     data = b"\0\0" * frames
     fmt = struct.pack("<HHIIHH", 1, 1, 16_000, 32_000, 2, 16)
-    body = b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(data)) + data
+    body = (
+        b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(data)) + data
+    )
     return b"RIFF" + struct.pack("<I", len(body) + 4) + b"WAVE" + body
 
 
@@ -68,7 +70,9 @@ class TranscriptionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_transcribes_and_removes_private_recording(self):
         with patch("app.transcription.asyncio.create_subprocess_exec", return_value=FakeProcess()):
-            self.assertEqual(await self.transcriber.transcribe(wav(), "voice_01"), "hello from local speech")
+            self.assertEqual(
+                await self.transcriber.transcribe(wav(), "voice_01"), "hello from local speech"
+            )
         self.assertEqual(list((self.root / ".tmp/transcription").iterdir()), [])
 
     async def test_rejects_second_request_while_first_is_running(self):

@@ -1,0 +1,437 @@
+/* A quiet control surface: current state first, then evidence and conditions. */
+.agent-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 0;
+  border-radius: 20px;
+  background: #303238;
+  color: #e4e5e9;
+  font: inherit;
+  font-size: 14px;
+}
+.agent-status-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #b2b5bf;
+}
+.agent-status-chip[data-tone='active']::before {
+  background: var(--peach);
+}
+.agent-status-chip[data-tone='off']::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px #b2b5bf;
+}
+.agent-status-chip:hover {
+  background: #3a3d44;
+  color: #fff;
+}
+.workspace[data-page='activity'] .home-context {
+  display: none;
+}
+.activity-overview {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  padding: 2px 5px 8px 1px;
+  overscroll-behavior: contain;
+}
+.checkin-hero {
+  padding: 25px 28px;
+  border-radius: 24px;
+  background: #292b30;
+}
+.checkin-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  align-items: flex-start;
+}
+.checkin-heading > div {
+  min-width: 0;
+  max-width: 680px;
+}
+.checkin-eyebrow {
+  color: #c2c4cd;
+  font-size: 14px;
+  margin: 0 0 9px;
+}
+.checkin-heading h2 {
+  font-size: clamp(25px, 2.7vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+  margin: 0;
+}
+.checkin-description {
+  font-size: 16px;
+  color: #c2c4cd;
+  line-height: 1.5;
+  margin: 13px 0 0;
+  max-width: 65ch;
+}
+.checkin-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  min-height: 44px;
+  color: #e9eaee;
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+}
+.checkin-control input {
+  position: absolute;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+.checkin-switch {
+  display: block;
+  width: 42px;
+  height: 26px;
+  border-radius: 20px;
+  background: #575b65;
+  pointer-events: none;
+  transition: background 150ms ease;
+}
+.checkin-switch::after {
+  content: '';
+  display: block;
+  height: 20px;
+  width: 20px;
+  margin: 3px;
+  border-radius: 50%;
+  background: #f0f0f2;
+  box-shadow: 0 1px 3px #0004;
+  transition: transform 150ms ease;
+}
+.checkin-control input:checked + .checkin-switch {
+  background: var(--peach);
+}
+.checkin-control input:checked + .checkin-switch::after {
+  transform: translateX(16px);
+  background: #302923;
+}
+.checkin-control input:focus-visible + .checkin-switch {
+  outline: 3px solid var(--peach);
+  outline-offset: 4px;
+}
+.checkin-control:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+.checkin-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 23px;
+  padding: 15px 18px;
+  border-radius: 15px;
+  background: #34363d;
+}
+.checkin-next p {
+  max-width: 61ch;
+  font-size: 14px;
+  color: #d2d3da;
+  line-height: 1.5;
+  margin: 0;
+}
+.checkin-next .button {
+  flex-shrink: 0;
+  font-size: 14px;
+  min-height: 42px;
+  padding: 10px 16px;
+}
+.checkin-feedback {
+  margin: 12px 0 0;
+  color: #d2d3da;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.checkin-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+  padding: 28px 18px 4px;
+}
+.checkin-columns h3 {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+}
+.checkin-section-heading {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.checkin-section-heading button {
+  font-size: 14px;
+  min-height: 32px;
+}
+.checkin-facts {
+  display: flex;
+  gap: 27px;
+  flex-wrap: wrap;
+  margin: 0 0 23px;
+}
+.checkin-facts dt {
+  font-size: 13px;
+  color: #b5b8c2;
+  margin-bottom: 6px;
+}
+.checkin-facts dd {
+  font-size: 15px;
+  font-weight: 500;
+  color: #ededef;
+  margin: 0;
+}
+.checkin-latest-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+.checkin-caption {
+  color: #bfc2cc;
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 9px 0 15px;
+  max-width: 48ch;
+}
+.checkin-observation {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  color: #d2d4dc;
+  background: #292c31;
+}
+.checkin-observation:disabled {
+  color: #b5b8c2;
+}
+.checkin-delivery {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.checkin-delivery h3 {
+  font-size: 15px;
+}
+.checkin-delivery .checkin-caption {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+.checkin-delivery .button {
+  flex-shrink: 0;
+  font-size: 13px;
+  padding: 9px 12px;
+  min-height: 40px;
+}
+.checkin-rule-list {
+  list-style: none;
+  counter-reset: steps;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  gap: 17px;
+}
+.checkin-rule-list li {
+  position: relative;
+  padding-left: 30px;
+  counter-increment: steps;
+}
+.checkin-rule-list li::before {
+  content: counter(steps);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  color: #b7bac5;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.checkin-rule-list strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+.checkin-rule-list p {
+  color: #bfc2cc;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 5px 0 0;
+}
+.checkin-details {
+  margin: 21px 0 0 30px;
+  color: #bfc2cc;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.checkin-details summary {
+  color: #e0e2e8;
+  cursor: pointer;
+  min-height: 30px;
+}
+.checkin-details p {
+  margin: 10px 0;
+}
+.agent-log-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 15px;
+  padding: 20px;
+  margin-bottom: 10px;
+  border-radius: 18px;
+  background: #292b30;
+  align-items: start;
+}
+.agent-log-symbol {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #3b3d44;
+  color: #e3e5eb;
+  font-size: 20px;
+}
+.agent-log-row[data-outcome='delivered'] .agent-log-symbol {
+  color: #27282b;
+  background: var(--peach);
+}
+.agent-log-row h3 {
+  margin: 3px 0 8px;
+  font-size: 17px;
+  font-weight: 500;
+}
+.agent-log-row p {
+  margin: 0;
+  color: #bfc2cc;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.agent-log-row time {
+  font-size: 13px;
+  color: #bfc2cc;
+  white-space: nowrap;
+  margin-top: 7px;
+}
+.agent-log-row button {
+  margin-top: 9px;
+}
+@media (max-width: 850px) {
+  .checkin-hero {
+    padding: 21px;
+  }
+  .checkin-heading {
+    gap: 18px;
+  }
+  .checkin-control {
+    flex-direction: column-reverse;
+    gap: 7px;
+    font-size: 12px;
+    min-width: 83px;
+  }
+  .checkin-control input {
+    right: calc(50% - 22px);
+    top: -9px;
+  }
+  .checkin-columns {
+    gap: 25px;
+    padding: 24px 10px 4px;
+  }
+  .checkin-next {
+    gap: 16px;
+  }
+}
+@media (max-width: 600px) {
+  .checkin-columns {
+    grid-template-columns: 1fr;
+  }
+  .checkin-next {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .checkin-heading h2 {
+    font-size: 25px;
+  }
+  .checkin-description {
+    font-size: 15px;
+  }
+  .agent-log-row {
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .agent-log-row time {
+    grid-column: 2;
+  }
+  .activity-toolbar {
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .checkin-control {
+    min-width: 72px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkin-switch,
+  .checkin-switch::after {
+    transition: none;
+  }
+}
+.reduce-motion .checkin-switch,
+.reduce-motion .checkin-switch::after {
+  transition: none;
+}
+@media (max-height: 850px) and (min-width: 700px) {
+  .checkin-hero {
+    padding: 17px 23px;
+  }
+  .checkin-eyebrow {
+    display: none;
+  }
+  .checkin-heading h2 {
+    font-size: 27px;
+  }
+  .checkin-description {
+    font-size: 15px;
+    margin-top: 9px;
+  }
+  .checkin-next {
+    margin-top: 13px;
+    padding: 11px 14px;
+  }
+  .checkin-columns {
+    padding-top: 20px;
+    gap: 30px;
+  }
+  .checkin-section-heading {
+    margin-bottom: 14px;
+  }
+  .checkin-facts {
+    margin-bottom: 14px;
+  }
+  .checkin-rule-list {
+    margin-top: 12px;
+    gap: 10px;
+  }
+  .checkin-delivery {
+    margin-top: 16px;
+  }
+  .checkin-details {
+    margin-top: 8px;
+  }
+}

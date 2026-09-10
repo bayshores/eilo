@@ -1,25 +1,8 @@
 #!/bin/sh
-# Invoke eïlo's constrained native human lane with the same isolated Hermes home as chat.
+# Invoke the constrained native human lane.
 set -eu
-umask 077
 EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-EILO_PYTHON="$EILO_ROOT/.runtime/venv/bin/python"
-if [ ! -x "$EILO_PYTHON" ]; then
-  printf '%s\n' 'Hermes is not installed here. See the root README.' >&2
-  exit 1
-fi
-export HERMES_HOME="$EILO_ROOT/.state/hermes"
-export TMPDIR="$EILO_ROOT/.tmp"
-export UV_CACHE_DIR="$EILO_ROOT/.tmp/uv-cache"
-export XDG_CACHE_HOME="$EILO_ROOT/.tmp/cache"
-export PYTHONDONTWRITEBYTECODE=1
-export GIT_CEILING_DIRECTORIES="$EILO_ROOT"
-mkdir -p "$HERMES_HOME" "$TMPDIR" "$XDG_CACHE_HOME" "$EILO_ROOT/.state/workspace"
-if [ ! -f "$HERMES_HOME/config.yaml" ]; then
-  cp "$EILO_ROOT/config/hermes.yaml" "$HERMES_HOME/config.yaml"
-fi
-if [ ! -f "$HERMES_HOME/.env" ]; then
-  cp "$EILO_ROOT/config/hermes.env.example" "$HERMES_HOME/.env"
-fi
+. "$EILO_ROOT/scripts/lib/runtime.sh"
+eilo_initialize_profile
 cd "$EILO_ROOT/.state/workspace"
 exec "$EILO_PYTHON" "$EILO_ROOT/app/human_driver.py" "$@"

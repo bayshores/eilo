@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Import a developer-created Google Desktop OAuth client without printing its values."""
 import json
-import os
 from pathlib import Path
 import re
 import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from app.persistence import write_private
 
 
 def main():
@@ -21,19 +24,7 @@ def main():
         if not isinstance(client["client_secret"], str) or not 1 <= len(client["client_secret"]) <= 300:
             raise ValueError("The desktop client file is incomplete.")
         saved["client_secret"] = client["client_secret"]
-    root = Path(__file__).resolve().parents[1]
-    directory = root / ".state"
-    directory.mkdir(mode=0o700, exist_ok=True)
-    directory.chmod(0o700)
-    target = directory / "google-calendar-client.json"
-    temporary = target.with_suffix(".new")
-    with temporary.open("w") as stream:
-        temporary.chmod(0o600)
-        json.dump(saved, stream)
-        stream.write("\n")
-        stream.flush()
-        os.fsync(stream.fileno())
-    temporary.replace(target)
+    write_private(ROOT / ".state" / "google-calendar-client.json", saved)
     print("Google Calendar developer setup saved. Open Connections in eïlo to sign in.")
 
 

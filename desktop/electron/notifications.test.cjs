@@ -12,7 +12,13 @@ function snapshot(conversationId, messages) {
 }
 function memoryStore(initial = null) {
   let value = initial;
-  return { load: () => value, save: (next) => { value = next; }, value: () => value };
+  return {
+    load: () => value,
+    save: (next) => {
+      value = next;
+    },
+    value: () => value,
+  };
 }
 
 test('is opt-in and baselines existing messages when first enabled', () => {
@@ -25,7 +31,9 @@ test('is opt-in and baselines existing messages when first enabled', () => {
   policy.inspect(current, { foreground: false });
   assert.equal(shown.length, 0);
   policy.inspect(snapshot('c1', [message('m1', 'e1'), message('m2', 'e2')]), { foreground: false });
-  assert.deepEqual(shown, [{ conversationId: 'c1', eventId: 'e2', messageId: 'm2', body: GENERIC_BODY }]);
+  assert.deepEqual(shown, [
+    { conversationId: 'c1', eventId: 'e2', messageId: 'm2', body: GENERIC_BODY },
+  ]);
 });
 
 test('foreground messages are marked seen without an OS notification', () => {
@@ -45,8 +53,12 @@ test('deduplicates by conversation and event and emits only the latest new check
   policy.setEnabled(true);
   policy.inspect(snapshot('c1', []), { foreground: false });
   policy.inspect(snapshot('c1', [message('m1', 'e1'), message('m2', 'e2')]), { foreground: false });
-  policy.inspect(snapshot('c1', [message('m1b', 'e1'), message('m2', 'e2')]), { foreground: false });
-  assert.deepEqual(shown, [{ conversationId: 'c1', eventId: 'e2', messageId: 'm2', body: GENERIC_BODY }]);
+  policy.inspect(snapshot('c1', [message('m1b', 'e1'), message('m2', 'e2')]), {
+    foreground: false,
+  });
+  assert.deepEqual(shown, [
+    { conversationId: 'c1', eventId: 'e2', messageId: 'm2', body: GENERIC_BODY },
+  ]);
 });
 
 test('restart and changed conversations baseline imported history before a later new check-in', () => {
@@ -58,7 +70,12 @@ test('restart and changed conversations baseline imported history before a later
   second.inspect(snapshot('c2', [message('m2', 'e2')]), { foreground: false });
   assert.equal(shown.length, 0);
   second.inspect(snapshot('c2', [message('m2', 'e2'), message('m3', 'e3')]), { foreground: false });
-  assert.deepEqual(shown.at(-1), { conversationId: 'c2', eventId: 'e3', messageId: 'm3', body: GENERIC_BODY });
+  assert.deepEqual(shown.at(-1), {
+    conversationId: 'c2',
+    eventId: 'e3',
+    messageId: 'm3',
+    body: GENERIC_BODY,
+  });
 });
 
 test('disabled policy does not display and malformed messages cannot qualify', () => {
@@ -66,8 +83,20 @@ test('disabled policy does not display and malformed messages cannot qualify', (
   const policy = createNotificationPolicy({ show: (record) => shown.push(record) });
   policy.inspect(snapshot('c1', [message('m1', 'e1')]), { foreground: false });
   policy.setEnabled(true);
-  policy.inspect({ conversation_id: 'c1', messages: [{ id: 'm1', event_id: 'e1', role: 'assistant', origin: 'check_in', text: '' }, null] }, { foreground: false });
-  policy.inspect(snapshot('c1', [{ id: 'm2', event_id: 'e2', role: 'user', origin: 'check_in', text: 'No' }]), { foreground: false });
+  policy.inspect(
+    {
+      conversation_id: 'c1',
+      messages: [
+        { id: 'm1', event_id: 'e1', role: 'assistant', origin: 'check_in', text: '' },
+        null,
+      ],
+    },
+    { foreground: false },
+  );
+  policy.inspect(
+    snapshot('c1', [{ id: 'm2', event_id: 'e2', role: 'user', origin: 'check_in', text: 'No' }]),
+    { foreground: false },
+  );
   assert.equal(shown.length, 0);
 });
 
@@ -75,7 +104,9 @@ test('a failed local read safely defaults to disabled', () => {
   const errors = [];
   const shown = [];
   const policy = createNotificationPolicy({
-    load: () => { throw new Error('unreadable store'); },
+    load: () => {
+      throw new Error('unreadable store');
+    },
     show: (record) => shown.push(record),
     onError: (error) => errors.push(error.message),
   });
@@ -104,7 +135,12 @@ test('repeating a history longer than the seen bound cannot cycle old events int
   policy.inspect(snapshot('c1', history), { foreground: false });
   policy.inspect(snapshot('c1', history), { foreground: false });
   assert.equal(shown.length, 1);
-  assert.deepEqual(shown[0], { conversationId: 'c1', eventId: 'e299', messageId: 'm299', body: GENERIC_BODY });
+  assert.deepEqual(shown[0], {
+    conversationId: 'c1',
+    eventId: 'e299',
+    messageId: 'm299',
+    body: GENERIC_BODY,
+  });
 });
 
 test('persists before show, reports display errors, and bounds stored identifiers', () => {
@@ -113,7 +149,10 @@ test('persists before show, reports display errors, and bounds stored identifier
   let savedBeforeShow = false;
   const policy = createNotificationPolicy({
     ...store,
-    show: () => { savedBeforeShow = store.value().seen.length > 0; throw new Error('display unavailable'); },
+    show: () => {
+      savedBeforeShow = store.value().seen.length > 0;
+      throw new Error('display unavailable');
+    },
     onError: (error) => errors.push(error.message),
   });
   policy.setEnabled(true);

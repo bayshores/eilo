@@ -1,0 +1,12 @@
+.runtime/
+.state/
+.tmp/
+.venv/
+.git/
+node_modules/
+**/node_modules/
+**/__pycache__/
+uv.lock
+requirements*.lock
+third_party/
+**/*-OFL.txt

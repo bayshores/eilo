@@ -1,0 +1,28 @@
+{
+  "name": "eilo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local accountability workspace and desktop companion",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node scripts/preview.mjs",
+    "test": "npm run test:js && npm run test:python",
+    "test:js": "node scripts/test-javascript.mjs",
+    "test:python": "python3 scripts/check-python.py test",
+    "format": "prettier --write . && python3 scripts/check-python.py format",
+    "format:check": "prettier --check . && python3 scripts/check-python.py format-check",
+    "lint": "eslint . && python3 scripts/check-python.py lint",
+    "typecheck": "tsc --project web/jsconfig.json",
+    "check:repository": "python3 scripts/check-repository.py",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run check:repository"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2"
+  }
+}

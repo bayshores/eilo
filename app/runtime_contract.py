@@ -1,0 +1,156 @@
+"""Pinned Hermes runtime contract and safe native-record projection."""
+
+from __future__ import annotations
+
+import json
+
+import yaml
+
+from app.accountability import validate_decision
+from app.briefing import TOOL_NAMES
+from app.errors import ChatError
+from app.paths import STATE
+
+MODEL = "gpt-5.6-luna"
+PROVIDER = "openai-codex"
+
+
+def check_config() -> None:
+    """Fail closed if the pinned runtime permits another provider or tools."""
+    try:
+        from hermes_cli.config import load_config
+        from hermes_cli.tools_config import _get_platform_tools
+        from model_tools import get_tool_definitions
+
+        raw = yaml.safe_load((STATE / "hermes/config.yaml").read_text())
+        if raw.get("model", {}).get("default") != MODEL or raw["model"].get("provider") != PROVIDER:
+            raise ValueError("model")
+        cfg = load_config()
+        if cfg.get("fallback_providers") or cfg.get("mcp_servers"):
+            raise ValueError("external providers/tools")
+        enabled = _get_platform_tools(cfg, "cli")
+        if enabled or get_tool_definitions(enabled_toolsets=list(enabled), quiet_mode=True):
+            raise ValueError("tools")
+    except Exception as exc:
+        raise ChatError(
+            "The local configuration needs attention. This chat requires Luna, the Codex subscription, and no action tools or fallback providers."
+        ) from exc
+
+
+def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
+    """Project audited native history into the small public message shape."""
+    messages = []
+    current_event = None
+    current_human = None
+    for message in record.get("messages", []):
+        metadata = message.get("display_metadata") or {}
+        if message.get("display_kind") == "eilo_observation":
+            current_event = metadata.get("event_id") if isinstance(metadata, dict) else None
+            current_human = None
+            continue
+        if message.get("role") == "user" and not message.get("display_kind"):
+            current_event = None
+            current_human = (
+                metadata.get("request_id") if metadata.get("lane") == "eilo_human" else None
+            )
+        if message.get("role") == "assistant" and (
+            current_human or message.get("display_kind") == "eilo_human_proposal"
+        ):
+            if (
+                message.get("display_kind") == "eilo_human_proposal"
+                and metadata.get("published") is True
+                and str(metadata.get("assistant_id")) == str(message.get("id"))
+                and isinstance(metadata.get("public_reply"), str)
+                and metadata["public_reply"].strip()
+            ):
+                messages.append(
+                    {
+                        "id": str(message["id"]),
+                        "role": "assistant",
+                        "text": metadata["public_reply"],
+                    }
+                )
+            continue
+        if message.get("role") == "assistant" and (
+            current_event or message.get("display_kind") == "eilo_decision"
+        ):
+            event_id = (
+                metadata.get("event_id", current_event)
+                if isinstance(metadata, dict)
+                else current_event
+            )
+            delivery = (events or {}).get(event_id, {})
+            if delivery.get("status") == "delivered" and str(message.get("id")) == delivery.get(
+                "assistant_id"
+            ):
+                try:
+                    decision = validate_decision(json.loads(message.get("content", "")), event_id)
+                except (ValueError, TypeError):
+                    decision = None
+                if decision and decision["decision"] != "quiet":
+                    messages.append(
+                        {
+                            "id": str(message["id"]),
+                            "role": "assistant",
+                            "text": decision["message"],
+                            "origin": "check_in",
+                            "event_id": event_id,
+                        }
+                    )
+            continue
+        if message.get("role") not in ("user", "assistant") or message.get("display_kind"):
+            continue
+        content = message.get("content")
+        if isinstance(content, list):
+            content = "\n".join(
+                block.get("text", "")
+                for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            )
+        if isinstance(content, str) and content.strip():
+            messages.append(
+                {
+                    "id": str(message.get("id", len(messages))),
+                    "role": message["role"],
+                    "text": content,
+                }
+            )
+    return messages
+
+
+def audit_session(record: dict, expected_id: str | None) -> None:
+    """Reject native records that would broaden model, billing, or tool scope."""
+    if expected_id and record.get("id") != expected_id:
+        raise ValueError("unexpected session")
+    if record.get("model") != MODEL or record.get("billing_provider") not in (None, PROVIDER):
+        raise ValueError("unapproved model/provider")
+    if record.get("billing_mode") not in (None, "subscription_included"):
+        raise ValueError("unapproved billing route")
+    if type(record.get("tool_call_count")) is not int or record["tool_call_count"] < 0:
+        raise ValueError("missing tool audit")
+    calls = {}
+    for message in record["messages"]:
+        tool_calls = message.get("tool_calls") or []
+        if isinstance(tool_calls, str):
+            tool_calls = json.loads(tool_calls)
+        for call in tool_calls:
+            name = (call.get("function") or {}).get("name")
+            if name not in TOOL_NAMES or not isinstance(call.get("id"), str):
+                raise ValueError("unapproved tool activity")
+            calls[call["id"]] = name
+        if message.get("role") == "tool" and message.get("tool_call_id") not in calls:
+            raise ValueError("unmatched tool activity")
+        if message.get("tool_name") and message["tool_name"] not in TOOL_NAMES:
+            raise ValueError("unapproved tool activity")
+
+
+def runtime_error(diagnostic: str) -> str:
+    """Map native diagnostics to stable, user-safe recovery guidance."""
+    diagnostic = diagnostic.lower()
+    if any(word in diagnostic for word in ("429", "quota", "rate limit", "usage limit")):
+        return "The Codex subscription is currently at a usage limit. Try again after it resets; no other provider was used."
+    if any(
+        word in diagnostic for word in ("401", "unauthorized", "re-auth", "relogin", "auth_missing")
+    ):
+        return "Hermes could not use its saved subscription sign-in. The connection needs attention; no new login or fallback was started."
+    return "Hermes could not finish that reply. Your saved conversation is still here. Check the connection, then send another message."
