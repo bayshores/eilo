@@ -288,6 +288,57 @@ class ConnectionTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(self.chat.proactive.calls[-1][0], "off")
 
+    async def test_browser_inventory_and_off_action_use_native_context(self):
+        from cryptography.fernet import Fernet
+
+        from app.context_service import ContextService
+
+        key = Fernet.generate_key()
+        context = ContextService(
+            self.root / ".state/context",
+            get_tasks=lambda: [],
+            changed=self.chat.changed,
+            key_provider=lambda **_: key,
+        )
+        self.chat.context = context
+        from unittest.mock import AsyncMock
+
+        self.chat.context_capture = types.SimpleNamespace(refresh_policy=AsyncMock())
+        try:
+            context.state["enabled"] = True
+            context.state["browser_enabled"] = True
+            context.state["desktop_enabled"] = False
+            context.state["text_enabled"] = False
+            context.state["ai_enabled"] = False
+            context.set_capture_health(
+                "browser", "connected", {"connected": True, "setup_verified": False}
+            )
+            item = next(
+                item
+                for item in self.connections.snapshot()["apps"]
+                if item["id"] == "browser-activity"
+            )
+            self.assertEqual(item["state"], "Setup needed")
+            self.assertTrue(item["enabled"])
+            context.set_capture_health(
+                "browser",
+                "ready",
+                {"connected": True, "setup_verified": True, "grant_verified": True},
+            )
+            item = next(
+                item
+                for item in self.connections.snapshot()["apps"]
+                if item["id"] == "browser-activity"
+            )
+            self.assertEqual(item["state"], "Connected")
+            await self.connections.builtin("browser-activity", False)
+            self.assertFalse(context.state["browser_enabled"])
+            self.assertFalse(context.state["text_enabled"])
+            self.assertFalse(context.state["ai_enabled"])
+            self.chat.context_capture.refresh_policy.assert_awaited_once()
+        finally:
+            await context.aclose()
+
     async def test_gmail_master_resume_keeps_other_inboxes_disabled(self):
         self.chat.briefing.mail.data["accounts"] = [
             {"id": "mail-one", "enabled": True, "state": "connected"},

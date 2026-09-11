@@ -16,7 +16,10 @@ const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { createBackendSupervisor } = require('./backend-supervisor.cjs');
 const { createNotificationPolicy } = require('./notifications.cjs');
-const { registerNativeContext } = require('./native-context-registration.cjs');
+const {
+  ID: CHROME_EXTENSION_ID,
+  registerNativeContext,
+} = require('./native-context-registration.cjs');
 const {
   ORIGIN,
   localURL,
@@ -96,6 +99,7 @@ function runDesktop() {
     serviceError = '';
   let shutdownStage = 'running';
   let googleReturnTimer = null;
+  let textPermissionRequesting = false;
   const activeNotifications = new Set();
 
   function notificationStatus() {
@@ -150,6 +154,51 @@ function runDesktop() {
 
   function localServiceHeaders() {
     return { 'X-Eilo-Client': 'local-chat' };
+  }
+
+  function trustedFocusedHome(event) {
+    return trustedSender(event) && !!window?.isVisible() && !!window?.isFocused();
+  }
+
+  function contextCollectorPath() {
+    return standalone
+      ? path.join(
+          process.resourcesPath,
+          'runtime',
+          'eilo-context-collector',
+          'EiloContextCollector',
+        )
+      : path.join(root, '.runtime', 'eilo-context-collector', 'EiloContextCollector');
+  }
+
+  function runFixedOpen(args) {
+    return new Promise((resolve) => {
+      execFile('/usr/bin/open', args, { timeout: 10_000 }, (error) => resolve(!error));
+    });
+  }
+
+  function requestTextPermission() {
+    if (textPermissionRequesting) return Promise.resolve(false);
+    const collector = contextCollectorPath();
+    if (!fs.existsSync(collector)) return Promise.resolve(false);
+    textPermissionRequesting = true;
+    return new Promise((resolve) => {
+      // The collector owns the Accessibility prompt. This dedicated command
+      // exits before building a Collector or reading the desktop.
+      execFile(collector, ['--request-text-permission'], { timeout: 10_000 }, (error) => {
+        textPermissionRequesting = false;
+        resolve(!error);
+      });
+    });
+  }
+
+  function extensionDirectory() {
+    const directory = path.join(root, 'activity', 'extension');
+    try {
+      return fs.statSync(directory).isDirectory() ? directory : null;
+    } catch {
+      return null;
+    }
   }
 
   function flushTarget() {
@@ -553,23 +602,33 @@ function runDesktop() {
       })();
     });
     ipcMain.handle('eilo:open-activity-connection', async (event) => {
-      if (
-        !trustedSender(event) ||
-        !window?.isVisible() ||
-        !window?.isFocused() ||
-        process.platform !== 'darwin'
-      )
-        return false;
+      if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
       // A fixed page in a fixed browser; renderer input never becomes a URL,
       // process name, argument, or shell command. Opening it does not enable sharing.
-      return new Promise((resolve) => {
-        execFile(
-          '/usr/bin/open',
-          ['-b', 'com.google.Chrome', ORIGIN + '/activity-connect'],
-          { timeout: 10_000 },
-          (error) => resolve(!error),
-        );
-      });
+      return runFixedOpen(['-b', 'com.google.Chrome', ORIGIN + '/activity-connect']);
+    });
+    ipcMain.handle('eilo:open-chrome-setup', async (event) => {
+      if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
+      // Open the extension's own setup tab without relying on a pinned toolbar
+      // action or a web-page redirect. No renderer URL or permission crosses IPC.
+      return runFixedOpen([
+        '-b',
+        'com.google.Chrome',
+        `chrome-extension://${CHROME_EXTENSION_ID}/popup.html`,
+      ]);
+    });
+    ipcMain.handle('eilo:open-chrome-extensions', async (event) => {
+      if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
+      // This is the sole Chrome settings destination eïlo can open. The
+      // renderer cannot supply a browser, URL, option, or shell command.
+      return runFixedOpen(['-b', 'com.google.Chrome', 'chrome://extensions/']);
+    });
+    ipcMain.handle('eilo:reveal-chrome-extension', async (event) => {
+      if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
+      const directory = extensionDirectory();
+      if (!directory) return false;
+      // Reveal only the extension bundled with this eïlo workspace.
+      return runFixedOpen(['-R', directory]);
     });
     ipcMain.handle('eilo:google-authorization', (event, url) =>
       openAuthorizedProvider(event, url, {
@@ -618,15 +677,23 @@ function runDesktop() {
     });
     ipcMain.handle('eilo:context-permission', async (event, kind) => {
       if (
-        !trustedSender(event) ||
-        !window?.isVisible() ||
-        !window?.isFocused() ||
+        !trustedFocusedHome(event) ||
+        process.platform !== 'darwin' ||
         !['text', 'visual'].includes(kind)
       )
         return false;
+      if (kind === 'text') {
+        // Request only Accessibility. Visual capture retains its separate
+        // consent and is never prompted as part of text setup.
+        if (!(await requestTextPermission())) return false;
+      }
       const pane = kind === 'text' ? 'Privacy_Accessibility' : 'Privacy_ScreenCapture';
-      await shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${pane}`);
-      return true;
+      try {
+        await shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${pane}`);
+        return true;
+      } catch {
+        return false;
+      }
     });
     ipcMain.handle('eilo:account-authorization', async (event) => {
       if (!trustedSender(event) || !window?.isVisible() || !window?.isFocused()) return false;

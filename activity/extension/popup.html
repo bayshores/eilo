@@ -8,23 +8,15 @@
   </head>
   <body>
     <main>
-      <h1>eïlo in Chrome</h1>
-      <p class="consequence"
-        >Share site names and page titles with eïlo. Selected activity may reach its AI.</p
-      >
+      <h1>Set up eïlo in Chrome</h1>
+      <p class="consequence">Let eïlo notice the sites you use while you choose to share.</p>
       <button id="allow" class="primary" type="button">Allow Chrome</button>
+      <button id="open-eilo" class="secondary" type="button" hidden>Open eïlo</button>
       <p id="status" role="status"></p>
       <p id="native-status" class="transport" role="status"></p>
       <details>
-        <summary>Privacy &amp; controls</summary>
-        <p
-          >Browser access shares site names and titles only while connected. Visible page text is
-          separate desktop opt-in and is never enabled here.</p
-        >
-        <p class="transport-help"
-          >Native transport works without keeping an eïlo page open. If the desktop helper is
-          missing, browser access can still use the existing page connection.</p
-        >
+        <summary>Site exclusions &amp; privacy</summary>
+        <p>Browser metadata stays local. Page text and AI sharing have separate controls.</p>
         <button id="exclude" type="button">Exclude this site</button>
         <div class="excluded" aria-labelledby="excluded-heading">
           <p id="excluded-heading">Excluded sites</p>

@@ -1,5 +1,7 @@
-const CONNECTION_PATH = '/activity-connect';
-const EXTENSIONS_ADDRESS = 'chrome://extensions';
+import { browserSetupState } from './setup-state.js';
+import { createSetupMonitor } from './setup-monitor.js';
+import { extensionSetupBridge } from './setup-bridge.js';
+import { setupVisual, animateSetup } from './setup-visual.js';
 
 export function extensionFolder(identity) {
   if (
@@ -25,330 +27,322 @@ const make = (tag, className, text) => {
   if (text !== undefined) element.textContent = text;
   return element;
 };
-const button = (text, handler, className = 'chrome-setup__button') => {
-  const element = make('button', className, text);
+const button = (label, handler, primary = false) => {
+  const element = make(
+    'button',
+    `chrome-setup__button${primary ? ' chrome-setup__button--primary' : ''}`,
+    label,
+  );
   element.type = 'button';
   element.addEventListener('click', handler);
   return element;
 };
+const EXTENSIONS_ADDRESS = 'chrome://extensions/';
+const STEP_KEY = 'eilo.chrome-setup.v2';
 
-/** Installation guidance only. Opening it never connects, grants, or samples activity. */
+/** One current action. Merely opening this card never grants or enables activity. */
 export function mountChromeSetup(
   container,
   {
     fetcher = fetch,
     clipboard = globalThis.navigator?.clipboard,
-    openChrome = globalThis.eiloDesktop?.openActivityConnection,
-    onControl = null,
+    openChrome = globalThis.eiloDesktop?.openChromeSetup,
+    openExtensions = globalThis.eiloDesktop?.openChromeExtensions,
+    revealFolder = globalThis.eiloDesktop?.revealChromeExtension,
     onNativeControl = null,
+    onRefresh = null,
+    onDone = null,
+    onDismiss = null,
+    bridge = extensionSetupBridge(),
+    storage = null,
   } = {},
 ) {
-  const root = make('section', 'chrome-setup');
-  root.setAttribute('aria-label', 'Chrome extension installation guide');
-  const intro = make('header', 'chrome-setup__intro');
+  if (!storage) {
+    try {
+      storage = globalThis.localStorage;
+    } catch {
+      /* An in-page guide still works. */
+    }
+  }
+  let step = 0;
+  try {
+    step = Math.max(0, Math.min(2, Number(storage?.getItem(STEP_KEY)) || 0));
+  } catch {
+    /* Optional convenience state. */
+  }
+  let view = null,
+    extension = null,
+    folder = null,
+    state = null,
+    destroyed = false,
+    busy = false,
+    lastKey = '',
+    controller = null,
+    loading = null;
+  const root = make('section', 'chrome-setup source-setup');
+  root.setAttribute('aria-label', 'Connect Chrome');
   const progress = make('p', 'chrome-setup__progress');
-  progress.setAttribute('aria-live', 'polite');
-  intro.append(progress);
-  root.append(intro);
-  const steps = make('ol', 'chrome-setup__steps');
-  root.append(steps);
-  const native = make('section', 'chrome-setup__native');
-  native.hidden = true;
-  const nativeTitle = make('h2');
-  const nativeCopy = make('p');
-  let nativeActive = false;
-  const nativeAction = button(
-    'Connect Chrome',
-    () => control(nativeActive ? 'pause' : 'connect', true),
-    'chrome-setup__button chrome-setup__button--primary',
+  const visual = setupVisual('browser');
+  const content = make('div', 'chrome-setup__content');
+  const heading = make('h2');
+  const copy = make('p', 'chrome-setup__copy');
+  copy.setAttribute('role', 'status');
+  const receipt = make('p', 'chrome-setup__receipt');
+  receipt.setAttribute('role', 'status');
+  const feedback = make('p', 'chrome-setup__feedback');
+  feedback.setAttribute('role', 'status');
+  const primary = button('', () => void act(), true);
+  primary.dataset.focus = 'chrome-setup-primary';
+  const actions = make('div', 'chrome-setup__actions');
+  actions.append(primary);
+  const installed = button('Already installed', () => changeStep(2));
+  const added = button('I added the extension', () => {
+    changeStep(2);
+    monitor.start({ restart: true });
+  });
+  const back = button('Back', () => changeStep(Math.max(0, step - 1)));
+  const pause = button('Pause Chrome', () => void control('pause'));
+  const later = button('Not now', () =>
+    onDismiss ? onDismiss() : globalThis.location?.assign('/home/'),
   );
-  const nativePrivacy = make('details', 'chrome-setup__details');
-  nativePrivacy.append(
-    make('summary', '', 'Privacy'),
+  const navigation = make('div', 'chrome-setup__navigation');
+  navigation.append(back, installed, added, pause, later);
+  for (const [index, control] of [back, installed, added, pause, later].entries())
+    control.dataset.focus = `chrome-setup-navigation-${index}`;
+  const folderValue = make('code', 'chrome-setup__folder');
+  const hint = make('p', 'chrome-setup__hint', 'In the folder picker: ⌘⇧G, paste, then Select.');
+  const details = make('details', 'chrome-setup__details');
+  details.append(make('summary', '', 'Privacy & help'));
+  details.append(
     make(
       'p',
       '',
-      'Chrome connection is separate from visible text and adaptive help. Those stay off until you choose them in eïlo.',
+      'Website names, page titles and links stay on this Mac unless you enable AI context. Page text is a separate choice. Private windows are excluded.',
     ),
   );
-  native.append(nativeTitle, nativeCopy, nativeAction, nativePrivacy);
-  root.append(native);
-  let destroyed = false,
-    loading = false;
-  let controller = null;
-  const feedback = make('p', 'chrome-setup__feedback');
-  feedback.setAttribute('role', 'status');
-  const step = (title, text) => {
-    const item = make('li');
-    item.append(make('h3', '', title), make('p', '', text));
-    steps.append(item);
-    return item;
-  };
-  async function copy(value, success) {
+  const help = make(
+    'p',
+    '',
+    'Can’t open setup? In Chrome’s extensions, choose eïlo → Details → Extension options.',
+  );
+  const address = make('code', 'chrome-setup__folder', EXTENSIONS_ADDRESS);
+  const repair = button('Open Chrome extensions', async () => {
+    if (openExtensions && (await openExtensions())) return;
+    await copyValue(EXTENSIONS_ADDRESS, 'Paste this address into Chrome.');
+  });
+  const reveal = button('Show extension folder', async () => {
+    if (revealFolder && (await revealFolder())) return;
+    await loadFolder();
+    await copyValue(folder, 'Extension folder copied.');
+  });
+  const recheck = button('Check connection', () => monitor.start({ restart: true }));
+  details.append(help, address, repair, reveal, recheck);
+  content.append(heading, copy, folderValue, hint, actions, receipt, feedback, navigation, details);
+  root.append(progress, visual, content);
+  container.replaceChildren(root);
+  const visible = () => root.isConnected !== false && (root.getClientRects?.().length ?? 1) > 0;
+  const monitor = createSetupMonitor({
+    visible,
+    refresh: async () => {
+      extension = await bridge.probe();
+      if (destroyed) return;
+      await onRefresh?.();
+      if (!destroyed) render();
+    },
+  });
+  function changeStep(value) {
+    step = value;
     try {
-      if (!value || !clipboard?.writeText) throw new Error('unavailable');
+      storage?.setItem(STEP_KEY, String(step));
+    } catch {
+      /* No personal state is required. */
+    }
+    feedback.textContent = '';
+    render();
+    heading.tabIndex = -1;
+    heading.focus?.({ preventScroll: true });
+  }
+  async function copyValue(value, message) {
+    if (!value) {
+      feedback.textContent = 'The extension folder is unavailable. Reopen eïlo and try again.';
+      return false;
+    }
+    try {
       await clipboard.writeText(value);
-      if (!destroyed) feedback.textContent = success;
+      if (!destroyed) feedback.textContent = message;
       return true;
     } catch {
-      if (!destroyed) feedback.textContent = 'Select and copy the text manually.';
+      if (!destroyed) {
+        folderValue.textContent = value;
+        folderValue.hidden = false;
+        feedback.textContent = 'Select the address above and copy it.';
+      }
       return false;
     }
   }
-  const copyButton = (label, value, success, className) => {
-    const item = button(
-      label,
-      async () => {
-        if (await copy(value(), success)) item.textContent = 'Copied';
-      },
-      className,
-    );
-    item.addEventListener('blur', () => {
-      item.textContent = label;
-    });
-    return item;
-  };
-  const settingsStep = step(
-    'Open Chrome’s extensions',
-    'Copy this address into Chrome’s address bar.',
-  );
-  const settingsRow = make('div', 'chrome-setup__copy-row');
-  settingsRow.append(
-    make('code', 'chrome-setup__value', EXTENSIONS_ADDRESS),
-    copyButton(
-      'Copy address',
-      () => EXTENSIONS_ADDRESS,
-      'Copied.',
-      'chrome-setup__copy chrome-setup__button--primary',
-    ),
-  );
-  settingsStep.append(settingsRow);
-  const folderStep = step('Load eïlo', 'Turn on Developer mode, then click Load unpacked.');
-  const folderRow = make('div', 'chrome-setup__copy-row');
-  const folderValue = make('code', 'chrome-setup__value', 'Finding your extension folder…');
-  folderValue.setAttribute('aria-label', 'Extension folder');
-  const folderCopy = copyButton(
-    'Copy folder path',
-    () => folder,
-    'Folder copied.',
-    'chrome-setup__copy chrome-setup__button--primary',
-  );
-  folderCopy.disabled = true;
-  const retry = button('Retry folder lookup', () => loadFolder());
-  retry.hidden = true;
-  folderRow.append(folderValue, folderCopy);
-  folderStep.append(
-    folderRow,
-    make('p', 'chrome-setup__hint', 'In the folder picker: ⌘⇧G, paste, then Select.'),
-    retry,
-  );
-  let folder = null;
-  const connectStep = step(
-    'Connect your browser',
-    'Open eïlo from Chrome’s extensions menu and choose Allow Chrome.',
-  );
-  const connectionActions = make('div', 'chrome-setup__actions');
-  const connectionURL = new URL(
-    CONNECTION_PATH,
-    globalThis.location?.origin || 'http://127.0.0.1:8765',
-  ).href;
-  const connectionHelp = make('details', 'chrome-setup__details');
-  connectionHelp.append(
-    make('summary', '', 'Having trouble?'),
-    make(
-      'p',
-      '',
-      'Reload the connection page after installing. If it still cannot open, copy the link into Chrome.',
-    ),
-  );
-  if (typeof openChrome === 'function') {
-    const open = button(
-      'Open in Chrome',
-      async () => {
-        open.disabled = true;
-        try {
-          const opened = await openChrome();
-          if (!destroyed)
-            feedback.textContent = opened
-              ? 'Opened in Chrome.'
-              : 'Chrome could not open. Use the link under Having trouble?';
-          if (!opened) connectionHelp.open = true;
-        } catch {
-          if (!destroyed)
-            feedback.textContent = 'Chrome could not open. Use the link under Having trouble?';
-          connectionHelp.open = true;
-        } finally {
-          if (!destroyed) open.disabled = false;
-        }
-      },
-      'chrome-setup__button chrome-setup__button--primary',
-    );
-    connectionActions.append(open);
-  } else {
-    const open = make(
-      'a',
-      'chrome-setup__button chrome-setup__button--primary',
-      'Open connection page',
-    );
-    open.href = CONNECTION_PATH;
-    open.target = '_blank';
-    open.rel = 'noopener';
-    connectionActions.append(open);
-  }
-  connectionHelp.append(
-    copyButton('Copy connection link', () => connectionURL, 'Copied.', 'chrome-setup__button'),
-  );
-  connectStep.append(connectionActions, connectionHelp);
-
-  const scope = make('details', 'chrome-setup__details');
-  scope.append(
-    make('summary', '', 'What you’re sharing'),
-    make(
-      'p',
-      '',
-      'Active-site names and sanitized page titles, across the web. Selected observations can reach eïlo’s AI and stay in its local conversation. A page visit does not establish attention or task completion.',
-    ),
-    make(
-      'p',
-      '',
-      'No page bodies, screenshots, browsing history, private windows, microphone audio, or keystrokes. Pause in eïlo or close its connected Chrome tab to stop. Optional site exclusions are in the extension.',
-    ),
-  );
-  connectStep.append(scope);
-  const status = make('p', 'chrome-setup__status');
-  status.setAttribute('role', 'status');
-  const controls = make('div', 'chrome-setup__actions');
-  async function control(action, useNative = false) {
-    const targets = useNative ? [nativeAction] : controls.querySelectorAll('button');
-    targets.forEach((item) => {
-      item.disabled = true;
-    });
-    try {
-      await (useNative ? onNativeControl : onControl)?.(action);
-    } catch (error) {
-      if (!destroyed) feedback.textContent = error.message || 'Sharing could not be changed.';
-    } finally {
-      if (!destroyed)
-        targets.forEach((item) => {
-          item.disabled = false;
-        });
-    }
-  }
-  const pause = button('Pause sharing', () => control('pause'));
-  const off = button('Turn off sharing', () => control('off'));
-  pause.hidden = true;
-  off.hidden = true;
-  if (onControl) controls.append(pause, off);
-  controls.hidden = true;
-  connectStep.append(status, controls);
-  const navigation = make('div', 'chrome-setup__navigation');
-  const stepItems = [settingsStep, folderStep, connectStep];
-  let currentStep = 0;
-  const back = button('Back', () => changeStep(currentStep - 1));
-  const next = button('Next', () => changeStep(currentStep + 1));
-  navigation.append(back, next);
-  root.append(feedback, navigation);
-  settingsStep.append(
-    button('Extension already installed', () => changeStep(stepItems.length - 1)),
-  );
-  function changeStep(index, focus = true) {
-    currentStep = Math.max(0, Math.min(stepItems.length - 1, index));
-    stepItems.forEach((item, i) => {
-      item.hidden = i !== currentStep;
-    });
-    progress.textContent = `Step ${currentStep + 1} of ${stepItems.length}`;
-    back.hidden = currentStep === 0;
-    next.hidden = currentStep === stepItems.length - 1;
-    feedback.textContent = '';
-    if (focus) {
-      const heading = stepItems[currentStep].querySelector('h3');
-      heading.tabIndex = -1;
-      heading.focus();
-    }
-  }
-  changeStep(0, false);
-  container.replaceChildren(root);
-
-  async function loadFolder() {
-    if (destroyed || loading) return;
-    loading = true;
-    retry.disabled = true;
+  function loadFolder() {
+    if (folder || destroyed) return Promise.resolve(folder);
+    if (loading) return loading;
     controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    loading = (async () => {
+      try {
+        const response = await fetcher('/api/desktop', {
+          headers: { 'X-Eilo-Client': 'local-chat' },
+          signal: controller.signal,
+        });
+        const value = response.ok ? extensionFolder(await response.json()) : null;
+        if (!value) throw new Error('unavailable');
+        if (!destroyed) folder = value;
+        return value;
+      } catch {
+        if (!destroyed)
+          feedback.textContent = 'The extension folder is unavailable. Reopen eïlo and try again.';
+        return null;
+      } finally {
+        clearTimeout(timeout);
+        loading = null;
+      }
+    })();
+    return loading;
+  }
+  async function control(action) {
+    if (busy || !onNativeControl || view?.connection !== 'connected') return false;
+    const restore = document.activeElement === primary || document.activeElement === pause;
+    busy = true;
+    feedback.textContent = '';
+    render();
     try {
-      const response = await fetcher('/api/desktop', {
-        headers: { 'X-Eilo-Client': 'local-chat' },
-        signal: controller.signal,
-      });
-      const path = response.ok ? extensionFolder(await response.json()) : null;
-      if (!path) throw new Error('unavailable');
-      if (!destroyed) {
-        folder = path;
-        folderValue.textContent = path;
-        folderCopy.disabled = false;
-        retry.hidden = true;
-      }
-    } catch {
-      if (!destroyed) {
-        folderValue.textContent = 'Your extension folder could not be loaded.';
-        retry.hidden = false;
-      }
+      await onNativeControl(action);
+      return true;
+    } catch (error) {
+      if (!destroyed)
+        feedback.textContent = error?.message || 'The connection could not be changed.';
+      return false;
     } finally {
-      clearTimeout(timeout);
-      loading = false;
-      if (!destroyed) retry.disabled = false;
+      busy = false;
+      if (!destroyed) {
+        render();
+        if (restore && document.activeElement === document.body)
+          primary.focus({ preventScroll: true });
+      }
     }
   }
-  const ready = loadFolder();
-  return {
-    ready,
-    update(view) {
-      if (destroyed) return;
-      const online = view?.connection === 'connected';
-      const adaptive = view?.snapshot?.adaptive;
-      const nativeConnected = adaptive?.capture_status?.browser?.connected === true;
-      if (nativeConnected) {
-        const policy = adaptive.policy || {};
-        const active = policy.enabled === true && policy.browser_enabled === true;
-        nativeActive = active;
-        const health = adaptive.capture_status.browser.status;
-        intro.hidden = true;
-        steps.hidden = true;
-        feedback.hidden = true;
-        navigation.hidden = true;
-        native.hidden = false;
-        nativeTitle.textContent = active
-          ? health === 'paused'
-            ? 'Chrome is paused'
-            : 'Chrome connected'
-          : 'Chrome is ready';
-        nativeCopy.textContent = active
-          ? 'Browser context is configured on this device.'
-          : 'Connect Chrome when you want browser context available.';
-        nativeAction.textContent = active ? 'Pause' : 'Connect Chrome';
-        nativeAction.disabled = !online || !onNativeControl;
-        return;
+  async function handoff() {
+    if (bridge.available && (await bridge.open())) return true;
+    if (typeof openChrome === 'function' && (await openChrome())) return true;
+    if (bridge.setupURL) return copyValue(bridge.setupURL, 'Paste the setup address into Chrome.');
+    feedback.textContent = 'In Chrome’s extensions, choose eïlo → Details → Extension options.';
+    details.open = true;
+    return false;
+  }
+  async function act() {
+    if (busy || destroyed || !state) return;
+    const action = state.action;
+    feedback.textContent = '';
+    if (action === 'done') {
+      if (onDone) onDone();
+      else globalThis.location?.assign('/home/#activity');
+      return;
+    }
+    if (action === 'retry') {
+      monitor.start({ restart: true });
+      return;
+    }
+    if (['connect', 'resume'].includes(action)) {
+      await control(action);
+      monitor.start({ restart: true });
+      return;
+    }
+    const restore = document.activeElement === primary;
+    busy = true;
+    render();
+    try {
+      if (action === 'extensions') {
+        if (typeof openExtensions === 'function' && (await openExtensions())) changeStep(1);
+        else if (await copyValue(EXTENSIONS_ADDRESS, 'Paste this address into Chrome.'))
+          changeStep(1);
+      } else if (action === 'folder') {
+        await loadFolder();
+        await copyValue(folder, 'Folder copied. Paste it into Chrome’s folder picker.');
+      } else {
+        // This click consents only to browser metadata. Text, AI and other sources keep their choices.
+        if (onNativeControl && !view?.snapshot?.adaptive?.policy?.browser_enabled)
+          await onNativeControl('connect');
+        changeStep(2);
+        await handoff();
+        monitor.start({ restart: true });
       }
-      intro.hidden = false;
-      steps.hidden = false;
-      feedback.hidden = false;
-      navigation.hidden = false;
-      native.hidden = true;
-      const sharing = view?.snapshot?.accountability?.activity?.state;
-      status.textContent = !online
-        ? 'Waiting for your workspace’s current sharing status.'
-        : sharing === 'active'
-          ? 'Activity sharing is on in the connected Chrome page.'
-          : sharing === 'paused'
-            ? 'Activity sharing is paused.'
-            : 'Waiting for connection.';
-      pause.hidden = !online || sharing !== 'active';
-      off.hidden = !online || !['active', 'paused'].includes(sharing);
-      controls.hidden = !onControl || (pause.hidden && off.hidden);
+    } catch (error) {
+      if (!destroyed) feedback.textContent = error?.message || 'Chrome could not open. Try again.';
+    } finally {
+      busy = false;
+      if (!destroyed) {
+        render();
+        if (restore && document.activeElement === document.body)
+          primary.focus({ preventScroll: true });
+      }
+    }
+  }
+  function render() {
+    if (destroyed) return;
+    state = browserSetupState({
+      online: view?.connection === 'connected',
+      current: view?.snapshot?.adaptive,
+      extension,
+      step,
+      inChrome: bridge.available,
+    });
+    const key = JSON.stringify(state);
+    if (key !== lastKey) {
+      lastKey = key;
+      root.dataset.state = state.id;
+      visual.dataset.stage = String(state.stage);
+      progress.textContent =
+        state.stage === 3
+          ? 'Ready to go'
+          : ['Chrome → eïlo', 'Install once', 'Connect once'][Math.min(state.stage, 2)];
+      heading.textContent = state.title;
+      copy.textContent = state.copy;
+      primary.textContent = state.label;
+      receipt.textContent =
+        state.id === 'connected' && state.received ? 'Website activity received' : '';
+      receipt.hidden = !receipt.textContent;
+      animateSetup(content);
+    }
+    primary.disabled = busy || (['connect', 'resume'].includes(state.action) && !onNativeControl);
+    primary.setAttribute('aria-busy', String(busy));
+    folderValue.textContent = folder || EXTENSIONS_ADDRESS;
+    folderValue.hidden = state.id !== 'install';
+    hint.hidden = state.id !== 'install';
+    back.hidden = step === 0 || ['connected', 'ready', 'paused'].includes(state.id);
+    installed.hidden = !['handoff', 'extensions'].includes(state.id);
+    added.hidden = state.id !== 'install';
+    pause.hidden =
+      view?.snapshot?.adaptive?.policy?.browser_enabled !== true ||
+      !onNativeControl ||
+      view?.connection !== 'connected';
+    pause.disabled = busy;
+    later.hidden = state.id === 'connected';
+    if (['connected', 'ready', 'paused'].includes(state.id)) monitor.stop();
+  }
+  render();
+  monitor.start();
+  return {
+    ready: Promise.resolve(),
+    update(next) {
+      view = next;
+      render();
+      if (!['connected', 'ready', 'paused'].includes(state?.id)) monitor.start();
+    },
+    refresh() {
+      monitor.start({ restart: true });
     },
     destroy() {
       destroyed = true;
       controller?.abort();
+      monitor.destroy();
+      globalThis.gsap?.killTweensOf(content);
     },
   };
 }

@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const root = new URL('../web/', import.meta.url);
 const manifest = JSON.parse(await readFile(new URL('asset-manifest.json', root), 'utf8'));
-const assets = new Set(manifest.home);
+const assets = new Set([...manifest.home, ...Object.values(manifest.routes)]);
 const port = Number(process.env.EILO_PREVIEW_PORT || process.env.EILO_PROTO_PORT || 41973);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error('EILO_PREVIEW_PORT must be an integer between 1 and 65535.');
@@ -32,7 +32,8 @@ http
       );
       return;
     }
-    const asset = pathname === '/' ? 'index.html' : pathname.slice(1);
+    const asset =
+      manifest.routes[pathname] || (pathname === '/' ? 'index.html' : pathname.slice(1));
     if (!assets.has(asset)) {
       response.writeHead(404).end('Not found');
       return;

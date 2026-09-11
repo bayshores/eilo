@@ -2,9 +2,9 @@
 <html lang="en" data-typography="plex">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Set up Chrome — eïlo</title>
+    <title>Connect Chrome — eïlo</title>
     <link rel="stylesheet" href="/home/styles/typography.css" />
     <link rel="stylesheet" href="/activity-connect.css" />
     <link rel="stylesheet" href="/home/activity/setup.css" />
@@ -12,21 +12,10 @@
   <body>
     <main class="connect-page setup-page">
       <a class="back-link" href="/home/#activity">Back to eïlo</a>
-      <section class="connect-intro" aria-labelledby="setup-title">
-        <h1 id="setup-title">Set up Chrome.</h1>
-      </section>
-      <div data-chrome-setup></div>
-      <noscript>
-        <p
-          >In Chrome, open chrome://extensions, turn on Developer mode, and use Load unpacked to
-          select activity/extension in your eïlo folder.</p
-        >
-        <p
-          >Open eïlo from Chrome’s extensions menu and choose Allow Chrome. Then connect on
-          <a href="/activity-connect">the connection page</a>.</p
-        >
-      </noscript>
+      <div class="connection-card" data-chrome-setup></div>
+      <noscript><p>Enable JavaScript to connect Chrome.</p></noscript>
     </main>
+    <script src="/activity-config.js"></script>
     <script type="module" src="/home/activity/setup-page.js"></script>
   </body>
 </html>

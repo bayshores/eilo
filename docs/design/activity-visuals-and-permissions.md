@@ -1,6 +1,6 @@
 # Activity visuals and permission setup
 
-September 11, 2026. The shared activity visuals and native-host registration are implemented. The guided permission handoff below remains proposed work. App distribution is on hold.
+September 11, 2026. The shared activity visuals, native-host registration and guided permission handoff are implemented locally. App distribution is on hold.
 
 ## Implemented visual behavior
 
@@ -28,27 +28,27 @@ Health now distinguishes missing registration, waiting for the extension, actual
 
 Registration tests verify the fixed extension identity, executable wrapper, and correct runtime/state paths. Real browser capture requires a separate end-to-end check with the installed extension and an explicit grant. After a local app update, verify saved work and permission state before claiming successful recovery; registration alone is not proof that Chrome is connected.
 
-## Permission-flow research and recommended next pass
+## Guided permission handoff
 
-The proposed handoff keeps setup inside the app and advances only after the required permission or connection is verified.
+Setup opens at the point of need and shows one current action. Short status copy and a source-to-eïlo visual replace the old dense instructions. Privacy, installation and repair details stay collapsed. Existing components, the sidebar and the conversation dock are preserved.
 
-[Wispr Flow's Mac setup](https://docs.wisprflow.ai/articles/3152211871-setup-guide) is the closest verified reference: a permission card initiates the native request or opens the right settings pane; the card becomes actionable again if access is not detected, and the flow advances after a grant. Its [Mac installation guide](https://docs.wisprflow.ai/articles/7682075140-how-to-install-wispr-flow-on-mac) describes revealing the next permission card after the current grant. [Granola's setup](https://docs.granola.ai/help-center/getting-started/setting-up-granola-for-the-first-time) brings microphone and system-audio prompts into onboarding, while its troubleshooting documentation illustrates why a setting alone is not evidence that capture works.
+The Mac app opens the fixed extension setup page directly in Chrome. It does not depend on a pinned toolbar popup or a localhost page remaining open. The extension also registers Chrome’s [Options entry](https://developer.chrome.com/docs/extensions/develop/ui/options-page), so Details → Extension options opens the same surface. First installation opens it once; updates and reloads do not. Opening setup never requests the optional browser grant on its own.
 
-[Opal's visual permission explanation on Mobbin](https://mobbin.com/screens/6ac44043-77af-43b5-b2ff-7ff7c4b35788) shows the expected system prompt. Borrow the short visual explanation, not its highlighted approval target or its product-specific local-storage claim. [Google Meet's microphone flow](https://mobbin.com/flows/b9431137-e00c-41b5-89e6-9f6717ff2064) places the native prompt directly after using the relevant control. [Apple's privacy guidance](https://developer.apple.com/design/human-interface-guidelines/privacy/) supports asking at the point of need with a short, concrete purpose.
+Browser metadata intent, a connected native channel, a current-policy grant acknowledgement, and a recorded activity receipt are distinct facts. A stale acknowledgement, disconnected channel or offline snapshot cannot finish setup. Disabled capture can still verify a connection without reading tabs. Policy changes invalidate prior acknowledgements, including when multiple channels overlap.
 
-Recommended eïlo flow:
+Desktop setup requests Accessibility only after visible text was explicitly chosen. The dedicated helper command requests permission and exits without collecting content. Returning to the app performs a metadata preflight. Setup checks run at most every 2.5 seconds for two minutes while the card is visible, with one request in flight; closing or hiding it suspends checks. Backend preflight requests share a short cache and do not start capture. Native commands accept only fixed destinations from the focused, trusted Home frame.
 
-1. Open one source's setup card from its actual feature or a clear Finish setup action. Skip already working steps.
-2. Explain the benefit and scope in one sentence, with a small visual of the relevant setting. Show the exact app/helper name only after verifying which identity macOS requires.
-3. Offer one primary action: Continue for a system prompt, or Open Settings when a manual toggle is required. eïlo already has a fixed, trusted link to Accessibility settings; it currently lacks the complete guided return path.
-4. Recheck permission when the app regains focus and, while setup is visible, with a bounded status check. Confirm readiness from the actual collector or extension handshake, never from clicking the button. Close or advance smoothly once verified.
-5. Keep Not now available, save setup progress, and show a specific repair step after denial or disconnection. Request microphone only for Speak, visual capture only for its optional feature, and browser access separately. Avoid a mandatory all-permissions checklist.
+[Wispr Flow’s Mac setup](https://docs.wisprflow.ai/articles/3152211871-setup-guide) informed the request-and-return sequence. [WRITER’s connection flow on Mobbin](https://mobbin.com/flows/157e7cb5-93d9-4a00-95c2-b43f5780a60b) informed the concise initial, waiting and completed states. No reference assets were copied. Chrome’s [optional-permission requirements](https://developer.chrome.com/docs/extensions/reference/api/permissions) keep the grant tied to an explicit user action. The app cannot click macOS privacy toggles or Chrome’s permission prompt for the user.
 
-The app can reduce navigation and explanation. It cannot click the user's macOS privacy toggles. A published extension could remove unpacked-extension installation steps, but public distribution is explicitly on hold and is not a dependency of this local repair.
+No extension-store submission, distribution or permission expansion is part of this local implementation. Installed-extension compatibility, the actual native prompt and received website activity require separate live verification.
 
 ## Validation and performance
 
-- Full local checks passed: 200 JavaScript and 232 Python tests, lint, types, formatting, repository/asset coverage. Tests cover origin validation, domain/port grouping, interval geometry, selection continuity, native registration, and truthful health transitions.
+Activity ingestion registers a sample as seen only after its observation and episode writes succeed. A write failure reports a content-free capture error and leaves that event eligible for retry; a later accepted sample restores capture health. The setup card also respects capture errors even when the transport and grant are verified.
+
+The context store indexes record expiry so both payload expiry and tombstone cleanup avoid full-table scans. A 20,000-record synthetic regression checks both query plans, immediate payload expiry and continued retention of a chosen note. No cache or deferred payload cleanup changes the retention boundary.
+
+- Local checks cover JavaScript and Python tests, lint, types, formatting and repository/asset coverage. Setup regressions include explicit consent, disabled-policy verification, stale acknowledgements, multi-client disconnection, fixed native destinations, offline snapshots, bounded visible-only checks and cleanup. Activity checks cover origin validation, domain/port grouping, interval geometry and selection continuity.
 - Browser review covered Home, Activity, widget gallery, day/site selection, keyboard day navigation, 900 × 650 and 640 × 800 windows, and reachable session details. Gallery headings/actions do not overlap their previews.
 - An isolated browser fixture used 50 same-day synthetic episodes across ten source lanes plus valid seven-day usage. Identical snapshots preserved all descendant nodes; changed usage retained the chosen day and keyboard focus; reduced motion stopped active animations. No long tasks were observed during the short workload.
 - Profiling found repeated date/time formatter construction in the day map. Reusing formatters reduced measured changed-update p95 from 15.1 ms to 3.3 ms on this run; the map's share fell from 12.4 ms to 2.4 ms. The final per-renderer p95 was 0.1 ms Tracking, 0.8 ms Usage, and 2.4 ms Map. Cache-hit updates were 0.8 ms p95. These are local synthetic measurements, not a general hardware claim.

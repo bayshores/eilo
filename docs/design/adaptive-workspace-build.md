@@ -28,7 +28,7 @@ Keep IBM Plex Sans and the charcoal/warm identity. Make the content visual throu
 | Account and packaging | Structured user-started sign-in; no recovery/import from global credentials; managed Python runtime; app-owned writable state outside the bundle; native-host registration at development and packaged startup.                  |
 | Activity and usage    | Compact episode rows with selected details; actual source health; seven days of recorded intervals; no inferred focus or completion score.                                                                                       |
 
-The six-task interactive proof is available with `npm run dev` and `?adaptive-preview=1`. Its scenario selector and data are explicitly synthetic; the production Home has no task-category picker. `scripts/preview-context.py --port 8769` exercises real HTTP/context orchestration with an injected analyzer, temporary state, and no accounts or capture.
+The six-task interactive proof is available with `npm run dev:static` and `?adaptive-preview=1`. Its scenario selector and data are explicitly synthetic; the production Home has no task-category picker. `scripts/preview-context.py --port 8769` exercises real HTTP/context orchestration with an injected analyzer, temporary state, and no accounts or capture.
 
 The implementation entrypoints are `app/context_service.py`, `app/context_store.py`, `app/adaptive_driver.py`, `app/context_capture.py`, `activity/native/EiloContextCollector.swift`, `activity/extension/native.js`, and `web/adaptive/`. The HTTP capture boundary is deliberately absent: observations arrive on the authenticated native channel.
 

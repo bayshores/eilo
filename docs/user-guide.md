@@ -27,21 +27,13 @@ affordance rather than a permanent archive.
 
 ## Connections and permissions
 
-Open **Connections → Browser activity**. When the Mac app detects the extension, choose **Connect Chrome**. You do not need to keep a connection page open with the native host. Visible text and adaptive help remain separate choices.
+Open **Connections → Browser activity → Open Chrome setup**. The Mac app opens eïlo’s setup in a Chrome tab. Choose **Allow Chrome** there. The card checks the actual connection; a successful launch alone does not mean Chrome is connected. Once connected, the setup tab can close.
 
-During development, an older installed extension/host may still show the one-step-at-a-time guide and compatibility connection page. That path keeps its page-open requirement. Optional website exclusions are available in the extension and Home’s **Home context → Sources → Excluded websites**. No mandatory site selection is needed.
+For local development, install the extension once using the in-app guide. If the toolbar popup is unavailable, Chrome’s **eïlo → Details → Extension options** opens the same setup. Newly installing the extension opens that page once; reloading or updating it does not repeatedly open tabs. **Privacy & help** contains installation and repair actions.
 
-Connections lists sources and their current state. Connecting a source only grants
-the scope shown in that flow. It does not automatically:
+**Home context → Sources** keeps desktop, Chrome, visible text and AI context separate. Desktop app identity does not need text access. Choosing visible text offers a short Accessibility setup card and checks permission when you return. **Not now** leaves setup for later. Website exclusions are optional; no site picker is required.
 
-- enable activity collection;
-- share a new data category with the model;
-- enable desktop notifications;
-- give eïlo authority to act in another service.
-
-Use the source-specific pause or turn-off control when you no longer want that
-context available. A broken connection should remain visible as unavailable;
-reconnecting it must be an explicit action.
+A connection grants only the scope shown. It does not authorize notifications, a new AI-sharing category, or actions in another service. Use the source’s pause or turn-off control to stop new capture. Setup status and actual received activity remain separate, so a broken or unverified connection never appears as working.
 
 ## Speech
 

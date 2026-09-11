@@ -1,3 +1,5 @@
+import { mountDesktopSetup } from '../activity/desktop-setup.js';
+
 const FLAGS = [
   'enabled',
   'desktop_enabled',
@@ -82,7 +84,13 @@ const field = (label, placeholder, maximum) => {
 };
 
 /** The drawer owns editable controls; background Home updates never rebuild it. */
-export function createContextPanel({ onCommand, onTalk, onConnections, onClose } = {}) {
+export function createContextPanel({
+  onCommand,
+  onTalk,
+  onConnections,
+  onRefreshSources,
+  onClose,
+} = {}) {
   const dialog = node('dialog', 'context-panel');
   dialog.setAttribute('aria-labelledby', 'context-panel-title');
   const header = node('header', 'context-panel__header');
@@ -111,6 +119,8 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
     renderedKey = '',
     preferencesKey = '',
     exclusionsKey = '';
+  let desktopGuide = null,
+    showDesktopGuide = false;
 
   function selectTab(id, focus = false) {
     selected = id;
@@ -119,6 +129,7 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
       tab.tabIndex = key === id ? 0 : -1;
       panels.get(key).hidden = key !== id;
     }
+    if (id !== 'sources') desktopGuide?.pause();
     if (focus) tabButtons.get(id).focus();
     body.scrollTop = 0;
   }
@@ -157,6 +168,7 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
 
   async function run(lane, action, fields = {}) {
     if (busy || !current) return false;
+    const active = document.activeElement;
     busy = true;
     error.hidden = true;
     syncDisabled();
@@ -167,6 +179,8 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
       busy = false;
       syncDisabled();
       syncSwitches();
+      if (active?.isConnected && document.activeElement === document.body)
+        active.focus({ preventScroll: true });
     }
   }
   function action(label, lane, name, fields = () => ({}), className = 'text-button') {
@@ -285,34 +299,65 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
   pause.classList.add('context-pause');
   const sourceRows = new Map();
   for (const [flag, label, detail, source] of [
-    ['desktop_enabled', 'Desktop', 'Active app and window title.', 'desktop'],
+    ['desktop_enabled', 'Desktop', 'The app you’re using. Text is a separate choice.', 'desktop'],
     ['browser_enabled', 'Chrome', 'Current tab. Private windows stay private.', 'browser'],
   ]) {
-    const row = switchRow(flag, label, detail, (checked) =>
-      run('context', 'configure', {
-        [flag]: checked,
-        ...(checked ? { enabled: true } : {}),
-      }),
-    );
+    const row = switchRow(flag, label, detail, async (checked) => {
+      await run('context', 'configure', { [flag]: checked, ...(checked ? { enabled: true } : {}) });
+      if (source === 'desktop' && checked) {
+        showDesktopGuide = true;
+        renderedKey = '';
+        update(current);
+        desktopGuide.focus();
+      }
+    });
     const health = node('span', 'context-source__state');
     row.querySelector('.context-setting__copy').append(health);
     sourceRows.set(source, health);
     capture.append(row);
   }
-  const permission = button('Open Accessibility settings', 'context-navigation-row');
+  const permission = button('Finish desktop setup', 'context-navigation-row');
+  const desktopHost = node('div');
+  desktopHost.hidden = true;
+  desktopGuide = mountDesktopSetup(desktopHost, {
+    onConfigure: (fields) => run('context', 'configure', fields),
+    onRefresh: onRefreshSources,
+    onDone: () => {
+      showDesktopGuide = false;
+      desktopHost.hidden = true;
+      desktopGuide.pause();
+      renderedKey = '';
+      update(current);
+      if (!permission.hidden) permission.focus();
+      else switches.get('desktop_enabled')?.focus();
+    },
+  });
   permission.addEventListener('click', () => {
-    if (globalThis.eiloDesktop?.openContextPermission)
-      void globalThis.eiloDesktop.openContextPermission('text');
-    else showError('Open System Settings → Privacy & Security → Accessibility.');
+    showDesktopGuide = true;
+    desktopHost.hidden = false;
+    desktopGuide.update(current, { text: current?.policy?.text_enabled });
+    desktopGuide.focus();
+    void onRefreshSources?.();
   });
   const browserSetup = button('Connect the Chrome extension', 'context-navigation-row');
-  browserSetup.addEventListener('click', () => closeThen(onConnections));
-  capture.append(pause, permission, browserSetup);
+  browserSetup.addEventListener('click', () => closeThen(() => onConnections?.('browser')));
+  capture.append(pause, permission, browserSetup, desktopHost);
   const rich = node('details', 'context-disclosure context-rich');
   rich.append(node('summary', '', 'More context detail'));
   rich.append(
-    switchRow('text_enabled', 'Visible text', 'Include text from permitted windows.', (checked) =>
-      run('context', 'configure', { text_enabled: checked }),
+    switchRow(
+      'text_enabled',
+      'Visible text',
+      'Include text from permitted windows.',
+      async (checked) => {
+        await run('context', 'configure', { text_enabled: checked });
+        if (checked && current?.policy?.desktop_enabled) {
+          showDesktopGuide = true;
+          renderedKey = '';
+          update(current);
+          void onRefreshSources?.();
+        }
+      },
     ),
   );
   const visual = switchRow(
@@ -429,6 +474,7 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
       dialog.close();
   });
   dialog.addEventListener('close', () => {
+    desktopGuide.pause();
     correction.hidden = true;
     workActions.hidden = false;
     editBasis = null;
@@ -464,6 +510,9 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
       Object.entries(current?.capture_status || {}).map(([source, health]) => [
         source,
         health.status,
+        health.permissions,
+        health.setup_verified,
+        health.connected,
       ]),
     ]);
     if (nextKey === renderedKey) return;
@@ -511,8 +560,15 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
     }
     pause.hidden = !policy.desktop_enabled && !policy.browser_enabled;
     pause.textContent = policy.enabled ? 'Pause capture' : 'Resume capture';
+    const desktopHealth = current?.capture_status?.desktop || {};
     permission.hidden =
-      !policy.desktop_enabled || current?.capture_status?.desktop?.status !== 'permission_required';
+      showDesktopGuide ||
+      !policy.desktop_enabled ||
+      (!showDesktopGuide &&
+        (!policy.text_enabled || desktopHealth.permissions?.accessibility_permission === true));
+    desktopHost.hidden = !showDesktopGuide;
+    if (showDesktopGuide && selected === 'sources')
+      desktopGuide.update(current, { text: policy.text_enabled });
     browserSetup.hidden =
       !policy.browser_enabled ||
       !['disconnected', 'configured', 'registration_required', 'waiting'].includes(
@@ -582,6 +638,7 @@ export function createContextPanel({ onCommand, onTalk, onConnections, onClose }
       dialog.close();
     },
     destroy() {
+      desktopGuide.destroy();
       dialog.remove();
     },
   };

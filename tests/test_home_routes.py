@@ -60,7 +60,7 @@ class HomeRouteTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(direct_index.status, 200)
         self.assertIn('data-source="live"', await direct_index.text())
 
-    async def test_extension_setup_returns_to_current_activity_and_uses_connection_page(self):
+    async def test_extension_setup_returns_to_activity_without_a_legacy_page_lease(self):
         class Links(HTMLParser):
             def __init__(self):
                 super().__init__()
@@ -75,7 +75,13 @@ class HomeRouteTests(unittest.IsolatedAsyncioTestCase):
         parser = Links()
         parser.feed(await setup.text())
         self.assertEqual(parser.hrefs[0], "/home/#activity")
-        self.assertIn("/activity-connect", parser.hrefs)
+        self.assertIn("data-chrome-setup", await setup.text())
+        connection = await self.client.get("/activity-connect")
+        self.assertEqual(connection.status, 200)
+        self.assertIn("data-chrome-setup", await connection.text())
+        script = await self.client.get("/activity-connect.js")
+        self.assertIn("mountChromeSetup", await script.text())
+        self.assertNotIn("createActivitySession", await script.text())
         for href in parser.hrefs:
             self.assertIn(href, ("/home/#activity", "/activity-connect"))
             destination = await self.client.get(href.split("#")[0])

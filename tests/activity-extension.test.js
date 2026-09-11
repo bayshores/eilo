@@ -16,6 +16,7 @@ assert.deepEqual(
 assert.deepEqual(manifest.optional_host_permissions, ['http://*/*', 'https://*/*']);
 assert.equal(manifest.host_permissions, undefined, 'website access is never installed by default');
 assert.equal(manifest.externally_connectable.matches[0], 'http://127.0.0.1/*');
+assert.deepEqual(manifest.options_ui, { page: 'popup.html', open_in_tab: true });
 const manifestId = [
   ...crypto
     .createHash('sha256')
@@ -337,6 +338,150 @@ async function extensionPortChecks() {
 }
 const portChecks = extensionPortChecks();
 
+async function externalSetupChecks() {
+  let externalListener;
+  const created = [];
+  let tabReads = 0;
+  const context = {
+    URL,
+    Set,
+    console,
+    importScripts() {
+      vm.runInNewContext(fs.readFileSync(path.join(extension, 'core.js'), 'utf8'), context);
+    },
+    chrome: {
+      runtime: {
+        getURL(value) {
+          return `chrome-extension://fixed/${value}`;
+        },
+        onConnectExternal: { addListener() {} },
+        onMessage: { addListener() {} },
+        onMessageExternal: {
+          addListener(listener) {
+            externalListener = listener;
+          },
+        },
+      },
+      permissions: { onRemoved: event(), contains: async () => true },
+      storage: { onChanged: event(), local: { get: async () => ({ excludedHosts: [] }) } },
+      tabs: {
+        create: async (value) => created.push(value),
+        query: async () => {
+          tabReads++;
+          return [];
+        },
+      },
+      windows: { onFocusChanged: { addListener() {} } },
+    },
+  };
+  context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync(path.join(extension, 'background.js'), 'utf8'), context);
+  const sender = { url: 'http://127.0.0.1:8765/home/', frameId: 0 };
+  let opened;
+  assert.equal(
+    externalListener({ type: 'eilo-open-setup' }, sender, (response) => (opened = response)),
+    true,
+  );
+  await new Promise(setImmediate);
+  assert.deepEqual(JSON.parse(JSON.stringify(created)), [
+    { url: 'chrome-extension://fixed/popup.html', active: true },
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(opened)), { opened: true });
+  assert.equal(tabReads, 0, 'opening setup never reads browser activity');
+
+  let status;
+  assert.equal(
+    externalListener({ type: 'eilo-setup-status' }, sender, (response) => (status = response)),
+    true,
+  );
+  await new Promise(setImmediate);
+  assert.deepEqual(JSON.parse(JSON.stringify(status)), {
+    installed: true,
+    granted: true,
+    native: { state: 'unavailable', connected: false, handshake_verified: false, enabled: false },
+  });
+  assert.equal(tabReads, 0, 'status detection never reads browser activity');
+  assert.equal(
+    externalListener({ type: 'eilo-open-setup', extra: true }, sender, () => {}),
+    undefined,
+  );
+  assert.equal(
+    externalListener(
+      { type: 'eilo-open-setup' },
+      { url: 'http://127.0.0.1:8766/', frameId: 0 },
+      () => {},
+    ),
+    undefined,
+  );
+}
+const externalChecks = externalSetupChecks();
+
+async function firstInstallSetupChecks() {
+  let installedListener;
+  const created = [];
+  let permissionChecks = 0;
+  let tabReads = 0;
+  const context = {
+    URL,
+    Set,
+    console,
+    importScripts() {
+      vm.runInNewContext(fs.readFileSync(path.join(extension, 'core.js'), 'utf8'), context);
+    },
+    chrome: {
+      runtime: {
+        getURL(value) {
+          return `chrome-extension://fixed/${value}`;
+        },
+        onConnectExternal: { addListener() {} },
+        onMessage: { addListener() {} },
+        onMessageExternal: { addListener() {} },
+        onInstalled: {
+          addListener(listener) {
+            installedListener = listener;
+          },
+        },
+      },
+      permissions: {
+        onRemoved: event(),
+        onAdded: { addListener() {} },
+        contains: async () => {
+          permissionChecks++;
+          return false;
+        },
+      },
+      storage: { onChanged: event(), local: { get: async () => ({ excludedHosts: [] }) } },
+      tabs: {
+        create: async (value) => created.push(value),
+        query: async () => {
+          tabReads++;
+          return [];
+        },
+      },
+      windows: { onFocusChanged: { addListener() {} } },
+    },
+  };
+  context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync(path.join(extension, 'background.js'), 'utf8'), context);
+  await new Promise(setImmediate);
+  const initialPermissionChecks = permissionChecks;
+  installedListener({ reason: 'install' });
+  await new Promise(setImmediate);
+  assert.deepEqual(JSON.parse(JSON.stringify(created)), [
+    { url: 'chrome-extension://fixed/popup.html', active: true },
+  ]);
+  assert.equal(
+    permissionChecks,
+    initialPermissionChecks,
+    'first setup handoff does not check or grant access',
+  );
+  assert.equal(tabReads, 0, 'first setup handoff does not inspect browser tabs');
+  installedListener({ reason: 'update' });
+  await new Promise(setImmediate);
+  assert.equal(created.length, 1, 'updates never reopen setup automatically');
+}
+const firstInstallChecks = firstInstallSetupChecks();
+
 function event() {
   const callbacks = [];
   return {
@@ -498,7 +643,7 @@ async function bridgeChecks() {
     false,
   );
 }
-Promise.all([backgroundChecks, portChecks, bridgeChecks()])
+Promise.all([backgroundChecks, portChecks, externalChecks, firstInstallChecks, bridgeChecks()])
   .then(() => process.stdout.write('activity extension and bridge checks passed\n'))
   .catch((error) => {
     console.error(error);

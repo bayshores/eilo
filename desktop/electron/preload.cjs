@@ -12,6 +12,15 @@ if (
       openActivityConnection() {
         return ipcRenderer.invoke('eilo:open-activity-connection');
       },
+      openChromeSetup() {
+        return ipcRenderer.invoke('eilo:open-chrome-setup');
+      },
+      openChromeExtensions() {
+        return ipcRenderer.invoke('eilo:open-chrome-extensions');
+      },
+      revealChromeExtension() {
+        return ipcRenderer.invoke('eilo:reveal-chrome-extension');
+      },
       openAccountAuthorization() {
         return ipcRenderer.invoke('eilo:account-authorization');
       },

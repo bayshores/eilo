@@ -148,6 +148,24 @@ test('connect only opens native messaging and sends a hello; it never samples or
     { kind: 'hello', protocol: 1, extension_id: 'extension-id' },
   ]);
 });
+test('a valid policy is verified against the current grant before it acknowledges readiness', async () => {
+  const { controller, port, calls } = setup();
+  controller.connect();
+  port.onMessage.fire(policy());
+  await new Promise(setImmediate);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    ['connectNative', 'app.eilo.context'],
+    ['contains'],
+  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(port.posted.at(-1))), {
+    kind: 'status',
+    state: 'ready',
+    session_id: 'session-1',
+    policy_epoch: 3,
+  });
+  assert.equal(controller.status().handshake_verified, true);
+  assert.equal(controller.status().activity_shared, false);
+});
 test('matching enabled policy gates a metadata-only sample and strips sensitive URL parts', async () => {
   const { controller, port } = setup();
   controller.connect();
@@ -172,6 +190,28 @@ test('a disabled replacement policy revokes an earlier enabled policy before a s
   await new Promise(setImmediate);
   assert.equal(
     port.posted.some((value) => value.kind === 'browser'),
+    false,
+  );
+});
+test('a paused policy acknowledges the transport without sampling browser data', async () => {
+  const { controller, port, calls } = setup();
+  controller.connect();
+  port.onMessage.fire(policy({ enabled: false, policy_epoch: 4 }));
+  await new Promise(setImmediate);
+  assert.deepEqual(JSON.parse(JSON.stringify(port.posted.at(-1))), {
+    kind: 'status',
+    state: 'ready',
+    session_id: 'session-1',
+    policy_epoch: 4,
+  });
+  assert.equal(controller.status().handshake_verified, true);
+  assert.equal(controller.status().enabled, false);
+  assert.equal(
+    calls.some(([name]) => name === 'executeScript'),
+    false,
+  );
+  assert.equal(
+    calls.some(([name]) => name === 'tabs.query'),
     false,
   );
 });
@@ -267,11 +307,15 @@ test('native disconnect clears enabled policy status', () => {
     connected: false,
     enabled: false,
     policy_epoch: null,
+    handshake_verified: false,
+    activity_shared: false,
   });
   assert.deepEqual(JSON.parse(JSON.stringify(statuses.at(-1))), {
     state: 'disconnected',
     connected: false,
     enabled: false,
     policy_epoch: null,
+    handshake_verified: false,
+    activity_shared: false,
   });
 });

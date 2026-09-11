@@ -1395,7 +1395,8 @@ if (live) {
     isBusy: () => Boolean(editing || drag || resizeDrag || keyboardMove || menuId || heldPress),
     getManualPins: () => prefs.widgetPins,
     onRendered: placeAdaptive,
-    onOpenConnections: () => live.showPage('connections'),
+    onOpenConnections: (source) =>
+      source === 'browser' ? showDetail('browser-setup') : live.showPage('connections'),
     onOpenActivity: () => live.showPage('activity'),
     onTalk: () => $('#live-message-input')?.focus(),
     onModeChange: (next, hasComposition) => {

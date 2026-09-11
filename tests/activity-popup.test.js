@@ -53,10 +53,15 @@ async function mount({
   nativeState = null,
 } = {}) {
   const elements = Object.fromEntries(
-    ['allow', 'exclude', 'remove-access', 'excluded-hosts', 'status', 'native-status'].map((id) => [
-      id,
-      new Element(),
-    ]),
+    [
+      'allow',
+      'open-eilo',
+      'exclude',
+      'remove-access',
+      'excluded-hosts',
+      'status',
+      'native-status',
+    ].map((id) => [id, new Element()]),
   );
   const calls = [];
   const stored = { excludedHosts };
@@ -68,7 +73,7 @@ async function mount({
         : {
             sendMessage: async (value) => {
               calls.push(['sendMessage', value]);
-              return { state: nativeState };
+              return typeof nativeState === 'string' ? { state: nativeState } : nativeState;
             },
           },
     permissions: {
@@ -80,8 +85,12 @@ async function mount({
         calls.push(['request', value]);
         if (requestResult === 'pending')
           return new Promise((resolve) => {
-            resolveRequest = resolve;
+            resolveRequest = () => {
+              granted = true;
+              resolve(true);
+            };
           });
+        if (requestResult) granted = true;
         return Promise.resolve(requestResult);
       },
       remove: async (value) => {
@@ -145,13 +154,33 @@ test('popup mount reads only permission and excluded-host state', async () => {
   ]);
 });
 
-test('popup reports native transport separately from the browser-access action', async () => {
-  const popup = await mount({ nativeState: 'ready' });
-  assert.equal(popup.elements['native-status'].textContent, 'Desktop transport ready.');
-  assert.deepEqual(json(popup.calls.at(-1)), ['sendMessage', { type: 'eilo-native-status' }]);
+test('a preexisting grant starts one bounded native-status check without requesting access', async () => {
+  const popup = await mount({ granted: true, nativeState: 'connected' });
+  await new Promise(setImmediate);
+  assert.equal(
+    popup.calls.filter(([name]) => name === 'request').length,
+    0,
+    'status monitoring never asks Chrome for access',
+  );
+  assert.equal(
+    popup.calls.filter(([name]) => name === 'contains').length >= 2,
+    true,
+    'the initial mount schedules a bounded follow-up status check',
+  );
+  assert.equal(popup.calls.filter(([name]) => name === 'sendMessage').length >= 2, true);
 });
 
-test('Allow Chrome requests in the click gesture and opens only after a grant', async () => {
+test('popup distinguishes a verified transport and activity sent from an attached port', async () => {
+  const popup = await mount({ nativeState: 'ready' });
+  assert.equal(popup.elements['native-status'].textContent, '');
+  assert.deepEqual(json(popup.calls.at(-1)), ['sendMessage', { type: 'eilo-native-status' }]);
+  const verified = await mount({ nativeState: { state: 'ready', handshake_verified: true } });
+  assert.equal(verified.elements['native-status'].textContent, 'Connected to eïlo.');
+  const shared = await mount({ nativeState: { state: 'shared', handshake_verified: true } });
+  assert.equal(shared.elements['native-status'].textContent, 'Recent activity sent to eïlo.');
+});
+
+test('Allow Chrome requests in the click gesture and remains in setup after a grant', async () => {
   const popup = await mount({ requestResult: 'pending' });
   const pending = popup.elements.allow.fire('click');
   assert.deepEqual(json(popup.calls.at(-1)), ['request', { origins: BROWSER_ORIGINS }]);
@@ -161,13 +190,15 @@ test('Allow Chrome requests in the click gesture and opens only after a grant', 
   );
   popup.resolveRequest();
   await pending;
-  assert.deepEqual(json(popup.calls.at(-1)), [
-    'create',
-    { url: 'http://127.0.0.1:8765/activity-connect' },
-  ]);
+  assert.equal(
+    popup.calls.some(([name]) => name === 'create'),
+    false,
+  );
+  assert.equal(popup.elements.status.textContent, 'Chrome allowed. Looking for eïlo on this Mac.');
+  assert.equal(popup.elements['open-eilo'].hidden, false);
 });
 
-test('a denied Chrome grant opens nothing and an existing grant skips requesting', async () => {
+test('a denied Chrome grant opens nothing and Open eïlo uses Home after an existing grant', async () => {
   const denied = await mount({ requestResult: false });
   await denied.elements.allow.fire('click');
   assert.equal(
@@ -177,15 +208,12 @@ test('a denied Chrome grant opens nothing and an existing grant skips requesting
   assert.equal(denied.elements.status.textContent, 'Chrome access was not allowed.');
 
   const granted = await mount({ granted: true });
-  await granted.elements.allow.fire('click');
+  await granted.elements['open-eilo'].fire('click');
   assert.equal(
     granted.calls.some(([name]) => name === 'request'),
     false,
   );
-  assert.deepEqual(json(granted.calls.at(-1)), [
-    'create',
-    { url: 'http://127.0.0.1:8765/activity-connect' },
-  ]);
+  assert.deepEqual(json(granted.calls.at(-1)), ['create', { url: 'http://127.0.0.1:8765/home/' }]);
 });
 
 test('Exclude this site stores the canonical hostname and renders text safely', async () => {

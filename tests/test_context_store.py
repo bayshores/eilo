@@ -152,6 +152,41 @@ class ContextStoreTest(unittest.TestCase):
         self.store.purge()
         self.assertEqual(self.store.find_ids(kind="observation"), [])
 
+    def test_expiry_index_preserves_retention_semantics_at_scale(self):
+        future = self.clock.value + 30 * 24 * 60 * 60
+        content = self.store.fernet.encrypt(b'{"text":"synthetic"}')
+        rows = [
+            (
+                f"episode-{index:05d}",
+                "episode",
+                content,
+                self.clock.value,
+                self.clock.value,
+                future,
+                1,
+            )
+            for index in range(20_000)
+        ]
+        with self.store._connection:
+            self.store._connection.executemany(
+                "INSERT INTO records(id, kind, content, created_at, updated_at, expires_at, revision) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+        self.store.put("note", "retained", {"text": "keep", "retained": True})
+        self.store.put("observation", "expired", {"text": "raw"}, expires_at=self.clock.value + 1)
+        for content_state in ("content IS NOT NULL", "content IS NULL"):
+            plan = self.store._connection.execute(
+                "EXPLAIN QUERY PLAN SELECT id FROM records WHERE "
+                f"{content_state} AND expires_at IS NOT NULL AND expires_at <= ?",
+                (self.clock.value,),
+            ).fetchone()[3]
+            self.assertIn("USING INDEX records_expiry", plan)
+        self.clock.value += 1
+        self.assertEqual(self.store.purge(), ["expired"])
+        self.assertIsNone(self.store.get("observation", "expired"))
+        self.assertEqual(self.store.get("note", "retained")["payload"]["text"], "keep")
+
 
 if __name__ == "__main__":
     unittest.main()

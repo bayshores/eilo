@@ -128,10 +128,14 @@
     let port = null;
     let policy = null;
     let generation = 0;
+    let handshakeVerified = false;
+    let activityShared = false;
     const status = () => ({
       connected: Boolean(port),
       enabled: Boolean(policy?.enabled),
       policy_epoch: policy?.policy_epoch ?? null,
+      handshake_verified: handshakeVerified,
+      activity_shared: activityShared,
     });
     const report = (state) => onStatus?.({ state, ...status() });
     const connected = () => Boolean(port && port.__eiloNativeClosed !== true);
@@ -144,11 +148,10 @@
         return false;
       }
     };
+    const samePolicy = (expectedPolicy, expectedGeneration) =>
+      connected() && policy === expectedPolicy && generation === expectedGeneration;
     const current = (expectedPolicy, expectedGeneration) =>
-      connected() &&
-      policy === expectedPolicy &&
-      generation === expectedGeneration &&
-      expectedPolicy.enabled;
+      samePolicy(expectedPolicy, expectedGeneration) && expectedPolicy.enabled;
     const hasGrant = () =>
       chrome.permissions.contains({ origins: core.BROWSER_ORIGINS || BROWSER_ORIGINS });
     const allowed = async (origin, expectedPolicy, expectedGeneration) => {
@@ -161,6 +164,34 @@
         current(expectedPolicy, expectedGeneration)
       );
     };
+
+    async function verifyPolicy(expectedPolicy, expectedGeneration) {
+      // A native port being attached does not prove the current policy is safe
+      // to use. Recheck the optional host grant before confirming this policy.
+      let granted;
+      try {
+        granted = await hasGrant();
+      } catch {
+        if (samePolicy(expectedPolicy, expectedGeneration)) report('error');
+        return;
+      }
+      if (
+        !samePolicy(expectedPolicy, expectedGeneration) ||
+        !granted ||
+        !send({
+          kind: 'status',
+          state: 'ready',
+          session_id: expectedPolicy.session_id,
+          policy_epoch: expectedPolicy.policy_epoch,
+        })
+      ) {
+        if (samePolicy(expectedPolicy, expectedGeneration) && !granted)
+          report('browser-access-off');
+        return;
+      }
+      handshakeVerified = true;
+      report(expectedPolicy.enabled ? 'ready' : 'disabled');
+    }
 
     async function sample(request) {
       const expectedPolicy = policy;
@@ -223,7 +254,10 @@
         };
         const localResource = resourceUrl(second.url);
         if (localResource) event.resource_url = localResource;
-        if (current(expectedPolicy, expectedGeneration) && send(event)) report('shared');
+        if (current(expectedPolicy, expectedGeneration) && send(event)) {
+          activityShared = true;
+          report('shared');
+        }
       } catch {
         if (current(expectedPolicy, expectedGeneration)) report('error');
       }
@@ -240,6 +274,8 @@
         generation++;
         port = null;
         policy = null;
+        handshakeVerified = false;
+        activityShared = false;
         report('disconnected');
       });
       nextPort.onMessage.addListener((message) => {
@@ -248,7 +284,10 @@
         if (next) {
           policy = next;
           generation++;
-          report(next.enabled ? 'ready' : 'disabled');
+          handshakeVerified = false;
+          activityShared = false;
+          const expectedGeneration = generation;
+          void verifyPolicy(next, expectedGeneration);
           return;
         }
         void sample(message);
@@ -260,6 +299,8 @@
     function disconnect() {
       generation++;
       policy = null;
+      handshakeVerified = false;
+      activityShared = false;
       if (connected()) {
         port.__eiloNativeClosed = true;
         try {

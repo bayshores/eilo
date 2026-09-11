@@ -77,7 +77,13 @@
     "activity/day-map.js",
     "activity/day-map-data.js",
     "activity/day-map.css",
-    "home/source-marks.js"
+    "home/source-marks.js",
+    "activity/setup-state.js",
+    "activity/setup-monitor.js",
+    "activity/setup-bridge.js",
+    "activity/setup-visual.js",
+    "activity/setup-health.js",
+    "activity/desktop-setup.js"
   ],
   "routes": {
     "/activity-client.js": "activity/bridge.js",

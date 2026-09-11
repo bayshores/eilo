@@ -1,5 +1,29 @@
-import { mountChromeSetup } from './setup.js';
-import '../styles/focus.js';
+import { createHomeClient } from '/home/chat/client.js';
+import { mountChromeSetup } from '/home/activity/setup.js';
+import { refreshSetupHealth } from '/home/activity/setup-health.js';
+import '/home/adaptive/dependencies.js';
+import '/home/styles/focus.js';
 
-const guide = mountChromeSetup(document.querySelector('[data-chrome-setup]'));
-window.addEventListener('pagehide', () => guide.destroy());
+const client = createHomeClient({ storage: null });
+const guide = mountChromeSetup(document.querySelector('[data-chrome-setup]'), {
+  onRefresh: () => refreshSetupHealth('browser', () => client.refresh()),
+  onNativeControl: (action) => {
+    const policy = client.view?.snapshot?.adaptive?.policy;
+    if (!policy) throw new Error('Open eïlo on this Mac, then try again.');
+    return client.contextCommand('configure', {
+      ...policy,
+      ...(action === 'resume'
+        ? { enabled: true }
+        : action === 'connect'
+          ? { enabled: true, browser_enabled: true }
+          : { browser_enabled: false }),
+    });
+  },
+});
+const unsubscribe = client.subscribe((view) => guide.update(view));
+void client.start();
+window.addEventListener('pagehide', () => {
+  guide.destroy();
+  unsubscribe();
+  client.stop();
+});

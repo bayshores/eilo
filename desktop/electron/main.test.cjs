@@ -125,6 +125,9 @@ function buildHarness({
   googleAuthorizationState = null,
   platform = 'linux',
   chromeOpenError = null,
+  collectorAvailable = true,
+  extensionDirectoryAvailable = true,
+  deferExec = false,
   packaged = null,
 } = {}) {
   const app = new FakeApp();
@@ -156,6 +159,7 @@ function buildHarness({
   const notifications = [];
   const externalURLs = [];
   const chromeOpens = [];
+  const pendingExec = [];
   let timer = null;
   let stateCalls = 0;
   const electron = {
@@ -200,7 +204,14 @@ function buildHarness({
     },
   };
   const fakeFs = {
-    existsSync: (file) => packaged === 'standalone' && file.endsWith('eilo-bundle.json'),
+    existsSync: (file) =>
+      (packaged === 'standalone' && file.endsWith('eilo-bundle.json')) ||
+      (collectorAvailable && file.endsWith('/EiloContextCollector')),
+    statSync: (file) => {
+      if (extensionDirectoryAvailable && file.endsWith('/activity/extension'))
+        return { isDirectory: () => true };
+      throw new Error('missing');
+    },
     readFileSync: (file) =>
       file.endsWith('eilo-bundle.json')
         ? JSON.stringify({ workspace: 'workspace', runtime: 'runtime' })
@@ -221,7 +232,8 @@ function buildHarness({
       return {
         execFile(command, args, options, callback) {
           chromeOpens.push({ command, args, options });
-          callback(chromeOpenError);
+          if (deferExec) pendingExec.push(callback);
+          else callback(chromeOpenError);
         },
       };
     if (name === './backend-supervisor.cjs')
@@ -233,6 +245,7 @@ function buildHarness({
       };
     if (name === './native-context-registration.cjs')
       return {
+        ID: require('./native-context-registration.cjs').ID,
         registerNativeContext: (options) => registrations.push(options),
       };
     if (name === './notifications.cjs')
@@ -323,6 +336,7 @@ function buildHarness({
     notifications,
     externalURLs,
     chromeOpens,
+    resolveExec: (error = chromeOpenError) => pendingExec.shift()?.(error),
     get supervisorOptions() {
       return supervisorOptions;
     },
@@ -526,6 +540,49 @@ test('Chrome handoff opens only the fixed connection URL for focused trusted Hom
   assert.equal(h.chromeOpens.length, 1);
 });
 
+test('Chrome setup opens its exact extension page only from the focused trusted Home', async () => {
+  const h = buildHarness({ platform: 'darwin' });
+  await drain();
+  const window = h.windows[0];
+  const event = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  assert.equal(await h.ipcMain['eilo:open-chrome-setup'](event, 'https://example.test'), true);
+  assert.equal(
+    JSON.stringify(h.chromeOpens[0].args),
+    JSON.stringify([
+      '-b',
+      'com.google.Chrome',
+      'chrome-extension://clbapkcnonmjmmkjfeaonpjcepelimae/popup.html',
+    ]),
+  );
+  assert.equal(h.chromeOpens[0].options.timeout, 10_000);
+  for (const untrusted of [
+    { ...event, sender: {} },
+    { ...event, senderFrame: { url: event.senderFrame.url } },
+  ])
+    assert.equal(await h.ipcMain['eilo:open-chrome-setup'](untrusted), false);
+  window.focused = false;
+  assert.equal(await h.ipcMain['eilo:open-chrome-setup'](event), false);
+  window.focused = true;
+  window.visible = false;
+  assert.equal(await h.ipcMain['eilo:open-chrome-setup'](event), false);
+  assert.equal(h.chromeOpens.length, 1);
+  for (const options of [
+    { platform: 'darwin', chromeOpenError: new Error('not installed') },
+    { platform: 'linux' },
+  ]) {
+    const unavailable = buildHarness(options);
+    await drain();
+    const other = unavailable.windows[0];
+    assert.equal(
+      await unavailable.ipcMain['eilo:open-chrome-setup']({
+        sender: other.webContents,
+        senderFrame: other.webContents.mainFrame,
+      }),
+      false,
+    );
+  }
+});
+
 test('Chrome launch failure and unsupported platforms do not report success', async () => {
   for (const options of [
     { platform: 'darwin', chromeOpenError: new Error('not installed') },
@@ -542,4 +599,119 @@ test('Chrome launch failure and unsupported platforms do not report success', as
       false,
     );
   }
+});
+
+test('Chrome setup opens only fixed Chrome and bundled-extension destinations', async () => {
+  const h = buildHarness({ platform: 'darwin' });
+  await drain();
+  const window = h.windows[0];
+  const trusted = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+
+  assert.equal(
+    await h.ipcMain['eilo:open-chrome-extensions'](trusted, 'https://example.test'),
+    true,
+  );
+  assert.equal(await h.ipcMain['eilo:reveal-chrome-extension'](trusted, '/private/example'), true);
+  assert.equal(
+    JSON.stringify(
+      h.chromeOpens.map(({ command, args, options }) => ({
+        command,
+        args,
+        timeout: options.timeout,
+      })),
+    ),
+    JSON.stringify([
+      {
+        command: '/usr/bin/open',
+        args: ['-b', 'com.google.Chrome', 'chrome://extensions/'],
+        timeout: 10_000,
+      },
+      {
+        command: '/usr/bin/open',
+        args: ['-R', path.join(path.resolve(__dirname, '../..'), 'activity', 'extension')],
+        timeout: 10_000,
+      },
+    ]),
+  );
+  window.focused = false;
+  assert.equal(await h.ipcMain['eilo:open-chrome-extensions'](trusted), false);
+  assert.equal(await h.ipcMain['eilo:reveal-chrome-extension'](trusted), false);
+  assert.equal(h.chromeOpens.length, 2);
+});
+
+test('revealing Chrome extension fails closed when the owned bundle directory is unavailable', async () => {
+  const h = buildHarness({ platform: 'darwin', extensionDirectoryAvailable: false });
+  await drain();
+  const window = h.windows[0];
+  assert.equal(
+    await h.ipcMain['eilo:reveal-chrome-extension']({
+      sender: window.webContents,
+      senderFrame: window.webContents.mainFrame,
+    }),
+    false,
+  );
+  assert.equal(h.chromeOpens.length, 0);
+});
+
+test('text permission uses only the dedicated collector command before opening Accessibility settings', async () => {
+  const h = buildHarness({ platform: 'darwin' });
+  await drain();
+  const window = h.windows[0];
+  const trusted = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  assert.equal(await h.ipcMain['eilo:context-permission'](trusted, 'text'), true);
+  assert.equal(
+    JSON.stringify(h.chromeOpens),
+    JSON.stringify([
+      {
+        command: path.join(
+          path.resolve(__dirname, '../..'),
+          '.runtime',
+          'eilo-context-collector',
+          'EiloContextCollector',
+        ),
+        args: ['--request-text-permission'],
+        options: { timeout: 10_000 },
+      },
+    ]),
+  );
+  assert.deepEqual(h.externalURLs, [
+    'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+  ]);
+});
+
+test('text permission has a timeout-bounded concurrent-click guard and never opens settings if the helper fails', async () => {
+  const h = buildHarness({ platform: 'darwin', deferExec: true });
+  await drain();
+  const window = h.windows[0];
+  const trusted = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  const first = h.ipcMain['eilo:context-permission'](trusted, 'text');
+  assert.equal(await h.ipcMain['eilo:context-permission'](trusted, 'text'), false);
+  assert.equal(h.chromeOpens.length, 1);
+  assert.equal(h.chromeOpens[0].options.timeout, 10_000);
+  h.resolveExec(new Error('unavailable'));
+  assert.equal(await first, false);
+  assert.deepEqual(h.externalURLs, []);
+});
+
+test('visual permissions do not invoke the Accessibility helper', async () => {
+  const h = buildHarness({ platform: 'darwin' });
+  await drain();
+  const window = h.windows[0];
+  const trusted = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  assert.equal(await h.ipcMain['eilo:context-permission'](trusted, 'visual'), true);
+  assert.equal(h.chromeOpens.length, 0);
+  assert.deepEqual(h.externalURLs, [
+    'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+  ]);
+});
+
+test('context permissions do not open macOS settings or invoke helpers off macOS', async () => {
+  const h = buildHarness();
+  await drain();
+  const window = h.windows[0];
+  const trusted = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  assert.equal(await h.ipcMain['eilo:context-permission'](trusted, 'text'), false);
+  assert.equal(await h.ipcMain['eilo:context-permission'](trusted, 'visual'), false);
+  assert.equal(h.chromeOpens.length, 0);
+  assert.deepEqual(h.externalURLs, []);
 });

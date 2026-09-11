@@ -164,6 +164,9 @@ class _Client:
         self.writer = writer
         self.origin = origin
         self.lock = asyncio.Lock()
+        self.setup_verified = False
+        self.grant_verified = False
+        self.verified_policy: tuple[str, int] | None = None
 
     async def send(self, value: dict[str, Any]) -> None:
         async with self.lock:
@@ -192,6 +195,7 @@ class ContextBroker:
         self._token = ""
         self._server: asyncio.AbstractServer | None = None
         self._clients: set[_Client] = set()
+        self._last_policy: tuple[str, int] | None = None
 
     async def start(self) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
@@ -223,11 +227,48 @@ class ContextBroker:
 
     async def refresh_policy(self) -> None:
         policy = await self._policy()
+        policy_id = (policy["session_id"], policy["policy_epoch"])
+        changed = self._last_policy != policy_id
+        if changed:
+            self._last_policy = policy_id
+        # A new attach may have already observed the current policy ID.  Compare
+        # each acknowledgement itself instead of relying only on the aggregate
+        # transition flag, so an older client cannot remain verified.
+        for client in self._clients:
+            if client.verified_policy != policy_id:
+                client.setup_verified = client.grant_verified = False
+                client.verified_policy = None
         for client in tuple(self._clients):
             try:
                 await client.send(policy)
             except (ConnectionError, OSError, NativeBridgeError):
                 self._clients.discard(client)
+        if changed:
+            await self._status(self._health(status="policy_updated"))
+
+    async def update_allowed_origins(self, origins: set[str] | frozenset[str]) -> None:
+        """Apply the current validated registration file and drop removed origins."""
+        self.allowed_origins = frozenset(origins)
+        for client in tuple(self._clients):
+            if client.origin not in self.allowed_origins:
+                self._clients.discard(client)
+                client.writer.close()
+
+    def _health(self, *, status: str, origin: str | None = None) -> dict[str, Any]:
+        connected = bool(self._clients)
+        verified = [
+            client
+            for client in self._clients
+            if client.setup_verified and client.verified_policy == self._last_policy
+        ]
+        return {
+            "status": status,
+            "origin": origin,
+            "connected": connected,
+            "setup_verified": bool(verified),
+            "grant_verified": any(client.grant_verified for client in verified),
+            "clients": len(self._clients),
+        }
 
     async def _policy(self) -> dict[str, Any]:
         value = self.get_policy()
@@ -257,8 +298,10 @@ class ContextBroker:
                 return
             client = _Client(writer, attach["origin"])
             self._clients.add(client)
-            await client.send(await self._policy())
-            await self._status({"status": "connected", "origin": client.origin})
+            policy = await self._policy()
+            self._last_policy = (policy["session_id"], policy["policy_epoch"])
+            await client.send(policy)
+            await self._status(self._health(status="connected", origin=client.origin))
             while True:
                 try:
                     raw = await asyncio.wait_for(reader.readline(), timeout=5)
@@ -272,7 +315,6 @@ class ContextBroker:
                                 "policy_epoch": policy["policy_epoch"],
                             }
                         )
-                        await self._status({"status": "waiting", "origin": client.origin})
                     continue
                 if not raw:
                     return
@@ -295,12 +337,23 @@ class ContextBroker:
                     "session_id",
                     "policy_epoch",
                 }:
-                    if (
-                        message.get("state") == "privacy_changed"
-                        and message.get("session_id") == policy["session_id"]
+                    matching_policy = (
+                        message.get("session_id") == policy["session_id"]
                         and message.get("policy_epoch") == policy["policy_epoch"]
-                    ):
-                        await self._status({"status": "privacy_changed", "origin": client.origin})
+                    )
+                    # Setup acknowledgement is useful while collection is off: it
+                    # proves the installed extension received the current policy,
+                    # but does not make disabled policy eligible for sampling.
+                    if message.get("state") == "ready" and matching_policy:
+                        client.setup_verified = client.grant_verified = True
+                        client.verified_policy = (policy["session_id"], policy["policy_epoch"])
+                        await self._status(self._health(status="ready", origin=client.origin))
+                    elif message.get("state") == "privacy_changed" and matching_policy:
+                        client.setup_verified = client.grant_verified = False
+                        client.verified_policy = None
+                        await self._status(
+                            self._health(status="privacy_changed", origin=client.origin)
+                        )
                     continue
                 else:
                     return
@@ -310,7 +363,7 @@ class ContextBroker:
             if client:
                 self._clients.discard(client)
                 with contextlib.suppress(Exception):
-                    await self._status({"status": "disconnected", "origin": client.origin})
+                    await self._status(self._health(status="disconnected", origin=client.origin))
             writer.close()
             with contextlib.suppress(Exception):
                 await writer.wait_closed()

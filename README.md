@@ -5,39 +5,42 @@ returning to them. It keeps a durable goal projection beside an auditable native
 conversation, then adds assistance only where the person has granted the needed
 context and permission.
 
-The project is deliberately local-first. The Python service listens only on
-loopback; private runtime state and credentials are ignored by Git. Hermes is a
-separately provisioned runtime for the optional model-backed experience, rather
-than a dependency that `npm install` can recreate.
+## Start here
 
-## Quick start
-
-Requirements: Python 3.13, Node.js 24, and uv (the Python dependency manager).
+Install **Node.js 24** and **uv**, then run these commands from the repository root:
 
 ```sh
-uv sync --group dev
-npm ci
+npm run setup
 npm run dev
 ```
 
-`npm run dev` starts the dependency-free sample preview. It needs no account or
-credential. For the local application service, use the project launcher after
-the separately provisioned Hermes runtime is available:
+Open **http://127.0.0.1:8774/home/**. This is the full interactive development UI with synthetic activity. No account, Chrome extension, or personal data is needed. Stop it with **Ctrl+C**. Run `npm run setup` once after cloning, and again when dependencies change.
+
+### Run the real Mac app
+
+On an **Apple Silicon Mac with macOS 14+** and Xcode Command Line Tools:
 
 ```sh
-./scripts/local-chat start
-# http://127.0.0.1:8765/home/
-./scripts/local-chat stop
+npm run setup:runtime
+npm start
 ```
 
-The Electron development host is optional:
+Runtime setup is a one-time download of the pinned Hermes source and Python dependencies. Sign in with **your own account inside eïlo**. Chrome and desktop permissions are optional and are connected through the app. Each developer keeps their own data locally; never copy another developer’s `.state`, credentials, or runtime folder.
+
+### Before sharing changes
 
 ```sh
-npm ci --prefix desktop/electron
+npm run check
 ```
 
-See [development](docs/development.md) for setup, checks, and the boundary
-between fixture-based checks and live manual verification.
+| Command              | Use it for                                                           |
+| -------------------- | -------------------------------------------------------------------- |
+| `npm run dev`        | Normal UI development and interaction testing with sample data.      |
+| `npm start`          | Real Mac app, local account, and permitted capture.                  |
+| `npm run check`      | All local code, test, and privacy-boundary checks.                   |
+| `npm run dev:static` | The older lightweight Home-only prototype, when specifically needed. |
+
+The app is not publicly released. Pushing source does not publish an app build. See [development](docs/development.md) for prerequisites and troubleshooting.
 
 ## Project map
 

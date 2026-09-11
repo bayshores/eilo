@@ -199,6 +199,7 @@ def main():
         "--sample-activity", action="store_true", help="Show generated visual-review data"
     )
     args = parser.parse_args()
+    (ROOT / ".tmp").mkdir(mode=0o700, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="adaptive-fixture-", dir=ROOT / ".tmp") as folder:
         chat = DemoChat(meta_path=Path(folder) / "local-chat.json")
         chat.show_sample_activity = args.sample_activity

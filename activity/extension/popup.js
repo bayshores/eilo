@@ -2,12 +2,17 @@
 
 const core = globalThis.EiloActivityExtensionCore;
 const allow = document.querySelector('#allow');
+const openEiloButton = document.querySelector('#open-eilo');
 const exclude = document.querySelector('#exclude');
 const removeAccess = document.querySelector('#remove-access');
 const excludedHosts = document.querySelector('#excluded-hosts');
 const statusElement = document.querySelector('#status');
 const nativeStatusElement = document.querySelector('#native-status');
 let browserAccess = false;
+let refreshTimer = null;
+let refreshAttempts = 0;
+let refreshGeneration = 0;
+const MAX_STATUS_REFRESHES = 8;
 
 document.addEventListener(
   'pointerdown',
@@ -67,32 +72,71 @@ function renderExcludedHosts(hosts) {
 async function refreshAccessState() {
   const granted = await chrome.permissions.contains({ origins: core.BROWSER_ORIGINS });
   browserAccess = granted;
-  allow.textContent = granted ? 'Open eïlo' : 'Allow Chrome';
+  allow.hidden = granted;
+  openEiloButton.hidden = !granted;
   return granted;
 }
 function openEilo() {
-  return chrome.tabs.create({ url: `${core.PAGE_ORIGIN}/activity-connect` });
+  return chrome.tabs.create({ url: `${core.PAGE_ORIGIN}/home/` });
 }
-function nativeStatusText(state) {
-  if (state === 'ready' || state === 'shared') return 'Desktop transport ready.';
+function nativeStatusText(status) {
+  const state = status?.state;
+  if (state === 'shared' || status?.activity_shared) return 'Recent activity sent to eïlo.';
+  if (state === 'ready' && status?.handshake_verified) return 'Connected to eïlo.';
   if (state === 'connected') return 'Desktop transport is connecting.';
-  if (state === 'disabled') return 'Desktop context is off.';
-  if (state === 'disconnected')
-    return 'Desktop helper disconnected. Page connection remains available.';
+  if (state === 'disabled') return 'eïlo activity is paused.';
+  if (state === 'disconnected') return 'Open eïlo to finish connecting.';
   if (state === 'browser-access-off') return 'Desktop transport waits for browser access.';
-  if (state === 'error' || state === 'unavailable')
-    return 'Desktop helper unavailable. Page connection remains available.';
+  if (state === 'error' || state === 'unavailable') return 'Open eïlo to finish setup.';
   return '';
 }
 async function refreshNativeStatus() {
-  if (!nativeStatusElement || typeof chrome.runtime?.sendMessage !== 'function') return;
+  if (!nativeStatusElement || typeof chrome.runtime?.sendMessage !== 'function') return null;
   try {
     const status = await chrome.runtime.sendMessage({ type: 'eilo-native-status' });
-    nativeStatusElement.textContent = nativeStatusText(status?.state);
+    nativeStatusElement.textContent = nativeStatusText(status);
+    return status;
   } catch {
-    nativeStatusElement.textContent =
-      'Desktop helper unavailable. Page connection remains available.';
+    nativeStatusElement.textContent = 'Open eïlo to finish setup.';
+    return { state: 'error' };
   }
+}
+function stopStatusRefresh() {
+  refreshGeneration++;
+  if (refreshTimer !== null && typeof clearTimeout === 'function') clearTimeout(refreshTimer);
+  refreshTimer = null;
+}
+function keepRefreshing(status) {
+  return (
+    status?.handshake_verified !== true &&
+    !['browser-access-off', 'error', 'unavailable'].includes(status?.state)
+  );
+}
+function scheduleStatusRefresh() {
+  stopStatusRefresh();
+  refreshAttempts = 0;
+  const generation = refreshGeneration;
+  const refresh = async () => {
+    if (
+      generation !== refreshGeneration ||
+      document.hidden ||
+      refreshAttempts >= MAX_STATUS_REFRESHES
+    )
+      return;
+    refreshAttempts++;
+    await refreshAccessState();
+    if (generation !== refreshGeneration || !browserAccess) return;
+    const status = await refreshNativeStatus();
+    if (
+      generation === refreshGeneration &&
+      !document.hidden &&
+      keepRefreshing(status) &&
+      refreshAttempts < MAX_STATUS_REFRESHES &&
+      typeof setTimeout === 'function'
+    )
+      refreshTimer = setTimeout(refresh, 1500);
+  };
+  void refresh();
 }
 allow.addEventListener('click', async () => {
   allow.disabled = true;
@@ -107,12 +151,23 @@ allow.addEventListener('click', async () => {
       return;
     }
     browserAccess = true;
-    allow.textContent = 'Open eïlo';
-    await openEilo();
+    await refreshAccessState();
+    statusElement.textContent = 'Chrome allowed. Looking for eïlo on this Mac.';
+    scheduleStatusRefresh();
   } catch {
     statusElement.textContent = 'Chrome could not change browser access.';
   } finally {
     allow.disabled = false;
+  }
+});
+openEiloButton.addEventListener('click', async () => {
+  openEiloButton.disabled = true;
+  try {
+    await openEilo();
+  } catch {
+    statusElement.textContent = 'Chrome could not open eïlo.';
+  } finally {
+    openEiloButton.disabled = false;
   }
 });
 exclude.addEventListener('click', async () => {
@@ -145,8 +200,16 @@ removeAccess.addEventListener('click', async () => {
     statusElement.textContent = 'Chrome could not remove browser access.';
   }
 });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopStatusRefresh();
+  else if (browserAccess) scheduleStatusRefresh();
+});
+globalThis.addEventListener?.('pagehide', stopStatusRefresh);
 Promise.all([refreshAccessState(), readExcludedHosts(), refreshNativeStatus()])
-  .then(([, hosts]) => renderExcludedHosts(hosts))
+  .then(([granted, hosts, status]) => {
+    renderExcludedHosts(hosts);
+    if (granted && keepRefreshing(status)) scheduleStatusRefresh();
+  })
   .catch(() => {
     statusElement.textContent = 'Chrome settings are unavailable.';
   });

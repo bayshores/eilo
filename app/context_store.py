@@ -84,6 +84,7 @@ class ContextStore:
                     FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
                 );
                 CREATE INDEX IF NOT EXISTS derivations_source ON derivations(source_id);
+                CREATE INDEX IF NOT EXISTS records_expiry ON records(expires_at);
                 """
             )
             self._fts.execute(

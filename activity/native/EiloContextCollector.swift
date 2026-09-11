@@ -257,13 +257,35 @@ private func selfTest() {
     emit(["schema_version": schemaVersion, "kind": "self_test", "status": "passed"])
 }
 
+private func requestTextPermission() {
+    // This command deliberately does not construct Collector. It does no
+    // sampling and reads no app, window, text, or visual context.
+    let trustedBefore = AXIsProcessTrusted()
+    emit([
+        "schema_version": schemaVersion,
+        "kind": "permission_request",
+        "permission": "accessibility",
+        "preflight_trusted": trustedBefore
+    ])
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+    let trustedAfter = AXIsProcessTrustedWithOptions(options)
+    emit([
+        "schema_version": schemaVersion,
+        "kind": "permission_request",
+        "permission": "accessibility",
+        "requested": true,
+        "trusted": trustedAfter
+    ])
+}
+
 @main
 struct EiloContextCollector {
     static func main() {
         let arguments = Array(CommandLine.arguments.dropFirst())
         if arguments == ["--check"] { check(); return }
         if arguments == ["--self-test"] { selfTest(); return }
-        guard arguments.isEmpty else { FileHandle.standardError.write(Data("Usage: EiloContextCollector [--check|--self-test]\n".utf8)); exit(64) }
+        if arguments == ["--request-text-permission"] { requestTextPermission(); return }
+        guard arguments.isEmpty else { FileHandle.standardError.write(Data("Usage: EiloContextCollector [--check|--self-test|--request-text-permission]\n".utf8)); exit(64) }
 
         let collector = Collector()
         DispatchQueue.global(qos: .utility).async {

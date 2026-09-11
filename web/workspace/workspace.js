@@ -5,6 +5,7 @@ import { createWorkspaceViews } from './views.js';
 import { createHomeClient } from '../chat/client.js';
 import { createActivitySession } from '../activity/session.js';
 import { mountChromeSetup } from '../activity/setup.js';
+import { refreshSetupHealth } from '../activity/setup-health.js';
 import { createLiveUpdates } from '../chat/live-updates.js';
 import { mountSpeechInput } from '../speech/input.js';
 import { mountWorkflowProgress } from '../chat/workflow-progress.js';
@@ -92,19 +93,27 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   const browserGuides = new Set();
   function mountBrowserGuide(host) {
     const guide = mountChromeSetup(host, {
-      onControl: (action) => activity.control(action),
+      onRefresh: () => refreshSetupHealth('browser', () => client.refresh()),
+      onDone: () => showPage('activity'),
+      onDismiss: () => {
+        if (dialog.open) dialog.close();
+        else showPage('home');
+      },
       onNativeControl: (action) =>
         client.contextCommand('configure', {
           ...current.snapshot.adaptive.policy,
-          ...(action === 'connect'
-            ? { enabled: true, browser_enabled: true }
-            : { browser_enabled: false }),
+          ...(action === 'resume'
+            ? { enabled: true }
+            : action === 'connect'
+              ? { enabled: true, browser_enabled: true }
+              : { browser_enabled: false }),
         }),
     });
     browserGuides.add(guide);
     guide.update(current);
     return {
       update: guide.update,
+      refresh: guide.refresh,
       destroy() {
         browserGuides.delete(guide);
         guide.destroy();

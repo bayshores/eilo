@@ -389,6 +389,7 @@ export function mountConnectionsManager(
         selected = open ? '' : item.id;
         removeId = '';
         render(`row-${item.id}`);
+        if (!open && item.id === 'browser-activity') mounted.get(item.id)?.refresh?.();
       },
       'connections-manager__select',
     );
@@ -427,7 +428,18 @@ export function mountConnectionsManager(
     options.dataset.focus = `options-${item.id}`;
     options.setAttribute('aria-label', `Options for ${item.name}`);
     options.setAttribute('aria-expanded', String(open));
-    controls.append(status, toggle(item), options);
+    if (item.id === 'browser-activity' && !item.setup_verified) {
+      const setup = button(
+        item.enabled ? 'Finish setup' : 'Connect',
+        () => {
+          selected = item.id;
+          render(`row-${item.id}`);
+          mounted.get(item.id)?.refresh?.();
+        },
+        'connections-manager__button',
+      );
+      controls.append(status, setup, options);
+    } else controls.append(status, toggle(item), options);
     article.append(select, controls);
     if (open) {
       const detail = make('div', 'connections-manager__detail');

@@ -49,6 +49,9 @@ test('only Home receives a narrow subscription; native event and extra payload d
     received = [];
   assert.deepEqual(Object.keys(host.bridge), [
     'openActivityConnection',
+    'openChromeSetup',
+    'openChromeExtensions',
+    'revealChromeExtension',
     'openAccountAuthorization',
     'openContextSource',
     'openContextPermission',
@@ -107,4 +110,16 @@ test('Chrome handoff carries no renderer-supplied URL or command', async () => {
   const host = load({ origin: 'http://127.0.0.1:8765', pathname: '/home/' });
   await host.bridge.openActivityConnection('https://example.test', '--anything');
   assert.deepEqual(host.invoked, [['eilo:open-activity-connection']]);
+});
+
+test('Chrome setup actions carry no renderer-supplied path, URL, or command', async () => {
+  const host = load({ origin: 'http://127.0.0.1:8765', pathname: '/home/' });
+  await host.bridge.openChromeSetup('https://example.test', '--anything');
+  await host.bridge.openChromeExtensions('https://example.test', '--anything');
+  await host.bridge.revealChromeExtension('/private/example');
+  assert.deepEqual(host.invoked, [
+    ['eilo:open-chrome-setup'],
+    ['eilo:open-chrome-extensions'],
+    ['eilo:reveal-chrome-extension'],
+  ]);
 });

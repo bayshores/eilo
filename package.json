@@ -7,7 +7,11 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "dev": "node scripts/preview.mjs",
+    "setup": "node scripts/dev.mjs setup",
+    "setup:runtime": "uv run --no-sync python scripts/setup-runtime.py",
+    "dev": "node scripts/dev.mjs dev",
+    "dev:static": "node scripts/preview.mjs",
+    "start": "node scripts/dev.mjs start",
     "test": "npm run test:js && npm run test:python",
     "test:js": "node scripts/test-javascript.mjs",
     "test:python": "python3 scripts/check-python.py test",

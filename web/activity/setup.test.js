@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { extensionFolder, mountChromeSetup } from './setup.js';
 
-class Node {
+class Element {
   constructor(tag) {
     this.tag = tag;
     this.children = [];
     this.listeners = {};
+    this.dataset = {};
     this.textContent = '';
+    this.classList = { contains: () => false };
   }
   append(...children) {
     this.children.push(...children);
@@ -15,11 +17,11 @@ class Node {
   replaceChildren(...children) {
     this.children = children;
   }
-  setAttribute(name, value) {
-    this[name] = value;
+  setAttribute(key, value) {
+    this[key] = value;
   }
-  addEventListener(name, callback) {
-    this.listeners[name] = callback;
+  addEventListener(name, fn) {
+    this.listeners[name] = fn;
   }
   querySelectorAll(tag) {
     return this.children.flatMap((child) => [
@@ -27,27 +29,47 @@ class Node {
       ...child.querySelectorAll(tag),
     ]);
   }
-  async click() {
-    if (!this.disabled) await this.listeners.click?.({ currentTarget: this });
-  }
   querySelector(tag) {
     return this.querySelectorAll(tag)[0];
   }
+  async click() {
+    if (!this.disabled) await this.listeners.click?.();
+    await new Promise(setImmediate);
+  }
   focus() {}
 }
-
 const identity = { app: 'eilo', protocol: 1, workspace: '/example/My eilo' };
-function harness(options = {}) {
-  globalThis.document = { createElement: (tag) => new Node(tag) };
-  const host = new Node('div');
+const current = (flags = {}, health = {}) => ({
+  connection: 'connected',
+  snapshot: {
+    adaptive: {
+      policy: {
+        enabled: false,
+        browser_enabled: false,
+        text_enabled: false,
+        ai_enabled: false,
+        ...flags,
+      },
+      capture_status: { browser: { registration: 'ready', ...health } },
+    },
+  },
+});
+const verified = {
+  connected: true,
+  setup_verified: true,
+  grant_verified: true,
+  last_verified_at: 20,
+};
+function harness(t, options = {}) {
+  globalThis.document = { createElement: (tag) => new Element(tag), body: new Element('body') };
+  const host = new Element('div');
   const requests = [],
     copied = [],
     opened = [],
     controls = [];
-  const nativeControls = [];
   const guide = mountChromeSetup(host, {
-    fetcher: async (url, options) => {
-      requests.push({ url, options });
+    fetcher: async (url) => {
+      requests.push(url);
       return { ok: true, json: async () => identity };
     },
     clipboard: {
@@ -55,18 +77,19 @@ function harness(options = {}) {
         copied.push(value);
       },
     },
-    openChrome: async (...args) => {
-      opened.push(args);
+    storage: { getItem: () => null, setItem() {} },
+    openChrome: async () => {
+      opened.push('chrome');
       return true;
     },
-    onControl: async (action) => {
-      controls.push(action);
-    },
-    onNativeControl: async (action) => {
-      nativeControls.push(action);
+    bridge: { available: false, probe: async () => null, open: async () => false },
+    onNativeControl: async (value) => {
+      controls.push(value);
     },
     ...options,
   });
+  guide.update(current());
+  t.after(() => guide.destroy());
   return {
     host,
     guide,
@@ -74,12 +97,11 @@ function harness(options = {}) {
     copied,
     opened,
     controls,
-    nativeControls,
-    button: (name) => host.querySelectorAll('button').find((item) => item.textContent === name),
+    button: (text) => host.querySelectorAll('button').find((node) => node.textContent === text),
+    heading: () => host.querySelector('h2').textContent,
   };
 }
-
-test('folder guidance comes only from the expected service identity and an absolute path', () => {
+test('folder is derived only from a validated desktop identity', () => {
   assert.equal(extensionFolder(identity), '/example/My eilo/activity/extension');
   assert.equal(
     extensionFolder({ ...identity, workspace: 'C:\\Work\\eilo\\' }),
@@ -94,105 +116,93 @@ test('folder guidance comes only from the expected service identity and an absol
   ])
     assert.equal(extensionFolder(value), null);
 });
-
-test('opening the guide is read-only and copying uses the exact current folder', async () => {
-  const h = harness();
+test('opening setup is read-only; only an explicit handoff changes browser intent', async (t) => {
+  const h = harness(t);
   await h.guide.ready;
-  assert.equal(h.requests.length, 1);
-  assert.equal(h.requests[0].url, '/api/desktop');
-  assert.equal(h.requests[0].options.headers['X-Eilo-Client'], 'local-chat');
-  assert.equal(h.requests[0].options.method, undefined);
+  assert.deepEqual(h.controls, []);
   assert.deepEqual(h.opened, []);
-  assert.deepEqual(h.controls, []);
-  await h.button('Copy folder path').click();
-  assert.deepEqual(h.copied, ['/example/My eilo/activity/extension']);
-  await h.button('Open in Chrome').click();
-  assert.deepEqual(h.opened, [[]]);
-  assert.deepEqual(h.controls, []);
-  h.guide.destroy();
+  assert.deepEqual(h.requests, []);
+  await h.button('Open Chrome setup').click();
+  assert.deepEqual(h.controls, ['connect']);
+  assert.deepEqual(h.opened, ['chrome']);
 });
-
-test('failed folder lookup has an explicit retry and cannot copy a guessed path', async () => {
-  let attempts = 0;
-  const h = harness({
-    fetcher: async () => ({ ok: true, json: async () => (++attempts === 1 ? {} : identity) }),
+test('install uses the current folder and a failed lookup cannot copy a guessed path', async (t) => {
+  let calls = 0;
+  const h = harness(t, {
+    bridge: { available: true, probe: async () => null, open: async () => false },
+    fetcher: async () => ({ ok: true, json: async () => (++calls === 1 ? {} : identity) }),
   });
-  await h.guide.ready;
-  assert.equal(h.button('Copy folder path').disabled, true);
-  assert.equal(h.button('Retry folder lookup').hidden, false);
-  await h.button('Retry folder lookup').click();
-  assert.equal(h.button('Copy folder path').disabled, false);
-  assert.equal(h.button('Retry folder lookup').hidden, true);
-  h.guide.destroy();
-});
-
-test('sharing controls follow confirmed state and require an explicit action', async () => {
-  const h = harness();
-  await h.guide.ready;
-  const view = (connection, state) => ({
-    connection,
-    snapshot: { accountability: { activity: { state } } },
-  });
-  h.guide.update(view('connected', 'off'));
-  assert.equal(h.button('Pause sharing').hidden, true);
-  h.guide.update(view('connected', 'active'));
-  assert.equal(h.button('Pause sharing').hidden, false);
+  await h.button('Copy extensions address').click();
+  assert.equal(h.heading(), 'Add the eïlo extension');
+  await h.button('Copy extension folder').click();
+  assert.deepEqual(h.copied, ['chrome://extensions/']);
+  await h.button('Copy extension folder').click();
+  assert.deepEqual(h.copied, ['chrome://extensions/', '/example/My eilo/activity/extension']);
   assert.deepEqual(h.controls, []);
-  await h.button('Pause sharing').click();
-  assert.deepEqual(h.controls, ['pause']);
-  h.guide.update(view('offline', 'active'));
-  assert.equal(h.button('Pause sharing').hidden, true);
-  assert.equal(h.button('Turn off sharing').hidden, true);
-  h.guide.destroy();
+});
+test('verified setup remains separate from enabled capture and an actual website receipt', async (t) => {
+  const h = harness(t);
+  h.guide.update(current({}, verified));
+  assert.equal(h.heading(), 'Chrome is ready');
+  await h.button('Connect Chrome').click();
+  assert.deepEqual(h.controls, ['connect']);
+  h.guide.update(current({ enabled: true, browser_enabled: true }, verified));
+  assert.equal(h.heading(), 'Chrome connected');
+  assert.ok(
+    h.host
+      .querySelectorAll('p')
+      .some(
+        (node) =>
+          node.textContent === 'Visit a regular website. Its session will appear in Activity.',
+      ),
+  );
+  h.guide.update(
+    current({ enabled: true, browser_enabled: true }, { ...verified, last_event_at: 22 }),
+  );
+  assert.ok(
+    h.host.querySelectorAll('p').some((node) => node.textContent === 'Website activity received'),
+  );
+  await h.button('Pause Chrome').click();
+  assert.deepEqual(h.controls, ['connect', 'pause']);
+});
+test('a socket attachment and a stale offline snapshot cannot complete setup', (t) => {
+  const h = harness(t);
+  h.guide.update(current({ enabled: true, browser_enabled: true }, { connected: true }));
+  assert.notEqual(h.heading(), 'Chrome connected');
+  h.guide.update({
+    ...current({ enabled: true, browser_enabled: true }, verified),
+    connection: 'offline',
+  });
+  assert.notEqual(h.heading(), 'Chrome connected');
+});
+test('snapshot updates keep the card and controls stable and never perform new actions', (t) => {
+  const h = harness(t);
+  const card = h.host.children[0],
+    heading = h.host.querySelector('h2'),
+    buttons = h.host.querySelectorAll('button');
+  for (let count = 0; count < 50; count++)
+    h.guide.update(
+      current({ enabled: true, browser_enabled: true }, { ...verified, last_event_at: count + 21 }),
+    );
+  assert.equal(h.host.children[0], card);
+  assert.equal(h.host.querySelector('h2'), heading);
+  assert.deepEqual(h.host.querySelectorAll('button'), buttons);
+  assert.deepEqual(h.controls, []);
 });
 
-test('a connected native Chrome transport uses one explicit connect or pause action', async () => {
-  const h = harness();
-  await h.guide.ready;
-  const native = (enabled, browserEnabled, status = 'connected') => ({
-    connection: 'connected',
-    snapshot: {
-      adaptive: {
-        policy: {
-          enabled,
-          browser_enabled: browserEnabled,
-          text_enabled: false,
-          ai_enabled: false,
-        },
-        capture_status: { browser: { connected: true, status } },
-      },
+test('setup can open a direct extension tab without a toolbar popup or localhost handoff', async (t) => {
+  const h = harness(t, {
+    openChrome: undefined,
+    bridge: {
+      available: false,
+      probe: async () => null,
+      open: async () => false,
+      setupURL: 'chrome-extension://' + 'a'.repeat(32) + '/popup.html',
     },
   });
-  h.guide.update(native(false, false));
-  assert.equal(h.host.querySelector('h2').textContent, 'Chrome is ready');
-  await h.button('Connect Chrome').click();
-  assert.deepEqual(h.nativeControls, ['connect']);
-  h.guide.update(native(true, true));
-  assert.equal(h.host.querySelector('h2').textContent, 'Chrome connected');
-  await h.button('Pause').click();
-  assert.deepEqual(h.nativeControls, ['connect', 'pause']);
-  h.guide.update(native(true, true, 'paused'));
-  assert.equal(h.host.querySelector('h2').textContent, 'Chrome is paused');
-  h.guide.destroy();
-});
-
-test('the guide shows only one installation step at a time and supports going back', async () => {
-  const h = harness();
-  await h.guide.ready;
-  const visible = () => h.host.querySelectorAll('li').filter((item) => !item.hidden);
-  assert.equal(visible().length, 1);
-  assert.equal(visible()[0].querySelector('h3').textContent, 'Open Chrome’s extensions');
-  assert.equal(h.button('Back').hidden, true);
-  await h.button('Next').click();
-  assert.equal(visible().length, 1);
-  assert.equal(visible()[0].querySelector('h3').textContent, 'Load eïlo');
-  await h.button('Back').click();
-  assert.equal(visible()[0].querySelector('h3').textContent, 'Open Chrome’s extensions');
-  await h.button('Extension already installed').click();
-  assert.equal(visible().length, 1);
-  assert.equal(visible()[0].querySelector('h3').textContent, 'Connect your browser');
-  assert.equal(h.button('Next').hidden, true);
+  await h.button('Open Chrome setup').click();
+  assert.deepEqual(h.copied, ['chrome-extension://' + 'a'.repeat(32) + '/popup.html']);
   assert.deepEqual(h.opened, []);
-  assert.deepEqual(h.controls, []);
-  h.guide.destroy();
+  h.guide.update(current({ browser_enabled: true }));
+  assert.notEqual(h.heading(), 'Chrome connected');
 });

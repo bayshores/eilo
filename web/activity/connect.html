@@ -4,64 +4,18 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Connect Chrome activity — eïlo</title>
+    <title>Connect Chrome — eïlo</title>
     <link rel="stylesheet" href="/home/styles/typography.css" />
     <link rel="stylesheet" href="/activity-connect.css" />
+    <link rel="stylesheet" href="/home/activity/setup.css" />
   </head>
   <body>
-    <main class="connect-page">
+    <main class="connect-page setup-page">
       <a class="back-link" href="/home/#activity">Back to eïlo</a>
-      <section class="connect-intro" aria-labelledby="connect-title">
-        <h1 id="connect-title">Connect Chrome.</h1>
-        <p class="lede">Let eïlo understand your context as you browse.</p>
-      </section>
-
-      <section class="connection-card" aria-labelledby="connection-heading">
-        <div class="card-heading"
-          ><div
-            ><h2 id="connection-heading">Browser connection</h2
-            ><p id="connection-status" class="status" role="status" aria-live="polite"
-              >Checking this page…</p
-            ></div
-          ><span id="connection-state" class="state-pill">Idle</span></div
-        >
-        <p id="connection-detail" class="detail">Checking the extension…</p>
-        <p id="connection-consent" class="consent" hidden
-          >Share active-site names and page titles. Selected activity may be sent to eïlo’s AI.</p
-        >
-        <div class="actions" aria-label="Chrome activity controls">
-          <a id="extension-setup" class="button button-primary" href="/activity-setup.html" hidden
-            >Set up Chrome extension</a
-          >
-          <button id="reload-page" class="button button-secondary" type="button" hidden
-            >Reload page</button
-          >
-          <button id="connect" class="button button-primary" type="button" disabled
-            >Connect Chrome</button
-          >
-          <button id="pause" class="button button-secondary" type="button" hidden>Pause</button>
-          <button id="turn-off" class="button button-quiet" type="button" hidden>Turn off</button>
-        </div>
-        <p id="action-feedback" class="feedback" role="status" aria-live="polite"></p>
-      </section>
-
-      <details class="scope">
-        <summary>What is shared?</summary>
-        <p
-          >The active site’s name and a shortened page title, across regular websites. You can
-          exclude sites from the extension’s Privacy &amp; controls.</p
-        >
-        <p
-          >No page contents, screenshots, browsing history, private windows, audio, or
-          keystrokes.</p
-        >
-        <p
-          >Local activity summaries last seven days and contain no page titles. Selected AI
-          observations remain in your conversation. A visit does not prove attention or
-          completion.</p
-        >
-      </details>
+      <div class="connection-card" data-chrome-setup></div>
+      <noscript><p>Enable JavaScript to connect Chrome.</p></noscript>
     </main>
+    <script src="/activity-config.js"></script>
     <script type="module" src="/activity-connect.js"></script>
   </body>
 </html>

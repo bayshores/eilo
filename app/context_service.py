@@ -101,7 +101,19 @@ class ContextService:
         self._last_automatic_attempt, self._requested_observation = 0, None
         self._seen_events, self._last = set(), {}
         self._health = {
-            s: {"status": "disabled", "last_event_at": None} for s in ("desktop", "browser")
+            "desktop": {"status": "disabled", "last_event_at": None},
+            # Transport, setup acknowledgement, and observed activity deliberately
+            # remain separate.  A native-host attach alone is not proof that Chrome
+            # granted the extension access, and a grant is not an activity event.
+            "browser": {
+                "status": "disabled",
+                "last_event_at": None,
+                "connected": False,
+                "setup_verified": False,
+                "grant_verified": False,
+                "registration": "missing",
+                "last_verified_at": None,
+            },
         }
         self.analysis_status = "off"
         self._lock = asyncio.Lock()
@@ -197,6 +209,15 @@ class ContextService:
             "excluded_domains": list(self.state["excluded_domains"]),
         }
 
+    def capture_health(self, source):
+        """Return one source's display-safe health without loading local memory."""
+        if source not in self._health:
+            raise ContextError("Unsupported source.")
+        return {
+            **deepcopy(self._health[source]),
+            "enabled": self.collector_policy(source)["enabled"],
+        }
+
     def set_capture_health(self, source, status, details=None):
         if source not in self._health:
             return
@@ -220,12 +241,32 @@ class ContextService:
         value = {**self._health[source], "status": status}
         if source == "browser" and status in {"connected", "disconnected"}:
             value["connected"] = status == "connected"
-        if isinstance(details, dict):
+            if status == "disconnected":
+                value["setup_verified"] = value["grant_verified"] = False
+                value["last_verified_at"] = None
+        if status == "permission_required":
             value["permissions"] = {
+                **value.get("permissions", {}),
+                "accessibility_permission": False,
+            }
+        if isinstance(details, dict):
+            permissions = {
                 k: details[k]
                 for k in ("accessibility_permission", "screen_recording_permission")
                 if type(details.get(k)) is bool
             }
+            if permissions:
+                value["permissions"] = {**value.get("permissions", {}), **permissions}
+            if source == "browser":
+                for key in ("connected", "setup_verified", "grant_verified"):
+                    if type(details.get(key)) is bool:
+                        value[key] = details[key]
+                if details.get("registration") in {"ready", "missing", "invalid"}:
+                    value["registration"] = details["registration"]
+                if isinstance(details.get("last_verified_at"), (int, float)) and not isinstance(
+                    details["last_verified_at"], bool
+                ):
+                    value["last_verified_at"] = float(details["last_verified_at"])
         if value != self._health[source]:
             self._health[source] = value
             self.changed()
@@ -587,9 +628,6 @@ class ContextService:
             return {"accepted": False, "reason": "withheld"}
         if event["id"] in self._seen_events:
             return {"accepted": False, "reason": "duplicate"}
-        if len(self._seen_events) >= 1024:
-            self._seen_events.clear()
-        self._seen_events.add(event["id"])
         store = self._ensure_store()
         stamp, title = event["captured_at"], event["title"] or event["app_name"]
         anchor = token(
@@ -635,6 +673,10 @@ class ContextService:
         if observation_id not in sources:
             sources.append(observation_id)
         store.put("episode", episode_id, payload, sources)
+        # Failed persistence must leave the same event eligible for retry.
+        if len(self._seen_events) >= 1024:
+            self._seen_events.clear()
+        self._seen_events.add(event["id"])
         self._last[source] = {
             "anchor": anchor,
             "at": stamp,
@@ -1067,10 +1109,7 @@ class ContextService:
                 key: deepcopy(self.state[key])
                 for key in (*FLAGS, "excluded_bundle_ids", "excluded_domains")
             },
-            "capture_status": {
-                s: {**v, "enabled": self.collector_policy(s)["enabled"]}
-                for s, v in self._health.items()
-            },
+            "capture_status": {s: self.capture_health(s) for s in self._health},
             "current_work_context": context,
             "home_composition": composition,
             "pins": list(self.state["pins"]),

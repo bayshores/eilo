@@ -23,6 +23,25 @@ body {
 main {
   padding: 18px;
 }
+@media (min-width: 600px) {
+  body {
+    width: auto;
+    min-height: 100vh;
+    background: #151719;
+  }
+  main {
+    width: min(100% - 32px, 460px);
+    margin: clamp(48px, 12vh, 136px) auto;
+    padding: 24px;
+    border: 1px solid #35373d;
+    border-radius: 18px;
+    background: #191b1e;
+    box-shadow: 0 24px 64px rgb(0 0 0 / 20%);
+  }
+  h1 {
+    font-size: 24px;
+  }
+}
 h1 {
   margin: 0;
   font-size: 20px;
@@ -67,6 +86,10 @@ button.primary {
   color: #28211e;
   background: #e4ad83;
 }
+button.secondary {
+  width: 100%;
+  margin-top: 9px;
+}
 button.primary:hover:not(:disabled) {
   background: #efbb96;
 }
@@ -87,11 +110,6 @@ button.primary:hover:not(:disabled) {
 }
 .transport:empty {
   display: none;
-}
-.transport-help {
-  margin-top: 8px;
-  color: #a8a8af;
-  font-size: 12px;
 }
 details {
   margin-top: 16px;

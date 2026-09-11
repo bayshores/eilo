@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from app.context_service import FLAGS, ContextError
 from app.google_calendar import CalendarError
 from app.paths import runtime_directory, state_directory
 from app.persistence import write_private
@@ -130,6 +131,12 @@ class Connections:
         c = self.chat.calendar.snapshot()
         mail = self.chat.briefing.mail.snapshot()
         a = self.chat.proactive.snapshot()["activity"]
+        context = getattr(self.chat, "context", None)
+        browser = context.capture_health("browser") if context else None
+        browser_enabled = bool(browser and browser["enabled"])
+        browser_verified = bool(
+            browser and browser.get("setup_verified") and browser.get("connected")
+        )
         accounts = mail["accounts"]
         enabled = [x for x in accounts if x["enabled"]]
         cal_enabled = c["state"] == "connected"
@@ -165,14 +172,27 @@ class Connections:
             {
                 "id": "browser-activity",
                 "name": "Browser activity",
-                "description": "Optional context from the sites you choose",
-                "enabled": a["state"] == "active",
-                "state": "On"
-                if a["state"] == "active"
-                else "Paused"
-                if a["state"] == "paused"
-                else "Off",
-                "detail": "Uses your existing approved-site connection.",
+                "description": "Website names and work sessions from Chrome",
+                "enabled": browser_enabled if context else a["state"] == "active",
+                "setup_verified": browser_verified,
+                "state": (
+                    "Connected"
+                    if browser_enabled and browser_verified
+                    else "Setup needed"
+                    if browser_enabled
+                    else "Ready"
+                    if browser_verified
+                    else "Off"
+                )
+                if context
+                else (
+                    "On"
+                    if a["state"] == "active"
+                    else "Paused"
+                    if a["state"] == "paused"
+                    else "Off"
+                ),
+                "detail": "Browser access, visible text, and AI context have separate controls.",
             },
         ]
         mcps = []
@@ -329,11 +349,33 @@ class Connections:
                 )
             self.chat.briefing.sources_changed()
         elif identity == "browser-activity":
-            if enabled:
-                raise ConnectionError(
-                    "Connect browser activity in its setup page first.", 409, True
-                )
-            self.chat.proactive.control("off", "eilo-connection-manager")
+            context = getattr(self.chat, "context", None)
+            health = context.capture_health("browser") if context else {}
+            if enabled and not (health.get("connected") and health.get("setup_verified")):
+                raise ConnectionError("Finish Chrome setup first.", 409, True)
+            if context:
+                state = context.state
+                changes = {
+                    key: deepcopy(state[key])
+                    for key in (*FLAGS, "excluded_domains", "excluded_bundle_ids")
+                }
+                changes["browser_enabled"] = enabled
+                if enabled:
+                    changes["enabled"] = True
+                try:
+                    await context.command(
+                        {
+                            "action": "configure",
+                            "request_id": uuid.uuid4().hex,
+                            "based_on_revision": state["revision"],
+                            **changes,
+                        }
+                    )
+                    await self.chat.context_capture.refresh_policy()
+                except ContextError as exc:
+                    raise ConnectionError(str(exc), exc.status) from exc
+            if not enabled:
+                self.chat.proactive.control("off", "eilo-connection-manager")
         else:
             raise ConnectionError("Unknown connection.", 404)
         self.chat.changed()

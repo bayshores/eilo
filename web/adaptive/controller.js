@@ -1,6 +1,7 @@
 import { ADAPTIVE_ACTIONS, createAdaptiveRenderer } from './renderer.js';
 import { createAdaptiveMotion } from './motion.js';
 import { gsap, Flip } from './dependencies.js';
+import { refreshSetupHealth } from '../activity/setup-health.js';
 import { selectTracking, selectBrowserUsage } from '../home/tracking-data.js';
 import { createContextPanel, contextPolicyPatch, contextSummary } from './context-panel.js';
 
@@ -60,6 +61,7 @@ export function mountAdaptiveHome({
         ? configure(fields)
         : command(lane === 'home' ? 'homeCommand' : 'contextCommand', action, fields),
     onTalk,
+    onRefreshSources: () => refreshSetupHealth('desktop', () => client.refresh()),
     onConnections: onOpenConnections,
     onClose: () => flush(),
   });

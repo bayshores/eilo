@@ -22,42 +22,94 @@ chrome.storage.onChanged.addListener((changes, area) => {
 function nativeStatus() {
   return { state: nativeState, ...(nativeContext?.status?.() || {}) };
 }
+function publicNativeStatus() {
+  const status = nativeStatus();
+  return {
+    state: status.state,
+    connected: status.connected === true,
+    handshake_verified: status.handshake_verified === true,
+    enabled: status.enabled === true,
+  };
+}
+async function refreshNativeStatus() {
+  if (!nativeApi) {
+    nativeState = 'unavailable';
+    return nativeStatus();
+  }
+  try {
+    if (!(await hasGrant())) {
+      nativeContext?.disconnect();
+      nativeState = 'browser-access-off';
+      return nativeStatus();
+    }
+    if (!nativeContext)
+      nativeContext = nativeApi.createNativeContext({
+        chrome,
+        core,
+        onStatus: (status) => {
+          nativeState = status.state;
+        },
+      });
+    nativeContext.connect();
+  } catch {
+    nativeState = 'error';
+  }
+  return nativeStatus();
+}
 function connectNativeWhenAllowed() {
-  if (!nativeApi) return;
-  hasGrant()
-    .then((granted) => {
-      if (!granted) {
-        nativeContext?.disconnect();
-        nativeState = 'browser-access-off';
-        return;
-      }
-      if (!nativeContext)
-        nativeContext = nativeApi.createNativeContext({
-          chrome,
-          core,
-          onStatus: (status) => {
-            nativeState = status.state;
-          },
-        });
-      nativeContext.connect();
-    })
-    .catch(() => {
-      nativeState = 'error';
-    });
+  void refreshNativeStatus();
 }
 chrome.permissions.onAdded?.addListener(connectNativeWhenAllowed);
 chrome.runtime.onStartup?.addListener(connectNativeWhenAllowed);
-chrome.runtime.onInstalled?.addListener(connectNativeWhenAllowed);
+chrome.runtime.onInstalled?.addListener((details) => {
+  if (details?.reason !== 'install') {
+    connectNativeWhenAllowed();
+    return;
+  }
+  // A fresh install needs a discoverable setup surface. Opening it does not
+  // request Chrome access, connect a native host, or inspect a browser tab.
+  chrome.tabs.create({ url: chrome.runtime.getURL('popup.html'), active: true }).catch(() => {
+    /* Chrome can close before this first-install handoff completes. */
+  });
+});
 chrome.runtime.onMessage?.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'eilo-native-status') return undefined;
-  connectNativeWhenAllowed();
-  sendResponse(nativeStatus());
-  return false;
+  if (message?.type !== 'eilo-native-status' || Object.keys(message).length !== 1) return undefined;
+  void refreshNativeStatus().then(sendResponse, () => sendResponse(nativeStatus()));
+  return true;
 });
 connectNativeWhenAllowed();
 // A disconnected native port does not keep the service worker alive. Retrying
 // when Chrome regains focus reconnects after the app starts, without alarms.
 chrome.windows.onFocusChanged?.addListener(connectNativeWhenAllowed);
+
+function validExternalMessage(message, type) {
+  return (
+    message &&
+    typeof message === 'object' &&
+    Object.keys(message).length === 1 &&
+    message.type === type
+  );
+}
+chrome.runtime.onMessageExternal?.addListener((message, sender, sendResponse) => {
+  if (!core.senderIsEiloPage(sender)) return undefined;
+  if (validExternalMessage(message, 'eilo-open-setup')) {
+    // This is a user-initiated handoff from eïlo, not a permission or policy
+    // command. The extension's own popup is reused as the setup surface.
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup.html'), active: true }).then(
+      () => sendResponse({ opened: true }),
+      () => sendResponse({ opened: false }),
+    );
+    return true;
+  }
+  if (validExternalMessage(message, 'eilo-setup-status')) {
+    void hasGrant().then(
+      (granted) => sendResponse({ installed: true, granted, native: publicNativeStatus() }),
+      () => sendResponse({ installed: true, granted: false, native: publicNativeStatus() }),
+    );
+    return true;
+  }
+  return undefined;
+});
 
 function disconnected(port) {
   return !port || port.__eiloDisconnected === true;

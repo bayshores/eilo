@@ -4,6 +4,7 @@ import asyncio
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from cryptography.fernet import Fernet
 
@@ -81,6 +82,47 @@ class ContextServiceTest(unittest.TestCase):
             "registration_required",
         )
 
+    def test_browser_health_keeps_transport_setup_grant_and_activity_separate(self):
+        self.service.set_capture_health(
+            "browser",
+            "ready",
+            {
+                "connected": True,
+                "setup_verified": True,
+                "grant_verified": True,
+                "registration": "ready",
+                "last_verified_at": self.clock.value,
+            },
+        )
+        health = self.service.capture_health("browser")
+        self.assertTrue(health["connected"])
+        self.assertTrue(health["setup_verified"])
+        self.assertTrue(health["grant_verified"])
+        self.assertEqual(health["last_event_at"], None)
+        self.assertEqual(health["last_verified_at"], self.clock.value)
+        health["status"] = "mutated"
+        self.assertEqual(self.service.capture_health("browser")["status"], "ready")
+
+    def test_runtime_health_preserves_permissions_and_permission_required_revokes_accessibility(
+        self,
+    ):
+        self.service.set_capture_health(
+            "desktop",
+            "checked",
+            {"accessibility_permission": True, "screen_recording_permission": True},
+        )
+        self.service.set_capture_health("desktop", "sampling", {})
+        self.service.set_capture_health("desktop", "waiting", {})
+        self.assertEqual(
+            self.service.capture_health("desktop")["permissions"],
+            {"accessibility_permission": True, "screen_recording_permission": True},
+        )
+        self.service.set_capture_health("desktop", "permission_required", {})
+        self.assertEqual(
+            self.service.capture_health("desktop")["permissions"],
+            {"accessibility_permission": False, "screen_recording_permission": True},
+        )
+
     def test_event_revocation_timestamp_and_dedupe(self):
         self._configure()
         policy = self.service.collector_policy("desktop")
@@ -104,6 +146,43 @@ class ContextServiceTest(unittest.TestCase):
             asyncio.run(self.service.ingest(event))
         event["captured_at"], event["policy_epoch"] = self.clock.value, policy["policy_epoch"] - 1
         self.assertEqual(asyncio.run(self.service.ingest(event))["reason"], "withheld")
+
+    def test_failed_observation_or_episode_write_allows_retry_of_same_event(self):
+        self._configure()
+        policy = self.service.collector_policy("desktop")
+        for failed_kind in ("observation", "episode"):
+            with self.subTest(failed_kind=failed_kind):
+                self.clock.value += 5
+                event = {
+                    "schema_version": 1,
+                    "id": f"retry-{failed_kind}",
+                    "source_id": "desktop",
+                    "session_id": policy["session_id"],
+                    "policy_epoch": policy["policy_epoch"],
+                    "captured_at": self.clock.value,
+                    "kind": "text",
+                    "bundle_id": "com.example.editor",
+                    "app_name": "Editor",
+                    "title": f"Writing {failed_kind}",
+                    "text": "Synthetic text",
+                }
+                store = self.service.store
+                original_put = store.put
+
+                def failing_put(kind, *args, failure=failed_kind, write=original_put, **kwargs):
+                    if kind == failure:
+                        raise OSError("Synthetic write failure")
+                    return write(kind, *args, **kwargs)
+
+                with patch.object(store, "put", side_effect=failing_put):
+                    with self.assertRaises(OSError):
+                        asyncio.run(self.service.ingest(event))
+                self.assertNotIn(event["id"], self.service._seen_events)
+                result = asyncio.run(self.service.ingest(event))
+                self.assertTrue(result["accepted"])
+                self.assertIsNotNone(store.get("observation", result["observation_id"]))
+                self.assertIsNotNone(store.get("episode", result["episode_id"]))
+                self.assertEqual(asyncio.run(self.service.ingest(event))["reason"], "duplicate")
 
     def test_forget_removes_cached_composition_and_never_mutates_tasks(self):
         self._configure()
