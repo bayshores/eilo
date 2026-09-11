@@ -5,7 +5,10 @@
   --canvas: #191b1e;
   --panel: #292b30;
   --peach: #fac399;
-  --gap: 20px;
+  --lavender: #b4b1da;
+  --sky: #94b9c9;
+  --mint: #a6c5b4;
+  --gap: 16px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 16px;
 }
@@ -333,6 +336,16 @@ h1 {
   container-name: widget;
   background: var(--panel);
   border-radius: 22px;
+  border: 1px solid #ffffff08;
+  box-shadow: 0 8px 24px #00000012;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+.home-widget:hover {
+  border-color: #ffffff18;
+  box-shadow: 0 12px 30px #00000024;
 }
 .widget {
   position: absolute;
@@ -348,7 +361,7 @@ h1 {
 }
 .widget-content {
   height: 100%;
-  padding: 25px 28px;
+  padding: 21px 24px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -441,8 +454,20 @@ h1 {
   padding-top: 38px;
 }
 .widget[data-type='progress'] {
-  background: var(--peach);
+  background: linear-gradient(135deg, #fac399, #efbb93 72%, #e3b5a0);
   color: #20201f;
+}
+.widget[data-type='today'] .home-widget,
+.widget[data-type='today'].home-widget {
+  background: linear-gradient(135deg, #fac39918, #b4b1da14 58%, #292b30 100%);
+}
+.widget[data-type='goals'] .home-widget,
+.widget[data-type='goals'].home-widget {
+  background: linear-gradient(135deg, #b4b1da16, #94b9c910 62%, #292b30 100%);
+}
+.widget[data-type='usage'] .home-widget,
+.widget[data-type='usage'].home-widget {
+  background: linear-gradient(135deg, #fac3990c, #292b30 42%);
 }
 .widget[data-type='progress'] .move-widget {
   color: #62554e;
@@ -506,8 +531,8 @@ body.drag-active {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 8px 5px;
-  min-height: 40px;
+  padding: 7px 6px;
+  min-height: 36px;
   font-size: 14px;
 }
 .text-button:hover {
@@ -589,7 +614,7 @@ body.drag-active {
   margin: 13px 0 20px;
 }
 .practice-count strong {
-  font-size: 48px;
+  font-size: 40px;
   line-height: 1.05;
   letter-spacing: -2px;
   font-weight: 600;
@@ -1642,7 +1667,7 @@ body {
   --cue-active: #392d25;
 }
 .app-window:not(.editing) .home-widget .widget-content {
-  padding-top: 34px;
+  padding-top: 30px;
 }
 .hold-cue {
   position: absolute;

@@ -166,6 +166,7 @@ function createUsage(container) {
   const ribbon = node('div', 'usage-ribbon');
   ribbon.setAttribute('role', 'group');
   ribbon.setAttribute('aria-label', 'Website share of seven-day recorded time');
+  const legend = node('div', 'usage-legend');
   const siteDetail = node('div', 'usage-site-detail');
   siteDetail.hidden = true;
   siteDetail.setAttribute('role', 'tooltip');
@@ -175,6 +176,7 @@ function createUsage(container) {
   allocation.append(
     node('span', 'usage-allocation-label', 'Where time went · 7d'),
     ribbon,
+    legend,
     siteDetail,
   );
   summary.append(total, period, allocation);
@@ -237,6 +239,7 @@ function createUsage(container) {
     total,
     period,
     ribbon,
+    legend,
     siteDetail,
     siteName,
     siteTime,
@@ -360,6 +363,7 @@ export function renderUsageWidget(container, view, onActivity = () => {}, onConn
       ? document.activeElement.dataset.origin
       : null;
   state.ribbon.replaceChildren();
+  state.legend.replaceChildren();
   for (const segment of state.segments) {
     const button = node('button', 'usage-ribbon__segment');
     button.type = 'button';
@@ -377,6 +381,10 @@ export function renderUsageWidget(container, view, onActivity = () => {}, onConn
     button.addEventListener('focus', showDetail);
     button.addEventListener('click', showDetail);
     state.ribbon.append(button);
+    const item = node('span', 'usage-legend__item');
+    item.style.setProperty('--usage-color', segment.color);
+    item.append(node('i', ''), node('span', '', segment.label));
+    state.legend.append(item);
   }
   updateMetric(state);
   updateAllocation(state);

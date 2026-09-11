@@ -44,13 +44,15 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     fingerprint = '',
     messageFingerprint = '',
     detailFingerprint = '',
-    speech = null;
+    speech = null,
+    smoothScrollOnNextRender = false;
   const activity = createActivitySession(client);
   const dock = node('section', 'conversation-dock');
   dock.setAttribute('aria-label', 'Talk to eïlo');
   dock.dataset.open = 'false';
   document.querySelector('.workspace').append(dock);
   let threadOpen = false,
+    hasConversation = false,
     desktopNotice = '';
   let stopDesktop = null,
     calendarPanel = null,
@@ -80,6 +82,13 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   pages.hidden = true;
   board.after(pages);
   const header = document.querySelector('.home-header h1');
+  const resumeConversation = action(
+    'Continue conversation',
+    () => talk(),
+    'button resume-conversation',
+  );
+  resumeConversation.hidden = true;
+  document.querySelector('.header-actions')?.prepend(resumeConversation);
   const accountHost = node('div', 'account-host');
   document.querySelector('.home-header').after(accountHost);
   mountAccount(accountHost, { client });
@@ -259,8 +268,12 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   }
 
   function setThreadOpen(open) {
+    const wasOpen = threadOpen;
     threadOpen = open;
+    hasConversation ||= open;
     dock.dataset.open = String(open);
+    workspace.classList.toggle('conversation-active', open);
+    resumeConversation.hidden = open || !hasConversation;
     const thread = dock.querySelector('.conversation-thread');
     const toggle = dock.querySelector('.dock-history');
     if (thread) thread.hidden = !open;
@@ -270,7 +283,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       toggle.setAttribute('aria-label', open ? 'Hide replies' : 'Show replies');
       toggle.title = open ? 'Hide replies' : 'Show replies';
     }
-    if (open) {
+    if (open && !wasOpen) {
       const log = dock.querySelector('.live-messages');
       if (log)
         requestAnimationFrame(() => {
@@ -279,6 +292,11 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     }
     if (current.snapshot) updates.update(current);
   }
+  const isAtBottom = (log) => !!log && log.scrollHeight - log.scrollTop - log.clientHeight <= 8;
+  const scrollToBottom = (log, smooth = false) => {
+    if (smooth) log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' });
+    else log.scrollTop = log.scrollHeight;
+  };
   const data = () => homeData(current.snapshot);
   function talk(text) {
     if (text && !current.draft) client.setDraft(text);
@@ -370,10 +388,11 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       log.setAttribute('aria-label', 'Conversation');
       log.setAttribute('aria-live', 'polite');
       log.tabIndex = 0;
-      const close = action('×', () => setThreadOpen(false), 'conversation-close');
-      close.setAttribute('aria-label', 'Close conversation');
-      close.addEventListener('click', () => input.focus());
-      thread.append(log, close);
+      const back = action('← Back to widgets', () => setThreadOpen(false), 'conversation-back');
+      const context = node('div', 'conversation-context');
+      context.append(node('span', 'conversation-context-mark', 'eïlo'));
+      context.append(node('span', 'conversation-context-label', 'Conversation'));
+      thread.append(back, context, log);
       const form = node('form', 'live-composer');
       const label = node('label', 'sr-only', 'Message eïlo');
       label.htmlFor = 'live-message-input';
@@ -432,6 +451,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
           return;
         }
         if (!client.canSend()) return;
+        smoothScrollOnNextRender = threadOpen && isAtBottom(dock.querySelector('.live-messages'));
         setThreadOpen(true);
         client.send();
       });
@@ -496,21 +516,33 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     const log = body.querySelector('.live-messages');
     const nextFingerprint = JSON.stringify(entries);
     if (messageFingerprint !== nextFingerprint) {
-      const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 70;
+      const atBottom = isAtBottom(log);
+      if (smoothScrollOnNextRender && !atBottom) smoothScrollOnNextRender = false;
       const oldScroll = log.scrollTop;
       log.replaceChildren();
-      if (!entries.length) log.append(node('p', 'live-empty', 'What matters right now?'));
+      if (!entries.length) {
+        const empty = node('div', 'conversation-empty-state');
+        empty.append(node('span', 'conversation-empty-orb', ''));
+        empty.append(node('p', 'live-empty', 'What matters right now?'));
+        log.append(empty);
+      }
       entries.forEach((entry) => log.append(miniMessage(entry)));
-      if (!messageFingerprint || atBottom) log.scrollTop = log.scrollHeight;
-      else log.scrollTop = oldScroll;
+      if (!messageFingerprint || atBottom) {
+        scrollToBottom(log, atBottom && smoothScrollOnNextRender);
+        smoothScrollOnNextRender = false;
+      } else log.scrollTop = oldScroll;
       messageFingerprint = nextFingerprint;
     }
     const priorPreview = log.querySelector('.live-writing-preview');
     if (streamEntry) {
-      const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 70;
+      const atBottom = isAtBottom(log);
+      if (smoothScrollOnNextRender && !atBottom) smoothScrollOnNextRender = false;
       if (priorPreview) priorPreview.querySelector('p').textContent = streamEntry.text;
       else log.append(miniMessage(streamEntry));
-      if (atBottom) log.scrollTop = log.scrollHeight;
+      if (atBottom) {
+        scrollToBottom(log, smoothScrollOnNextRender);
+        smoothScrollOnNextRender = false;
+      }
     } else priorPreview?.remove();
     const input = body.querySelector('.live-input');
     if (input.value !== current.draft) {

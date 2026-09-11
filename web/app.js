@@ -337,7 +337,7 @@ function updateGeometry() {
     $('.rail-zone').getBoundingClientRect().width -
     parseFloat(getComputedStyle($('.workspace')).getPropertyValue('--rail-space'));
   mode = expandedWidth >= 800 ? 'wide' : expandedWidth >= 640 ? 'compact' : 'stacked';
-  gap = mode === 'stacked' ? 16 : 20;
+  gap = 16;
   rowBudget =
     mode === 'stacked'
       ? 2 * Math.max(1, Math.floor((scroller.clientHeight + gap) / (244 + 2 * gap)))
@@ -349,7 +349,7 @@ function updateGeometry() {
               ? 300
               : 380
             : 500)
-        ? 4
+        ? 6
         : 2;
   rowHeight = Math.max(
     1,

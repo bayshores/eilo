@@ -40,11 +40,11 @@ const action = (label, handler, className = 'text-button') => {
 
 /** Renders live Home cards from the current client view; lifecycle and drafts remain with the workspace. */
 export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail }) {
-  const empty = (container, heading, description) => {
+  const empty = (container, heading, description, label = 'Talk to eïlo') => {
     container.append(
       node('h2', '', heading),
       node('p', 'live-empty', description),
-      action('Talk to eïlo', talk, 'button live-bottom'),
+      action(label, talk, 'button live-bottom'),
     );
   };
   const taskRow = (task, { due = false, focus = false } = {}) => {
@@ -69,6 +69,13 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
     row.append(copy);
     return row;
   };
+  const launcherAction = (title, description, tone, handler) => {
+    const button = node('button', `launcher-action launcher-action--${tone}`);
+    button.type = 'button';
+    button.append(node('strong', '', title), node('span', '', description));
+    button.addEventListener('click', handler);
+    return button;
+  };
   const miniMessage = (entry) => {
     const row = node(
       'div',
@@ -90,6 +97,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
   function renderBody(widget, container) {
     if (!isLiveWidget(widget.type)) return false;
     container.classList.add('live-content');
+    container.classList.remove('home-launcher');
     const current = getCurrent(),
       { snapshot, connection } = current,
       value = getData();
@@ -120,70 +128,60 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       return true;
     }
     if (widget.type === 'today') {
+      container.classList.add('home-launcher');
       const calendar = snapshot.integrations?.google_calendar,
         agenda = calendarAgenda(calendar);
-      if (agenda.length) {
-        container.append(
-          node('h2', '', 'Today'),
-          node(
-            'p',
-            'widget-subtitle',
-            calendar.state === 'paused'
-              ? 'Calendar sync paused'
-              : calendar.error
-                ? 'Calendar · last synced view'
-                : 'From your calendars',
-          ),
-        );
-        const list = node('div', 'live-agenda');
-        agenda.slice(0, 3).forEach((event) => {
-          const row = node('div', 'live-task calendar-agenda-row');
-          row.append(
-            node('span', 'live-task-time', calendarTime(event)),
-            node('strong', '', event.title),
-          );
-          row.title = event.calendar_name;
-          list.append(row);
-        });
-        container.append(
-          list,
-          action('View day', () => openDetail('calendar-day'), 'text-button live-bottom'),
-        );
-        return true;
-      }
-      if (!value.open.length) {
-        empty(
-          container,
-          'Today',
-          'Tell eïlo what you have coming up. Your commitments will appear here.',
-        );
-        return true;
-      }
       container.append(
-        node('h2', '', 'Today'),
-        node('p', 'widget-subtitle', value.onBreak ? 'On a break' : 'Open commitments'),
-      );
-      const list = node('div', 'live-agenda');
-      value.open.slice(0, 3).forEach((task) => list.append(taskRow(task, { due: true })));
-      container.append(
-        list,
-        action(
-          value.open.length > 3 ? `View all ${value.open.length}` : 'See commitments',
-          () => openDetail('today'),
-          'text-button live-bottom',
+        node('h2', '', 'What do you want to do right now?'),
+        node(
+          'p',
+          'launcher-subtitle',
+          value.focus
+            ? `Your next step: ${value.focus.title}`
+            : 'Choose one thing. That is enough.',
         ),
       );
+      const actions = node('div', 'launcher-actions');
+      actions.append(
+        launcherAction('Start focus', 'Make room for one task', 'sand', () =>
+          talk(
+            value.focus
+              ? `Help me focus on ${value.focus.title}.`
+              : 'Help me start a focus session.',
+          ),
+        ),
+        launcherAction(
+          'Continue goal',
+          value.focus?.title || 'Choose a next step',
+          'lavender',
+          () => openDetail('goals'),
+        ),
+        launcherAction('Add commitment', 'Keep it small and clear', 'blue', () =>
+          talk('I want to add a commitment.'),
+        ),
+        launcherAction('Talk to eïlo', 'Think it through together', 'mint', () => talk()),
+      );
+      const today = node('div', 'launcher-today');
+      const todayCopy = agenda.length
+        ? `${calendarTime(agenda[0])} · ${agenda[0].title}`
+        : value.focus
+          ? `Next: ${value.focus.title}`
+          : value.open[0]
+            ? `Next: ${value.open[0].title}`
+            : 'Nothing urgent today';
+      today.append(
+        node('span', 'launcher-today__label', 'Today'),
+        node('span', 'launcher-today__copy', todayCopy),
+        action('View details', () => openDetail(agenda.length ? 'calendar-day' : 'today')),
+      );
+      container.append(actions, today);
     } else if (widget.type === 'goals') {
       if (!value.open.length) {
-        empty(
-          container,
-          'Your goals',
-          'A place for the things you want to move forward. Start with a conversation.',
-        );
+        empty(container, 'Goals', 'No goal in focus yet.', 'Set a goal');
         return true;
       }
       container.append(
-        node('h2', '', 'Your goals'),
+        node('h2', '', 'Goals'),
         node('p', 'widget-subtitle', value.onBreak ? 'On a break' : 'Saved commitments'),
       );
       const group = node('div', 'live-goals');
@@ -204,11 +202,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       const count = node('div', 'practice-count');
       count.append(
         node('strong', '', String(value.completed.length)),
-        node(
-          'span',
-          '',
-          value.completed.length === 1 ? 'commitment completed' : 'commitments completed',
-        ),
+        node('span', '', 'completed'),
       );
       container.append(count);
       const tracked = value.open.filter((task) => progressText(task));
