@@ -133,9 +133,9 @@
   cursor: default;
 }
 .briefing-sources__button:focus-visible,
-.briefing-sources__consent:focus-within,
-.briefing-sources__toggle-row:focus-within,
-.briefing-sources__switch:focus-within {
+body:not([data-focus-origin='pointer']) .briefing-sources__consent:focus-within,
+body:not([data-focus-origin='pointer']) .briefing-sources__toggle-row:focus-within,
+body:not([data-focus-origin='pointer']) .briefing-sources__switch:focus-within {
   outline: 3px solid #f3b490;
   outline-offset: 3px;
   border-radius: 8px;

@@ -15,16 +15,23 @@
     <link rel="stylesheet" href="./styles/base.css" />
     <link rel="stylesheet" href="./styles/typography.css" />
     <link rel="stylesheet" href="./workspace/workspace.css" />
+    <link rel="stylesheet" href="./home/context-widgets.css" />
     <link rel="stylesheet" href="./speech/styles.css" />
     <link rel="stylesheet" href="./workspace/views.css" />
     <link rel="stylesheet" href="./activity/checkins.css" />
+    <link rel="stylesheet" href="./activity/day-map.css" />
+    <link rel="stylesheet" href="./activity/setup.css" />
     <link rel="stylesheet" href="./workspace/item-controls.css" />
     <link rel="stylesheet" href="./connections/calendar.css" />
     <link rel="stylesheet" href="./connections/briefing-sources.css" />
     <link rel="stylesheet" href="./chat/workflow-progress.css" />
     <link rel="stylesheet" href="./connections/manager.css" />
+    <link rel="stylesheet" href="./connections/account.css" />
     <link rel="stylesheet" href="./chat/library.css" />
     <link rel="stylesheet" href="./chat/switcher.css" />
+    <link rel="stylesheet" href="./adaptive/adaptive.css" />
+    <link rel="stylesheet" href="./adaptive/preview.css" />
+    <link rel="stylesheet" href="./adaptive/controls.css" />
     <script type="module" src="./app.js"></script>
   </head>
   <body>
@@ -149,10 +156,10 @@
               aria-label="Account menu"
               aria-expanded="false"
               aria-controls="account-menu"
-              >S</button
+              >Y</button
             >
             <div id="account-menu" class="account-menu" hidden
-              ><div class="account-name">Sean<span>Prototype profile</span></div
+              ><div class="account-name">You<span>Prototype profile</span></div
               ><button data-account-action="profile">Account</button
               ><button data-account-action="settings">Settings</button
               ><button data-account-action="connections">Connections &amp; privacy</button
@@ -167,8 +174,8 @@
             ><svg><use href="#plus" /></svg><h2>Make room for what matters</h2
             ><p>Add a widget to bring it onto your home.</p
             ><button class="button primary empty-add">Add widgets</button></div
-          ></div
-        >
+          ><div class="adaptive-preview-host" hidden></div
+        ></div>
       </div>
     </main>
     <dialog class="gallery" aria-labelledby="gallery-title">

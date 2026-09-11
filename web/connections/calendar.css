@@ -31,6 +31,13 @@
   margin-top: 20px;
   max-width: 62ch;
 }
+.calendar-connection__permission {
+  max-width: 62ch;
+  margin: 10px 0 0;
+  color: var(--ink, #f2ebe2);
+  font-size: 14px;
+  line-height: 1.45;
+}
 .calendar-disclosure {
   margin-top: 16px;
   color: var(--muted, #c5c5ce);
@@ -94,7 +101,7 @@
   cursor: default;
 }
 .calendar-button:focus-visible,
-.calendar-option:focus-within {
+body:not([data-focus-origin='pointer']) .calendar-option:focus-within {
   outline: 3px solid #f3b490;
   outline-offset: 3px;
 }

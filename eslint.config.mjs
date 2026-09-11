@@ -10,6 +10,7 @@ export default [
       '.venv/**',
       '**/node_modules/**',
       '**/__pycache__/**',
+      'web/vendor/**',
     ],
   },
   js.configs.recommended,

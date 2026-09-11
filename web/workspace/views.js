@@ -7,6 +7,8 @@ import {
 import { progressText } from '../home/data.js';
 import { createItemControls } from './item-controls.js';
 import { mountCheckinCenter, renderAgentLog } from '../activity/checkins.js';
+import { createActivityDayMap } from '../activity/day-map.js';
+import { renderUsageWidget } from '../home/context-widgets.js';
 
 const el = (tag, cls, text) => {
   const item = document.createElement(tag);
@@ -46,6 +48,7 @@ export function createWorkspaceViews({
   onRecord,
   onCheckinToggle,
   onActivitySetup,
+  onContextCommand,
   canManage = () => false,
 }) {
   let current = null,
@@ -424,6 +427,21 @@ export function createWorkspaceViews({
   feed.tabIndex = 0;
   const overview = el('div', 'activity-overview');
   overview.tabIndex = 0;
+  const adaptiveTimeline = el('section', 'activity-visuals');
+  adaptiveTimeline.setAttribute('aria-label', 'Recorded usage and activity');
+  const usageCard = el('article', 'home-widget activity-usage-card');
+  const usageContent = el('div', 'widget-content');
+  usageCard.append(usageContent);
+  const mapHost = el('section');
+  mapHost.tabIndex = -1;
+  const dayMap = createActivityDayMap(mapHost, {
+    onForget: (id) => onContextCommand?.('forget', { ids: [id] }),
+    onManageSources: onConnections,
+    reducedMotion: () =>
+      document.body.classList.contains('reduce-motion') ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches,
+  });
+  adaptiveTimeline.append(usageCard, mapHost);
   const showActivityFilter = (key) => {
     activityFilter = key;
     renderActivity();
@@ -437,8 +455,27 @@ export function createWorkspaceViews({
     onCheckIns: () => showActivityFilter('checkins'),
     onObserved: () => showActivityFilter('observed'),
   });
+  overview.insertBefore(adaptiveTimeline, overview.firstChild);
   activity.append(toolbar, overview, feed);
   container.append(activity);
+  function renderAdaptiveTimeline(snapshot) {
+    const active = Array.isArray(snapshot?.adaptive?.episodes);
+    adaptiveTimeline.hidden = !active;
+    for (const child of [...overview.children])
+      if (child !== adaptiveTimeline) child.hidden = active;
+    if (!active) return false;
+    renderUsageWidget(
+      usageContent,
+      current,
+      () => {
+        mapHost.scrollIntoView({ block: 'nearest' });
+        mapHost.focus({ preventScroll: true });
+      },
+      onActivitySetup || onConnections,
+    );
+    dayMap.update(current);
+    return true;
+  }
   function renderActivity() {
     const snapshot = current?.snapshot,
       records =
@@ -450,6 +487,7 @@ export function createWorkspaceViews({
     overview.hidden = activityFilter !== 'overview';
     feed.hidden = activityFilter === 'overview';
     if (activityFilter === 'overview') {
+      if (renderAdaptiveTimeline(snapshot)) return;
       checkinCenter.update(current);
       return;
     }
@@ -464,20 +502,27 @@ export function createWorkspaceViews({
     if (nextKey === activityKey) return;
     activityKey = nextKey;
     const scroll = feed.scrollTop;
+    const infoOpen = !!feed.querySelector('.activity-info')?.open;
     feed.replaceChildren();
     controls.sync();
     if (activityFilter === 'agent') {
       renderAgentLog(feed, current, { onCheckIns: () => showActivityFilter('checkins') });
     } else if (activityFilter !== 'checkins') {
-      feed.append(
-        el(
-          'p',
-          'activity-explanation',
-          activityFilter === 'trash'
-            ? 'Removed observations can be restored while they remain within the seven-day activity retention window. Conversation messages are kept separately.'
-            : 'Permitted site activity. Removing a record does not stop sharing; new observations can still arrive.',
-        ),
-      );
+      if (records.length) {
+        const info = el('details', 'activity-info activity-explanation');
+        info.open = infoOpen;
+        info.append(
+          el('summary', '', activityFilter === 'trash' ? 'About Trash' : 'About observed activity'),
+          el(
+            'p',
+            '',
+            activityFilter === 'trash'
+              ? 'Restore observations within their seven-day retention period. Conversation messages are separate.'
+              : 'Deleting an observation does not stop sharing or mark a task complete. Pause sharing in Connections.',
+          ),
+        );
+        feed.append(info);
+      }
       if (!records.length) {
         const empty = el('div', 'workspace-empty-state');
         empty.append(
@@ -487,7 +532,7 @@ export function createWorkspaceViews({
             '',
             activityFilter === 'trash'
               ? 'Removed activity records will appear here.'
-              : 'Choose what eïlo can see in Connections. Sharing is optional.',
+              : 'Connect a source when you’re ready.',
           ),
           ...(activityFilter === 'trash'
             ? []

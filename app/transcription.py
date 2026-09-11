@@ -11,6 +11,8 @@ import struct
 import tempfile
 from pathlib import Path
 
+from app.paths import cache_directory, runtime_directory
+
 MAX_WAV_BYTES = 4 * 1024 * 1024
 MAX_SECONDS = 120
 SAMPLE_RATE = 16_000
@@ -93,14 +95,14 @@ class Transcriber:
         model: Path | str | None = None,
     ) -> None:
         self.root = Path(root).resolve()
-        self.runtime = self.root / ".runtime" / "stt"
+        self.runtime = runtime_directory(self.root) / "stt"
         self.executable = (
             Path(executable)
             if executable
             else self.runtime / "whisper.cpp" / "build" / "bin" / "whisper-cli"
         )
         self.model = Path(model) if model else self.runtime / "models" / MODEL_NAME
-        self.recordings = self.root / ".tmp" / "transcription"
+        self.recordings = cache_directory(self.root) / "transcription"
         self.timeout_seconds = timeout_seconds
         self._lock = asyncio.Lock()
         self._process: asyncio.subprocess.Process | None = None

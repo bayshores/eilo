@@ -1,11 +1,15 @@
 import { homeData } from '../home/data.js';
 
 const FILTERS = new Set(['open', 'completed', 'all', 'deleted']);
-const APPROVED_ORIGINS = new Set([
-  'https://leetcode.com',
-  'https://neetcode.io',
-  'https://docs.python.org',
-]);
+function browserOrigin(value) {
+  if (typeof value !== 'string' || value.length > 280) return false;
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) && value === url.origin;
+  } catch {
+    return false;
+  }
+}
 const finiteNonnegative = (value) => Number.isFinite(value) && value >= 0;
 
 export function selectGoals(snapshot, { filter = 'open', query = '', selectedId = null } = {}) {
@@ -49,7 +53,7 @@ export function observedSessions(snapshot, { trash = false } = {}) {
     .filter(
       (session) =>
         session &&
-        APPROVED_ORIGINS.has(session.origin) &&
+        browserOrigin(session.origin) &&
         finiteNonnegative(session.start) &&
         finiteNonnegative(session.last_seen) &&
         session.last_seen >= session.start &&

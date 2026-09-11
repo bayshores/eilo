@@ -69,6 +69,20 @@ used by both the live server and `scripts/preview.mjs`; update it whenever a
 served source file changes. Public `/home/` and `/activity-connect` routes are
 stable contracts even when the internal source layout changes.
 
+## Chrome context
+
+`activity/extension` owns the optional browser grant and local `excludedHosts` preferences. A protocol-2 readiness message proves that the current extension has the full optional HTTP/HTTPS grant without sampling any tab. `web/activity/bridge.js` waits for readiness before the session enables a server lease. The existing version-1 observation wire shape remains compatible with stored records.
+
+The foreground sampler, `app/accountability.py` origin sanitizer, activity ledger, and event-driver validation admit general minimized browser origins. Source grants, a live page lease, event admission, and delivery controls are separate gates. `web/styles/focus.js` shares keyboard-versus-pointer focus treatment across Home and the standalone connection/setup pages.
+
+## Adaptive context
+
+`app/context_service.py` owns WorkContext and presentation revisions separately from commitments. `context_contract.py` validates consent-bound evidence; `context_store.py` encrypts content with a Keychain key. `context_analysis.py` invokes the isolated, no-tool `adaptive_driver.py`; that path does not write observations to native chat history. `context_capture.py` coordinates the Swift helper and authenticated Native Messaging broker. Rich browser content can arrive only from the extension.
+
+The additive `/api/state` fields are `adaptive`, `capture_status`, `current_work_context`, `home_composition`, and `account`. `/api/home/commands` and `/api/context/commands` use independent revisions and request IDs. Capture has no HTTP ingestion route. `/api/account/commands` manages user-started authorization without sending tokens to browser state.
+
+`web/adaptive/` owns the component catalog, stable renderer, geometry, locally served GSAP motion and interaction deferral. `web/adaptive/context-panel.js` owns the modal Home context controls independently of canvas geometry. The controller keeps command state current while deferring unsafe presentation changes. Live binding updates patch only bound/source widgets; unchanged composition bodies and closed settings are not rebuilt. Both modes use the `home-widget` visual shell, `widget-content` typography and existing Home content primitives. Tracking and usage render through `web/home/context-widgets.js` in both modes, using the same validated selectors; Adaptive has no separate status or chart implementation. Manual placement stays on `.widget`, while Adaptive owns its geometry and motion separately. Manual Home is restorable and navigation/dock remain stable. See [the private build and remaining gates](design/adaptive-workspace-build.md).
+
 ## Where to make a change
 
 | Change                            | Start here                                                        |

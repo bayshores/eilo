@@ -1,15 +1,12 @@
 {
   "manifest_version": 3,
   "name": "eïlo local activity context",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAldLQInPgquaLKs5WcwuH1JdvyFC4eX+FTn5oU0ShwXZDfiVjLVlgjNXrNgitD8NQHukAmjW2Xii9VJuWXZtq3zUn67f5lyhSt0v8IXVivT9pAq2oxIqbARJ5yGJRfRGsW27mE+JlXo6LI1ofPjqq5tQWKAHh4YEvA8nkiJDFp8Syz0TYY+Amos8+FsiLpXf8C0fzPHFPgNaT96kLdMGWzfi5hyQLcQIvalfv6AC6GqRX0UvFxntgbGCdi6JmCvd6IHWBy543QA9QcUjR2MnFBW02vKD1iXagvpOqmAdaE5A2w6chry2wUp8xdzbDC298FD8+CiUZYGJlcMUrrdAIUQIDAQAB",
-  "description": "Shares only approved active study-site metadata with a local eïlo page after an explicit grant.",
+  "description": "Connect browser context to eïlo with one permission. Shares active-site names and titles only while connected.",
   "background": { "service_worker": "background.js" },
   "action": { "default_title": "eïlo activity context", "default_popup": "popup.html" },
-  "optional_host_permissions": [
-    "https://leetcode.com/*",
-    "https://neetcode.io/*",
-    "https://docs.python.org/*"
-  ],
+  "permissions": ["storage", "nativeMessaging", "scripting"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "externally_connectable": { "matches": ["http://127.0.0.1/*"] }
 }

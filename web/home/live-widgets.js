@@ -1,7 +1,30 @@
 import { calendarAgenda, calendarTime } from '../calendar/agenda.js';
 import { conversationEntries, deliveryLabel, progressText } from './data.js';
+import { renderTrackingWidget, renderUsageWidget } from './context-widgets.js';
 
-const LIVE_TYPES = new Set(['today', 'goals', 'progress', 'conversation']);
+const LIVE_TYPES = new Set(['today', 'goals', 'progress', 'conversation', 'tracking', 'usage']);
+export const isLiveWidget = (type) => LIVE_TYPES.has(type);
+
+export function widgetFingerprint(view) {
+  const activity = view.snapshot?.accountability?.activity;
+  return JSON.stringify([
+    view.snapshot?.tasks,
+    view.snapshot?.messages,
+    view.snapshot?.pending_message,
+    view.snapshot?.integrations?.google_calendar,
+    view.snapshot?.integrations?.briefing_sources,
+    view.snapshot?.accountability?.observed_activity,
+    view.snapshot?.adaptive?.capture_status,
+    view.snapshot?.adaptive?.policy,
+    view.snapshot?.adaptive?.usage,
+    activity?.state,
+    activity?.helper_available,
+    activity?.chrome_available,
+    view.snapshot?.workflow_run,
+    view.localPending,
+    view.connection,
+  ]);
+}
 const node = (tag, className, text) => {
   const element = document.createElement(tag);
   if (className) element.className = className;
@@ -65,12 +88,25 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
     return row;
   };
   function renderBody(widget, container) {
-    if (!LIVE_TYPES.has(widget.type)) return false;
-    container.replaceChildren();
+    if (!isLiveWidget(widget.type)) return false;
     container.classList.add('live-content');
     const current = getCurrent(),
       { snapshot, connection } = current,
       value = getData();
+    if (widget.type === 'tracking') {
+      renderTrackingWidget(container, current, () => openDetail('connections'));
+      return true;
+    }
+    if (widget.type === 'usage') {
+      renderUsageWidget(
+        container,
+        current,
+        () => openDetail('activity'),
+        () => openDetail('browser-setup'),
+      );
+      return true;
+    }
+    container.replaceChildren();
     if (!value.supported) {
       empty(
         container,
@@ -164,38 +200,6 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
         ),
       );
     } else if (widget.type === 'progress') {
-      const observed = snapshot.accountability?.observed_activity,
-        session = observed?.active_session || observed?.recent_sessions?.at(-1);
-      if (session) {
-        const minutes = Math.floor(session.observed_seconds / 60);
-        const duration = node('div', 'practice-count');
-        duration.append(
-          node('strong', '', String(minutes || Math.floor(session.observed_seconds))),
-          node(
-            'span',
-            '',
-            minutes
-              ? minutes === 1
-                ? 'minute observed'
-                : 'minutes observed'
-              : Math.floor(session.observed_seconds) === 1
-                ? 'second observed'
-                : 'seconds observed',
-          ),
-        );
-        container.append(
-          node('h2', '', 'Progress'),
-          duration,
-          node('p', 'live-progress-copy', new URL(session.origin).hostname),
-          node(
-            'p',
-            'live-progress-copy',
-            `${value.completed.length} commitment${value.completed.length === 1 ? '' : 's'} completed`,
-          ),
-          action('See activity', () => openDetail('activity'), 'text-button live-bottom'),
-        );
-        return true;
-      }
       container.append(node('h2', '', 'Progress'));
       const count = node('div', 'practice-count');
       count.append(

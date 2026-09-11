@@ -9,4 +9,5 @@ node_modules/
 uv.lock
 requirements*.lock
 third_party/
+web/vendor/
 **/*-OFL.txt

@@ -48,6 +48,10 @@ test('only Home receives a narrow subscription; native event and extra payload d
   const host = load({ origin: 'http://127.0.0.1:8765', pathname: '/home/' }),
     received = [];
   assert.deepEqual(Object.keys(host.bridge), [
+    'openActivityConnection',
+    'openAccountAuthorization',
+    'openContextSource',
+    'openContextPermission',
     'openGoogleAuthorization',
     'openBriefingAuthorization',
     'openBriefingSource',
@@ -97,4 +101,10 @@ test('other origins and local setup pages have no privileged bridge', () => {
     load({ origin: 'http://127.0.0.1:8765', pathname: '/activity-setup.html' }).bridge,
     undefined,
   );
+});
+
+test('Chrome handoff carries no renderer-supplied URL or command', async () => {
+  const host = load({ origin: 'http://127.0.0.1:8765', pathname: '/home/' });
+  await host.bridge.openActivityConnection('https://example.test', '--anything');
+  assert.deepEqual(host.invoked, [['eilo:open-activity-connection']]);
 });

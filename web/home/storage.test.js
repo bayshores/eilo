@@ -64,13 +64,27 @@ test('normalizers accept only bounded profile and note fields', () => {
       name: ' A '.repeat(30).slice(0, 40),
       pin: false,
       reducedMotion: true,
+      widgetPins: [],
     },
   );
   assert.deepEqual(normalizeHomePreferences(null), {
-    name: 'Sean',
+    name: 'You',
     pin: false,
     reducedMotion: false,
+    widgetPins: [],
   });
   assert.equal(normalizeHomeContent({ notes: 'n'.repeat(10001) }).notes.length, 10000);
   assert.deepEqual(normalizeHomeContent(['not a record']), { notes: '' });
+});
+
+test('personal profile names are restored only from local preferences', () => {
+  const store = memory();
+  const storage = createHomeStorage({ storage: store });
+  const personal = normalizeHomePreferences({ name: 'Morgan' });
+  storage.write(HOME_STORAGE_KEYS.preferences, personal);
+  assert.equal(
+    normalizeHomePreferences(storage.read(HOME_STORAGE_KEYS.preferences, {})).name,
+    'Morgan',
+  );
+  assert.equal(normalizeHomePreferences({}).name, 'You');
 });

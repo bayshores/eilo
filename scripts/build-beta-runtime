@@ -1,0 +1,51 @@
+#!/bin/sh
+# Build the unsigned, self-contained runtime consumed by the future beta packager.
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+OUT="$ROOT/.runtime/beta-managed-python"
+BASE="$OUT/python"
+SITE="$OUT/site-packages"
+HERMES="$OUT/hermes-agent"
+VERSION=3.13.5
+
+rm -rf "$OUT"
+mkdir -p "$OUT"
+# uv's official managed Python installer uses python-build-standalone artifacts.
+uv python install --managed-python --install-dir "$BASE" "$VERSION"
+PYTHON=$(find "$BASE" -type f -path '*/bin/python3.13' -perm -111 | head -n 1)
+[ -n "$PYTHON" ] || { printf '%s\n' 'Managed Python install did not provide an executable.' >&2; exit 1; }
+[ "$(uname -m)" = arm64 ] || { printf '%s\n' 'This beta runtime builder currently targets macOS arm64.' >&2; exit 1; }
+grep -qx 'Version: 0.21.1' "$ROOT/.runtime/hermes-agent/hermes_agent.egg-info/PKG-INFO"
+rsync -a --delete --exclude '__pycache__' --exclude '.git' "$ROOT/.runtime/hermes-agent/" "$HERMES/"
+mkdir -p "$SITE"
+uv pip install --python "$PYTHON" --target "$SITE" -r "$ROOT/requirements.hermes.lock" -r "$ROOT/requirements.integrations.lock"
+cat > "$OUT/run-python" <<'EOF'
+#!/bin/sh
+set -eu
+RUNTIME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PYTHON=$(find "$RUNTIME/python" -type f -path '*/bin/python3.13' -perm -111 | head -n 1)
+export PYTHONNOUSERSITE=1 PYTHONSAFEPATH=1
+export PYTHONPATH="$RUNTIME/site-packages:$RUNTIME/hermes-agent"
+exec "$PYTHON" "$@"
+EOF
+chmod 755 "$OUT/run-python"
+"$OUT/run-python" - <<'PY'
+import aiohttp, cryptography, keyring, run_agent
+from PIL import Image
+assert aiohttp and cryptography and keyring and Image and run_agent
+PY
+python3 - "$OUT/runtime-manifest.json" "$PYTHON" <<'PY'
+import json, platform, sys
+from pathlib import Path
+Path(sys.argv[1]).write_text(json.dumps({"format":1,"target":"macos-14","architecture":platform.machine(),"python":Path(sys.argv[2]).name,"hermes_revision":"2237be355906fbe6065ce1815711eee52b2d646e","license_notices":["hermes-agent/LICENSE"]}, indent=2)+"\n")
+PY
+cp "$HERMES/LICENSE" "$OUT/HERMES-LICENSE"
+lipo -archs "$PYTHON" | grep -qw arm64
+LIBRARIES=$(otool -L "$PYTHON" | tail -n +2)
+case "$LIBRARIES" in *"$ROOT"*|*"/Library/Frameworks/Python"*)
+  printf '%s\n' 'Managed Python links to the checkout or system Python framework.' >&2; exit 1
+esac
+if grep -Fq "$ROOT" "$OUT/run-python" || grep -Fq '/Users/' "$OUT/run-python"; then
+  printf '%s\n' 'Runtime launcher contains an absolute checkout or user path.' >&2; exit 1
+fi
+printf '%s\n' "$OUT"

@@ -1,0 +1,80 @@
+.account-host:has(.account-banner[hidden]) {
+  display: none;
+}
+.account-banner[hidden] {
+  display: none;
+}
+.account-host {
+  margin: 0 24px 12px;
+}
+.account-banner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(250, 195, 153, 0.22);
+  border-radius: 13px;
+  color: var(--ink, #f3f2f4);
+  background: #292b30;
+  font-family:
+    'IBM Plex Sans',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.account-banner__copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+}
+.account-banner__copy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.account-banner__copy span,
+.account-banner__status {
+  color: var(--muted, #b6b6bd);
+  font-size: 12px;
+}
+.account-banner__code {
+  padding: 5px 7px;
+  border-radius: 7px;
+  color: var(--peach, #fac399);
+  background: #202226;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.account-banner button {
+  min-height: 31px;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.account-banner__action {
+  color: #2a211c;
+  background: var(--peach, #fac399);
+}
+.account-banner__secondary {
+  color: var(--ink, #f3f2f4);
+  background: #3a3c43;
+}
+.account-banner__status:empty {
+  display: none;
+}
+@media (max-width: 760px) {
+  .account-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .account-banner__copy {
+    flex-basis: 100%;
+  }
+  .account-banner__status {
+    flex-basis: 100%;
+  }
+}

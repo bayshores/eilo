@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from app.google_calendar import CalendarError
+from app.paths import runtime_directory, state_directory
 from app.persistence import write_private
 
 
@@ -91,7 +92,7 @@ def validate_mcp(body):
 class Connections:
     def __init__(self, chat, root):
         self.chat, self.root = chat, Path(root)
-        self.path = self.root / ".state/mcp-connections.json"
+        self.path = state_directory(self.root) / "mcp-connections.json"
         self.data = {"servers": [], "paused_gmail_ids": []}
         if self.path.exists():
             value = json.loads(self.path.read_text())
@@ -330,7 +331,7 @@ class Connections:
         elif identity == "browser-activity":
             if enabled:
                 raise ConnectionError(
-                    "Choose approved sites and connect activity in its setup page first.", 409, True
+                    "Connect browser activity in its setup page first.", 409, True
                 )
             self.chat.proactive.control("off", "eilo-connection-manager")
         else:
@@ -344,7 +345,9 @@ class Connections:
             write_private(path, server)
             code, out, _ = await self.chat.command(
                 [str(self.root / "app/mcp_probe.py"), str(path)],
-                executable=self.root / ".runtime/venv/bin/python",
+                executable=(runtime_directory(self.root) / "run-python")
+                if (runtime_directory(self.root) / "run-python").exists()
+                else runtime_directory(self.root) / "venv/bin/python",
                 timeout=35,
             )
             result = json.loads(out) if code == 0 else {}

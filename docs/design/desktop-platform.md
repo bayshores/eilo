@@ -1,8 +1,8 @@
 # Final hackathon platform recommendation
 
-September 9, 2026. Sean selected this path and authorized the first Electron build. The checkout-linked macOS development app now exists; its ownership/close/reopen/Quit lifecycle is verified. This records the final-platform direction, not standalone release readiness. See [the desktop build evidence](../../desktop/electron/README.md).
+Status: local development; not released. Electron is the selected desktop direction. Its lifecycle behavior requires separate verification and does not establish standalone release readiness. See [the desktop build evidence](../../desktop/electron/README.md).
 
-**Use Electron for the final eïlo desktop application, with macOS as the first fully verified submission platform.** Keep the approved HTML/CSS/JavaScript UI and the Python/Hermes coordinator. Electron's main process should own the app window, menu-bar/tray lifecycle, notification callbacks and the packaged backend process. The renderer remains a restricted UI client.
+**Use Electron for the eïlo desktop application, with macOS as the first verification platform.** Keep the HTML/CSS/JavaScript UI and the Python/Hermes coordinator. Electron's main process should own the app window, menu-bar/tray lifecycle, notification callbacks and the packaged backend process. The renderer remains a restricted UI client.
 
 This recommendation replaces the assumption that the narrow Swift menu-bar proof should also determine the final package. No separate full Swift UI rewrite is needed. The existing small native foreground helper and a reviewed Chrome Native Messaging bridge may still be needed; Electron does not supply approved activity context automatically.
 
@@ -33,4 +33,4 @@ Build one isolated packaged-Mac slice: existing Home renders correctly; micropho
 
 Keep Node access out of the renderer, enable context isolation/sandboxing, expose narrowly defined preload IPC, validate message senders, and restrict navigation/permission grants. Local process supervision belongs in the main process; model-generated text must never become a shell command or privileged IPC request. [Electron security guidance](https://www.electronjs.org/docs/latest/tutorial/security).
 
-The existing coordinator, queue, consent and scaling architecture still applies. The user accepted Electron; its main process now supplies the first host lifecycle. Continue the host role described in the outreach plan without building a separate Swift menu-bar shell first. The durable native conversation and task validator stay authoritative; this is packaging, not a new agent or a claim that proactivity is complete.
+The existing coordinator, queue, consent and scaling architecture still applies. Electron's main process supplies the first host lifecycle. Continue the host role described in the outreach plan without building a separate Swift menu-bar shell first. The durable native conversation and task validator stay authoritative; this is packaging, not a new agent or a claim that proactivity is complete.

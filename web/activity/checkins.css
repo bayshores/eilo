@@ -435,3 +435,20 @@
     margin-top: 8px;
   }
 }
+
+.checkin-help > summary {
+  cursor: pointer;
+  color: #e0e2e8;
+  padding: 8px 0;
+  font-size: 15px;
+}
+.checkin-help > summary:focus-visible,
+.activity-info > summary:focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.activity-info > summary {
+  cursor: pointer;
+  padding: 6px 0;
+}

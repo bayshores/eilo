@@ -58,6 +58,7 @@ export function createHomeClient({
     generation = 0,
     failureDelay = 1000;
   const listeners = new Set();
+  let adaptiveQueue = Promise.resolve();
   const view = () => ({ snapshot, connection, error, sending, changing, draft, localPending });
   const emit = () => listeners.forEach((listener) => listener(view()));
   const workspaceChatId = (value) =>
@@ -275,6 +276,12 @@ export function createHomeClient({
   }
   return {
     canManage,
+    homeCommand(action, fields = {}, revision) {
+      return adaptiveControl('/api/home/commands', action, fields, revision);
+    },
+    contextCommand(action, fields = {}, revision) {
+      return adaptiveControl('/api/context/commands', action, fields, revision);
+    },
     controlTasks(
       operations,
       revision = snapshot?.tasks?.revision,
@@ -394,4 +401,30 @@ export function createHomeClient({
       queue();
     },
   };
+
+  function adaptiveControl(path, action, fields, revision) {
+    // Presentation/capture revisions are independent of the conversation lane.
+    // A permission can be revoked even while a human reply is in progress.
+    const pending = adaptiveQueue.then(async () => {
+      if (connection !== 'connected' || !snapshot?.adaptive)
+        throw new Error('Connect to eïlo to change context settings.');
+      abortPoll();
+      try {
+        const next = await request(path, {
+          body: {
+            action,
+            ...fields,
+            request_id: requestId(),
+            based_on_revision: revision ?? snapshot.adaptive.revision,
+          },
+        });
+        accept(next);
+        return next;
+      } finally {
+        queue(0, true);
+      }
+    });
+    adaptiveQueue = pending.catch(() => {});
+    return pending;
+  }
 }

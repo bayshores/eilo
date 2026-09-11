@@ -64,7 +64,7 @@ test('unknown schemas and filters have no invented categories or selections', ()
     ['a'],
   );
 });
-test('related sessions require current explicit task relation and complete approved session data', () => {
+test('related sessions require current task relation and canonical browser data across sites', () => {
   const valid = {
     id: 'valid',
     origin: 'https://leetcode.com',
@@ -76,7 +76,7 @@ test('related sessions require current explicit task relation and complete appro
   };
   const newest = {
     id: 'newest',
-    origin: 'https://docs.python.org',
+    origin: 'https://github.com',
     related_task_ids: ['focus'],
     related_task_revision: 4,
     observed_seconds: 3,
@@ -88,7 +88,7 @@ test('related sessions require current explicit task relation and complete appro
     newest,
     { ...valid, id: 'stale', related_task_revision: 3 },
     { ...valid, id: 'foreign', related_task_ids: ['other'] },
-    { ...valid, id: 'bad-origin', origin: 'https://evil.example' },
+    { ...valid, id: 'bad-origin', origin: 'https://example.com/path?private' },
     { ...valid, id: 'missing-time', last_seen: Infinity },
     { ...valid, id: 'unrelated', related_task_ids: [] },
   ];
@@ -119,7 +119,7 @@ test('delivered check-ins isolate only complete native check-in messages in exis
   );
 });
 
-test('observed sessions remain visible without a goal link but reject impossible duration and unshared origins', () => {
+test('general browser sessions remain visible without a goal link and reject malformed origins or duration', () => {
   const valid = {
     id: 'unlinked',
     origin: 'https://neetcode.io',
@@ -132,16 +132,22 @@ test('observed sessions remain visible without a goal link but reject impossible
       observed_activity: {
         recent_sessions: [
           valid,
+          { ...valid, id: 'arbitrary', origin: 'https://new-site.example' },
+          { ...valid, id: 'local', origin: 'http://localhost:3000' },
+          { ...valid, id: 'ipv6', origin: 'http://[::1]:8080' },
           { ...valid, id: 'too-long', observed_seconds: 25 },
           { ...valid, id: 'reversed', last_seen: 9 },
-          { ...valid, id: 'unshared', origin: 'https://example.test' },
+          { ...valid, id: 'unshared', origin: null },
+          { ...valid, id: 'credentials', origin: 'https://user@example.test' },
+          { ...valid, id: 'detail', origin: 'https://example.test?q=secret' },
+          { ...valid, id: 'internal', origin: 'chrome://extensions' },
         ],
       },
     },
   };
   assert.deepEqual(
     observedSessions(input).map((item) => item.id),
-    ['unlinked'],
+    ['unlinked', 'arbitrary', 'local', 'ipv6'],
   );
   assert.deepEqual(relatedSessions({ ...input, tasks: { revision: 4 } }, 'anything'), []);
 });

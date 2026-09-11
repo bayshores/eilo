@@ -24,5 +24,8 @@
     "globals": "17.12.0",
     "prettier": "3.9.6",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "gsap": "3.15.0"
   }
 }

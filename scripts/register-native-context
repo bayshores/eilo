@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Print or explicitly install the narrowly scoped Chrome host manifest."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+HOST_NAME = "app.eilo.context"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--extension-id", required=True)
+    parser.add_argument("--broker-dir", required=True)
+    parser.add_argument("--install", action="store_true")
+    parser.add_argument("--print", dest="print_manifest", action="store_true", default=True)
+    args = parser.parse_args()
+    if not re.fullmatch(r"[a-p]{32}", args.extension_id):
+        parser.error("--extension-id must be Chrome's 32-character extension id")
+    origin = f"chrome-extension://{args.extension_id}/"
+    manifest = {"name": HOST_NAME, "description": "eïlo local context bridge", "path": str((ROOT / "scripts" / "native-context-host").resolve()), "type": "stdio", "allowed_origins": [origin]}
+    if not args.install:
+        print(json.dumps(manifest, indent=2, sort_keys=True))
+        return 0
+    destination = Path.home() / "Library/Application Support/Google/Chrome/NativeMessagingHosts" / f"{HOST_NAME}.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(destination, 0o600)
+    broker_dir = Path(args.broker_dir).expanduser()
+    broker_dir.mkdir(parents=True, exist_ok=True)
+    metadata = broker_dir / "allowed-origins.json"
+    metadata.write_text(json.dumps({"allowed_origins": [origin]}, separators=(",", ":")) + "\n", encoding="utf-8")
+    os.chmod(metadata, 0o600)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

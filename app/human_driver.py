@@ -13,6 +13,7 @@ import contextlib
 import json
 import os
 import re
+import sqlite3
 import sys
 import uuid
 from datetime import UTC, datetime
@@ -21,6 +22,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.context_tools import TOOL_NAMES, ReadTools, validate_bridge
+from app.runtime_auth import isolate_account
 from app.runtime_contract import MODEL, PROVIDER
 from app.tasks import bind_model_proposal
 
@@ -64,8 +66,8 @@ for any priority suggestion, and let the user decide. That request allows useful
 orientation, not an unsolicited tutorial on doing the work.
 
 Current capability limits: this human lane receives no measured activity totals.
-The optional browser source supports LeetCode, NeetCode and Python documentation;
-YouTube is not supported. Do not invent usage, claim to be watching the user, or
+The optional browser source can provide a minimized, user-permitted browser context;
+it does not prove what the user is doing. Do not invent usage, claim to be watching the user, or
 infer today's total from a previous observation or their own report. When asked,
 explain the specific eïlo limitation plainly. Do not send the user away to manually
 maintain another tracker, and do not claim watch history gives an exact duration.
@@ -203,6 +205,7 @@ def _runtime_and_agent(
     read_tools=None,
 ):
     """Resolve only eïlo's configured Codex subscription route and make a zero-tool agent."""
+    isolate_account()
     from hermes_cli.runtime_provider import resolve_runtime_provider
     from run_agent import AIAgent
 
@@ -553,6 +556,15 @@ def _read_finalization(path: str) -> dict[str, Any]:
         raise InputError("invalid finalization") from None
 
 
+def initialize_history() -> dict:
+    """Initialize a new app-owned conversation profile through the native runtime."""
+    from hermes_state import SessionDB
+
+    db = SessionDB()
+    db.close()
+    return {"ready": True}
+
+
 def list_eilo_sessions() -> dict:
     """Return eïlo session pointers and bounded display names, never transcripts."""
     from hermes_state import SessionDB
@@ -562,7 +574,13 @@ def list_eilo_sessions() -> dict:
             return datetime.fromtimestamp(value, UTC).isoformat().replace("+00:00", "Z")
         return str(value or "")
 
-    db = SessionDB(read_only=True)
+    try:
+        db = SessionDB(read_only=True)
+    except sqlite3.OperationalError:
+        profile = os.environ.get("HERMES_HOME")
+        if profile and not (Path(profile) / "state.db").exists():
+            return {"sessions": []}
+        raise
     try:
         rows = db.list_sessions_rich(
             source="cli",
@@ -602,6 +620,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--finalize")
     parser.add_argument("--resolve-title")
     parser.add_argument("--list-eilo-sessions", action="store_true")
+    parser.add_argument("--initialize-history", action="store_true")
     parser.add_argument("--dry-audit", action="store_true")
     parser.add_argument("--stream", action="store_true")
     args = parser.parse_args(argv)
@@ -613,6 +632,7 @@ def main(argv: list[str] | None = None) -> int:
                 bool(args.resolve_title),
                 bool(args.dry_audit),
                 args.list_eilo_sessions,
+                args.initialize_history,
             )
         )
         != 1
@@ -637,7 +657,9 @@ def main(argv: list[str] | None = None) -> int:
             contextlib.redirect_stderr(sink),
         ):
             receipt = (
-                list_eilo_sessions()
+                initialize_history()
+                if args.initialize_history
+                else list_eilo_sessions()
                 if args.list_eilo_sessions
                 else dry_audit()
                 if args.dry_audit

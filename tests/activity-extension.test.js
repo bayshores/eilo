@@ -8,16 +8,13 @@ const crypto = require('node:crypto');
 
 const extension = path.join(__dirname, '../activity/extension');
 const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json'), 'utf8'));
-assert.equal(
-  Object.hasOwn(manifest, 'permissions'),
-  false,
-  'no unsupported permissions namespace is declared',
+assert.deepEqual(
+  manifest.permissions,
+  ['storage', 'nativeMessaging', 'scripting'],
+  'the native bridge needs only storage, native messaging, and bounded script injection',
 );
-assert.deepEqual(manifest.optional_host_permissions, [
-  'https://leetcode.com/*',
-  'https://neetcode.io/*',
-  'https://docs.python.org/*',
-]);
+assert.deepEqual(manifest.optional_host_permissions, ['http://*/*', 'https://*/*']);
+assert.equal(manifest.host_permissions, undefined, 'website access is never installed by default');
 assert.equal(manifest.externally_connectable.matches[0], 'http://127.0.0.1/*');
 const manifestId = [
   ...crypto
@@ -82,13 +79,42 @@ assert.equal(
   JSON.stringify(
     core.observationForTab({ url: 'https://mail.google.com/mail/u/0', title: 'private mail' }),
   ),
-  JSON.stringify({ kind: 'activity_unshared' }),
+  JSON.stringify({
+    kind: 'approved_study_context',
+    origin: 'https://mail.google.com',
+    title: 'private mail',
+  }),
 );
 assert.equal(
   core.approvedOrigin('https://docs.python.org/3/library/?q=private#frag'),
   'https://docs.python.org',
 );
-assert.equal(core.approvedOrigin('http://docs.python.org/'), null);
+assert.equal(core.approvedOrigin('http://docs.python.org/'), 'http://docs.python.org');
+assert.equal(
+  core.approvedOrigin('https://a-new-site.example:8443/path?q=secret'),
+  'https://a-new-site.example:8443',
+);
+for (const url of [
+  'chrome://settings',
+  'file:///private/document',
+  'https://user:pass@example.com',
+  'http://127.0.0.1:8765/home/',
+  'http://localhost:3000/',
+  'http://127.0.0.2:3000/',
+  'http://192.168.1.1/',
+  'http://169.254.1.1/',
+  'http://[::1]:8080/',
+  'http://[fe80::1]/',
+  'http://[fe90::1]/',
+  'http://[::ffff:192.168.1.1]/',
+])
+  assert.equal(core.approvedOrigin(url), null);
+assert.equal(
+  core.observationForTab({ url: 'https://example.com', title: 'Private', incognito: true }).kind,
+  'activity_unshared',
+);
+assert.equal(core.isExcluded('https://child.example.com', ['example.com']), true);
+assert.equal(core.isExcluded('https://notexample.com', ['example.com']), false);
 assert.equal(
   core.equivalentTab(
     { id: 1, windowId: 2, url: 'https://leetcode.com/x', title: 'A' },
@@ -108,10 +134,16 @@ async function backgroundSnapshot({
   granted = true,
   changed = false,
   disconnectDuringFirst = false,
+  incognito = false,
+  excluded = false,
+  excludeDuringFinal = false,
+  revokeDuringFinal = false,
 } = {}) {
   let calls = 0;
   let tabCalls = 0;
   let stillAllowed = true;
+  let permissionCalls = 0,
+    preferenceCalls = 0;
   const backgroundContext = {
     URL,
     Set,
@@ -129,7 +161,24 @@ async function backgroundSnapshot({
           addListener() {},
         },
       },
-      permissions: { contains: async () => granted },
+      permissions: {
+        onRemoved: event(),
+        contains: async (request) => {
+          assert.deepEqual([...request.origins], ['http://*/*', 'https://*/*']);
+          return granted && !(revokeDuringFinal && ++permissionCalls >= 3);
+        },
+      },
+      storage: {
+        onChanged: event(),
+        local: {
+          get: async () => ({
+            excludedHosts:
+              excluded || (excludeDuringFinal && ++preferenceCalls >= 2)
+                ? ['new-site.example']
+                : [],
+          }),
+        },
+      },
       windows: {
         getLastFocused: async () => {
           if (disconnectDuringFirst) stillAllowed = false;
@@ -145,8 +194,9 @@ async function backgroundSnapshot({
               windowId: 9,
               active: true,
               status: 'complete',
-              url: 'https://leetcode.com/problems/private?secret=1',
-              title: 'Two Sum',
+              incognito,
+              url: 'https://new-site.example/path?secret=1',
+              title: 'Context',
             },
           ];
         },
@@ -177,6 +227,29 @@ const backgroundChecks = (async () => {
   const aborted = await backgroundSnapshot({ disconnectDuringFirst: true });
   assert.equal(aborted.result, null);
   assert.equal(aborted.tabCalls, 0, 'disconnect/expiry prevents later Chrome reads');
+  assert.equal(
+    (await backgroundSnapshot({ granted: false })).tabCalls,
+    0,
+    'partial or missing broad access prevents tab reads',
+  );
+  assert.equal(
+    (await backgroundSnapshot({ incognito: true })).result,
+    null,
+    'private windows are never shared',
+  );
+  for (const options of [
+    { excluded: true },
+    { excludeDuringFinal: true },
+    { revokeDuringFinal: true },
+  ])
+    assert.equal(
+      (await backgroundSnapshot(options)).result.observation.kind,
+      'activity_unshared',
+      'exclusion and revocation suppress an in-flight sample',
+    );
+  const admitted = (await backgroundSnapshot()).result.observation;
+  assert.equal(admitted.origin, 'https://new-site.example');
+  assert.equal(admitted.title, 'Context');
 })();
 
 async function extensionPortChecks() {
@@ -212,7 +285,8 @@ async function extensionPortChecks() {
           },
         },
       },
-      permissions: { contains: async () => true },
+      permissions: { onRemoved: event(), contains: async () => true },
+      storage: { onChanged: event(), local: { get: async () => ({ excludedHosts: [] }) } },
       windows: {
         getLastFocused: () => {
           windowCalls++;
@@ -249,16 +323,17 @@ async function extensionPortChecks() {
   onMessage.emit(request);
   onMessage.emit(request);
   onMessage.emit({ ...request, nonce: 'nonce-def' });
+  await new Promise(setImmediate);
   assert.equal(windowCalls, 1, 'one port permits only one in-flight sample');
   resolveWindow({ id: 9, focused: true });
   await new Promise(setImmediate);
   await new Promise(setImmediate);
-  assert.equal(testPort.posted.length, 1);
+  assert.equal(testPort.posted.filter((item) => item.type === 'observation').length, 1);
   const callsAfterFirst = windowCalls;
   onMessage.emit(request);
   await new Promise(setImmediate);
   assert.equal(windowCalls, callsAfterFirst, 'the completed nonce is retained as a duplicate');
-  assert.equal(testPort.posted.length, 1);
+  assert.equal(testPort.posted.filter((item) => item.type === 'observation').length, 1);
 }
 const portChecks = extensionPortChecks();
 
@@ -286,89 +361,144 @@ function port() {
     },
   };
 }
-const clientContext = { globalThis: {}, Date, console };
-clientContext.globalThis = clientContext;
-vm.runInNewContext(
-  fs.readFileSync(path.join(__dirname, '../web/activity/bridge.js'), 'utf8'),
-  clientContext,
-);
-const bridge = clientContext.EiloActivityBridge;
-let statuses = [],
-  observed = [],
-  activePort;
-clientContext.globalThis.chrome = {
-  runtime: {
-    connect(id, options) {
-      assert.equal(id, 'a'.repeat(32));
-      assert.equal(JSON.stringify(options), JSON.stringify({ name: 'eilo-metadata-v1' }));
-      activePort = port();
-      return activePort;
+async function bridgeChecks() {
+  const clientContext = { globalThis: {}, Date, console, setTimeout, clearTimeout };
+  clientContext.globalThis = clientContext;
+  vm.runInNewContext(
+    fs.readFileSync(path.join(__dirname, '../web/activity/bridge.js'), 'utf8'),
+    clientContext,
+  );
+  const bridge = clientContext.EiloActivityBridge;
+  let statuses = [],
+    observed = [],
+    activePort,
+    granted = true;
+  clientContext.globalThis.chrome = {
+    runtime: {
+      connect(id, options) {
+        assert.equal(id, 'a'.repeat(32));
+        assert.equal(JSON.stringify(options), JSON.stringify({ name: 'eilo-metadata-v1' }));
+        activePort = port();
+        const connected = activePort;
+        queueMicrotask(() => connected.onMessage.emit({ type: 'ready', protocol: 2, granted }));
+        return activePort;
+      },
     },
-  },
-};
-assert.equal(
-  JSON.stringify(
-    bridge.connect(
-      'a'.repeat(32),
-      'client-123',
-      (nonce, value) => observed.push([nonce, value]),
-      (connected, reason) => statuses.push([connected, reason]),
+  };
+  assert.equal(
+    JSON.stringify(
+      await bridge.connect(
+        'a'.repeat(32),
+        'client-123',
+        (nonce, value) => observed.push([nonce, value]),
+        (connected, reason) => statuses.push([connected, reason]),
+      ),
     ),
-  ),
-  JSON.stringify({ ok: true }),
-);
-assert.equal(
-  bridge.update({
-    sample_request: { nonce: 'nonce-123', client_id: 'client-123', expires_at: Date.now() + 8000 },
-  }),
-  true,
-);
-assert.equal(
-  bridge.update({
-    sample_request: { nonce: 'nonce-123', client_id: 'client-123', expires_at: Date.now() + 8000 },
-  }),
-  false,
-  'one request per nonce',
-);
-assert.equal(
-  bridge.update({
-    sample_request: { nonce: 'nonce-456', client_id: 'client-123', expires_at: Date.now() + 8000 },
-  }),
-  true,
-  'a newer request replaces an unanswered nonce',
-);
-activePort.onMessage.emit({
-  type: 'observation',
-  nonce: 'nonce-123',
-  observation: { kind: 'approved_study_context', origin: 'https://leetcode.com', title: 'Two Sum' },
-});
-assert.equal(observed.length, 0, 'a stale response cannot accumulate or be delivered');
-activePort.onMessage.emit({
-  type: 'observation',
-  nonce: 'nonce-456',
-  observation: { kind: 'approved_study_context', origin: 'https://leetcode.com', title: 'Two Sum' },
-});
-assert.equal(observed.length, 1);
-activePort.onMessage.emit({
-  type: 'observation',
-  nonce: 'nonce-456',
-  observation: { kind: 'approved_study_context', origin: 'https://leetcode.com', title: 'Two Sum' },
-});
-assert.equal(observed.length, 1, 'duplicate observation dropped');
-activePort.onDisconnect.emit();
-assert.deepEqual(statuses.at(-1), [false, 'extension_disconnected']);
-assert.equal(
-  JSON.stringify(
-    bridge.connect(
-      'bad',
-      'client-123',
-      () => {},
-      () => {},
+    JSON.stringify({ ok: true }),
+  );
+  assert.equal(
+    bridge.update({
+      sample_request: {
+        nonce: 'nonce-123',
+        client_id: 'client-123',
+        expires_at: Date.now() + 8000,
+      },
+    }),
+    true,
+  );
+  assert.equal(
+    bridge.update({
+      sample_request: {
+        nonce: 'nonce-123',
+        client_id: 'client-123',
+        expires_at: Date.now() + 8000,
+      },
+    }),
+    false,
+    'one request per nonce',
+  );
+  assert.equal(
+    bridge.update({
+      sample_request: {
+        nonce: 'nonce-456',
+        client_id: 'client-123',
+        expires_at: Date.now() + 8000,
+      },
+    }),
+    true,
+    'a newer request replaces an unanswered nonce',
+  );
+  activePort.onMessage.emit({
+    type: 'observation',
+    nonce: 'nonce-123',
+    observation: {
+      kind: 'approved_study_context',
+      origin: 'https://leetcode.com',
+      title: 'Two Sum',
+    },
+  });
+  assert.equal(observed.length, 0, 'a stale response cannot accumulate or be delivered');
+  activePort.onMessage.emit({
+    type: 'observation',
+    nonce: 'nonce-456',
+    observation: {
+      kind: 'approved_study_context',
+      origin: 'https://leetcode.com',
+      title: 'Two Sum',
+    },
+  });
+  assert.equal(observed.length, 1);
+  activePort.onMessage.emit({
+    type: 'observation',
+    nonce: 'nonce-456',
+    observation: {
+      kind: 'approved_study_context',
+      origin: 'https://leetcode.com',
+      title: 'Two Sum',
+    },
+  });
+  assert.equal(observed.length, 1, 'duplicate observation dropped');
+  activePort.onDisconnect.emit();
+  assert.deepEqual(statuses.at(-1), [false, 'extension_disconnected']);
+  assert.equal(
+    JSON.stringify(
+      await bridge.connect(
+        'bad',
+        'client-123',
+        () => {},
+        () => {},
+      ),
     ),
-  ),
-  JSON.stringify({ ok: false, reason: 'invalid_connection' }),
-);
-Promise.all([backgroundChecks, portChecks])
+    JSON.stringify({ ok: false, reason: 'invalid_connection' }),
+  );
+  const ready = await bridge.check('a'.repeat(32));
+  assert.equal(ready.ok, true);
+  assert.equal(activePort.posted.length, 0, 'readiness check requests no browsing samples');
+  granted = false;
+  const blocked = await bridge.connect(
+    'a'.repeat(32),
+    'client-123',
+    () => {},
+    () => {},
+  );
+  assert.equal(
+    blocked.reason,
+    'browser_permission_required',
+    'old per-site grants do not authorize broad sharing',
+  );
+  assert.equal(activePort.posted.length, 0);
+  assert.equal(
+    bridge.update({
+      sample_request: {
+        nonce: 'nonce-999',
+        client_id: 'client-123',
+        expires_at: Date.now() + 8000,
+      },
+    }),
+    false,
+  );
+}
+Promise.all([backgroundChecks, portChecks, bridgeChecks()])
   .then(() => process.stdout.write('activity extension and bridge checks passed\n'))
   .catch((error) => {
     console.error(error);

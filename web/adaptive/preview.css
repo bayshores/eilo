@@ -1,0 +1,97 @@
+.adaptive-preview {
+  min-height: 100%;
+  padding: 0 0 12px;
+  color: var(--ink, #f3f2f4);
+  font-family:
+    'IBM Plex Sans',
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.adaptive-preview__header {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 6px;
+}
+.adaptive-preview__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.adaptive-preview__header p {
+  margin: 2px 0 0;
+  color: var(--muted, #b6b6bd);
+  font-size: 12px;
+}
+.adaptive-preview__controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.adaptive-preview__select,
+.adaptive-preview__button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  padding: 6px 9px;
+  color: var(--ink, #f3f2f4);
+  background: #303238;
+  font: inherit;
+  font-size: 12px;
+}
+.adaptive-preview__select {
+  background: #25272c;
+}
+.adaptive-preview__button:hover {
+  background: #41434a;
+}
+.adaptive-preview__button:disabled {
+  opacity: 0.45;
+}
+.adaptive-preview__exit {
+  color: #261f1b;
+  background: var(--peach, #fac399);
+}
+.adaptive-preview__reduced {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted, #b6b6bd);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.adaptive-preview__reduced input {
+  accent-color: var(--peach, #fac399);
+}
+.adaptive-preview__status {
+  min-height: 18px;
+  margin: 0 0 6px;
+  color: var(--muted, #b6b6bd);
+  font-size: 12px;
+}
+body:has(.adaptive-preview-host:not([hidden])) .home-header {
+  display: none;
+}
+/* The catalog proof keeps every example reachable in a short window. */
+body:has(.adaptive-preview-host:not([hidden])) .board-scroll {
+  overflow-y: auto;
+}
+/* The preview uses the production Home components without a second skin. */
+.adaptive-preview__board .adaptive-surface__title {
+  margin-bottom: 20px;
+}
+@media (max-width: 760px) {
+  .adaptive-preview__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .adaptive-preview__controls {
+    justify-content: flex-start;
+  }
+}

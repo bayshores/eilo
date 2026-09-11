@@ -6,3 +6,6 @@
 # Preserve upstream license notices byte-for-byte, including their line endings.
 **/*-OFL.txt -text -whitespace
 third_party/* -text -whitespace
+
+# Preserve the pinned upstream distributions, including their original whitespace.
+web/vendor/gsap/*.min.js -text -whitespace linguist-vendored

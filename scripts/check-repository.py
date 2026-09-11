@@ -7,30 +7,20 @@ import subprocess
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+from check_source_boundary import (
+    check_worktree_and_index,
+    load_policy,
+    private_reason,
+    worktree_path_reason,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
-PRIVATE_PARTS = {
-    ".runtime",
-    ".state",
-    ".tmp",
-    ".venv",
-    ".agents",
-    ".codex",
-    "node_modules",
-    "__pycache__",
-}
-PRIVATE_NAMES = {"AGENTS.md", ".mcp.json", "mcp.json", ".DS_Store"}
-SECRET = re.compile(
-    r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
-    r"|\bgh[pousr]_[A-Za-z0-9]{30,}\b"
-    r"|\bgithub_pat_[A-Za-z0-9_]{40,}\b"
-    r"|\bsk-(?:proj-)?[A-Za-z0-9_-]{30,}\b"
-    r"|\bAIza[A-Za-z0-9_-]{35}\b"
-)
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^\s)]+)(?:\s+\"[^\"]*\")?\)")
 MODULE_REFERENCE = re.compile(r"(?:from\s*|import\s*(?:\(\s*)?|new URL\(\s*)['\"]([^'\"]+)['\"]")
 STYLE_REFERENCE = re.compile(r"url\(\s*['\"]?([^)'\"\s]+)")
 HTML_REFERENCE = re.compile(r"(?:src|href)=[\"']([^\"']+)[\"']")
+VENDOR_MINIFIED = {"vendor/gsap/gsap.min.js", "vendor/gsap/Flip.min.js"}
 
 
 def source_files() -> list[Path]:
@@ -46,11 +36,14 @@ def source_files() -> list[Path]:
 def main() -> int:
     errors = []
     files = source_files()
+    boundary_policy = load_policy(ROOT)
     for path in files:
         relative = path.relative_to(ROOT)
-        private_env = ".env" in path.name and not path.name.endswith(".example")
-        if set(relative.parts) & PRIVATE_PARTS or path.name in PRIVATE_NAMES or private_env:
-            errors.append(f"Private or generated file included in source: {relative}")
+        if private_reason(relative, boundary_policy):
+            # The boundary validator reports this from the Git index; never read
+            # private local content while performing public-source checks.
+            continue
+        if worktree_path_reason(ROOT, relative, boundary_policy):
             continue
         if path.suffix in {".png", ".icns", ".woff2"}:
             continue
@@ -58,8 +51,6 @@ def main() -> int:
             text = path.read_text()
         except UnicodeDecodeError:
             continue
-        if SECRET.search(text):
-            errors.append(f"Possible credential in {relative}; inspect locally before publishing")
         if path.suffix == ".md":
             for target in MARKDOWN_LINK.findall(text):
                 parsed = urlsplit(target.strip("<>"))
@@ -69,6 +60,7 @@ def main() -> int:
                 if not destination.exists():
                     errors.append(f"Broken documentation link: {relative} -> {target}")
 
+    errors.extend(check_worktree_and_index(ROOT))
     manifest = json.loads((WEB / "asset-manifest.json").read_text())
     home = manifest["home"]
     published = set(home) | set(manifest["routes"].values())
@@ -98,6 +90,10 @@ def main() -> int:
         relative = path.relative_to(WEB).as_posix()
         if relative not in published:
             errors.append(f"Browser asset missing from manifest: {relative}")
+            continue
+        # These exact checked-in files are verified above as served assets. Their minified
+        # implementation contains import-like strings, not browser module references.
+        if relative in VENDOR_MINIFIED:
             continue
         if path.suffix == ".woff2":
             continue

@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+OUTPUT_DIR="$EILO_ROOT/.runtime/eilo-context-collector"
+OUTPUT="$OUTPUT_DIR/EiloContextCollector"
+
+mkdir -p "$OUTPUT_DIR" "$EILO_ROOT/.tmp/swift-module-cache"
+cd "$EILO_ROOT"
+xcrun swiftc -module-cache-path "$EILO_ROOT/.tmp/swift-module-cache" \
+  -framework AppKit -framework ApplicationServices -framework ScreenCaptureKit -framework Vision \
+  activity/native/ContextCollectorPolicy.swift activity/native/EiloContextCollector.swift -o "$OUTPUT"
+printf '%s\n' "$OUTPUT"

@@ -20,6 +20,7 @@ from pathlib import Path
 
 from aiohttp import web
 
+from app.account_service import AccountService
 from app.briefing import TOOL_NAMES, Briefing
 from app.chat_catalog import (
     CONVERSATION_KEYS,
@@ -30,9 +31,13 @@ from app.chat_catalog import (
     snapshot_catalog,
 )
 from app.connections import Connections
+from app.context_analysis import analyze_context
+from app.context_capture import ContextCapture
+from app.context_service import ContextService
+from app.context_store import ContextStoreError
 from app.errors import ChatError
 from app.google_calendar import GoogleCalendarConnection
-from app.paths import META, ROOT
+from app.paths import META, ROOT, RUNTIME
 from app.persistence import write_private
 from app.proactive import ProactiveLoop
 from app.runtime_contract import (
@@ -75,6 +80,7 @@ class LocalChat:
         self.error: str | None = None
         self.blocked = False
         self.last_audit: dict = {}
+        self._new_profile = not self.meta_path.exists()
         if self.meta_path.exists():
             self.meta = json.loads(self.meta_path.read_text())
             if not re.fullmatch(r"eilo-ui-[a-f0-9]{32}", self.meta.get("title", "")):
@@ -102,11 +108,26 @@ class LocalChat:
         self.briefing = Briefing(self, ROOT if meta_path == META else meta_path.parent / "calendar")
         self.proactive = ProactiveLoop(
             self,
-            helper=ROOT
-            / ".runtime/eilo-activity-helper/eilo-activity-helper.app/Contents/MacOS/EiloActivityHelper",
+            helper=RUNTIME
+            / "eilo-activity-helper/eilo-activity-helper.app/Contents/MacOS/EiloActivityHelper",
         )
         self.connections = Connections(
             self, ROOT if meta_path == META else meta_path.parent / "calendar"
+        )
+        self.context = ContextService(
+            self.meta_path.parent / "context",
+            get_tasks=lambda: public_state(self.meta["tasks"])["tasks"],
+            changed=self.changed,
+            analyze=analyze_context,
+            is_human_busy=lambda: self.busy,
+        )
+        self.context_capture = ContextCapture(
+            self.meta_path.parent / "context",
+            self.context,
+            RUNTIME / "eilo-context-collector/EiloContextCollector",
+        )
+        self.account = AccountService(
+            changed=self.changed, connected=self.account_connected, auto_status=meta_path == META
         )
         for event in self.proactive.state["events"].values():
             if event.get("status") == "running":
@@ -114,6 +135,11 @@ class LocalChat:
 
     def save_meta(self) -> None:
         write_private(self.meta_path, self.meta)
+
+    def account_connected(self):
+        if self.error and "saved subscription sign-in" in self.error:
+            self.error, self.blocked = None, False
+            self.changed()
 
     @staticmethod
     def fresh_meta() -> dict:
@@ -155,6 +181,10 @@ class LocalChat:
 
     def snapshot(self) -> dict:
         pending = self.meta.get("pending_message")
+        try:
+            adaptive = self.context.snapshot()
+        except (ContextStoreError, OSError):
+            adaptive = self.context.memory_unavailable()
         return {
             "status": "busy" if self.busy else "error" if self.error else "ready",
             "can_send": not self.busy
@@ -174,6 +204,7 @@ class LocalChat:
             "error": self.error,
             "conversation_id": self.meta.get("session_id"),
             "model": MODEL,
+            "account": self.account.snapshot(),
             "request_id": self.meta.get("request_id"),
             "revision": self.revision,
             "accepted_request_ids": self.meta["accepted_requests"],
@@ -182,6 +213,10 @@ class LocalChat:
             else None,
             "accountability": self.proactive.snapshot(),
             "reply_stream": self.reply_stream,
+            "adaptive": adaptive,
+            "capture_status": adaptive["capture_status"],
+            "current_work_context": adaptive["current_work_context"],
+            "home_composition": adaptive["home_composition"],
         }
 
     async def command(  # noqa: ASYNC109 - timeout bounds the spawned local Hermes process.
@@ -199,7 +234,18 @@ class LocalChat:
         # Credentials come from Hermes's private home, never inherited provider variables.
         env = {
             key: os.environ[key]
-            for key in ("HOME", "PATH", "USER", "LOGNAME", "LANG", "LC_ALL", "TZ")
+            for key in (
+                "HOME",
+                "PATH",
+                "USER",
+                "LOGNAME",
+                "LANG",
+                "LC_ALL",
+                "TZ",
+                "EILO_DATA_HOME",
+                "EILO_RUNTIME_HOME",
+                "EILO_CACHE_HOME",
+            )
             if key in os.environ
         }
         if human_context is not None:
@@ -374,6 +420,10 @@ class LocalChat:
     async def initialize(self) -> None:
         try:
             check_config()
+            if self._new_profile and self.meta_path == META:
+                code, out, _ = await self.command(["--initialize-history"], launcher="hermes-human")
+                if code or json.loads(out).get("ready") is not True:
+                    raise ChatError("The local conversation store could not be initialized.")
             await self.refresh()
             await self.recover_publication()
             if self.meta_path == META and self.meta.get("workspace_import_version", 0) < 2:
@@ -436,6 +486,7 @@ class LocalChat:
             self.error = None
             self.reply_stream = None
             self.proactive.on_human(text, request_id)
+            self.context.on_human(text)
             catalog = self.meta["chat_catalog"]
             active = next(c for c in catalog["chats"] if c["id"] == catalog["active_chat_id"])
             if active["name"] == "New chat" and not self.meta.get("started"):
@@ -466,6 +517,7 @@ class LocalChat:
             self.task = asyncio.create_task(
                 self.serial_human_turn(text, began, timing), name="user-requested-hermes-turn"
             )
+            self.task.add_done_callback(lambda _: self.context.resume_after_human())
             self.changed()
             return self.snapshot()
 
@@ -859,6 +911,7 @@ class LocalChat:
                 self.changed()
                 return self.snapshot()
             self._catalog_changing = True
+            self.context.on_chat_change()
             self.changed()
             try:
                 self.proactive.invalidate()
@@ -900,6 +953,9 @@ class LocalChat:
             return self.snapshot()
 
     async def close(self) -> None:
+        await self.account.close()
+        await self.context_capture.close()
+        await self.context.aclose()
         await self.connections.close()
         await self.proactive.close()
         self.changed()

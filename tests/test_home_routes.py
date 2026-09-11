@@ -105,6 +105,9 @@ class HomeRouteTests(unittest.IsolatedAsyncioTestCase):
             "/home/goals/data.js",
             "/home/connections/calendar.js",
             "/home/connections/calendar.css",
+            "/home/activity/setup.js",
+            "/home/activity/setup-page.js",
+            "/home/activity/setup.css",
             "/home/calendar/agenda.js",
             "/home/assets/fonts/ibm-plex-sans.woff2",
         ):

@@ -59,6 +59,7 @@ between fixture-based checks and live manual verification.
 - [Product direction](docs/product.md)
 - [User guide](docs/user-guide.md)
 - [Security and privacy boundaries](docs/security.md)
+- [Source code and private local data](docs/data-boundary.md)
 
 ## Contribution principles
 

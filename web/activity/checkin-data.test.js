@@ -37,7 +37,7 @@ test('permission and activation are distinct and the user sees the current block
   assert.match(waiting.description, /sharing is off/);
   assert.equal(checkinView(view({ enabled: false, phase: 'off' })).chip, 'Check-ins off');
   assert.match(checkinView(view({ phase: 'on_break' })).description, /break/);
-  assert.match(checkinView(view({ phase: 'deciding' })).description, /decide to leave you/);
+  assert.match(checkinView(view({ phase: 'deciding' })).description, /may stay quiet/i);
 });
 test('history contains actual validated outcomes in newest-first order with optional completion', () => {
   const result = checkinView(
@@ -74,5 +74,5 @@ test('earliest reevaluation time is optional, finite, and never a promised messa
   assert.equal(checkinView(view({ phase: 'cooldown', eligible_at: 500 })).eligibleAt, 500);
   for (const t of [0, -1, NaN, Infinity, '500'])
     assert.equal(checkinView(view({ eligible_at: t })).eligibleAt, null);
-  assert.match(checkinView(view({ phase: 'eligible' })).description, /decide whether/);
+  assert.match(checkinView(view({ phase: 'eligible' })).description, /may prompt/);
 });

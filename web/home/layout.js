@@ -24,6 +24,14 @@ export const CATALOG = Object.freeze({
     title: 'Notes',
     sizes: { small: { w: 3, h: 2 }, medium: { w: 4, h: 2 }, large: { w: 6, h: 3 } },
   },
+  tracking: {
+    title: 'Tracking',
+    sizes: { small: { w: 4, h: 2 }, medium: { w: 4, h: 3 }, large: { w: 6, h: 3 } },
+  },
+  usage: {
+    title: 'Browser usage',
+    sizes: { small: { w: 4, h: 2 }, medium: { w: 8, h: 2 }, large: { w: 8, h: 3 } },
+  },
 });
 
 export const MODES = Object.freeze({ wide: 12, compact: 6, stacked: 1 });
@@ -127,6 +135,28 @@ export function withConversationDock(rawState) {
       );
     }
   }
+  return next;
+}
+
+/** Add the requested source widgets to a fresh/untouched Home, preserving custom layouts. */
+export function withTrackingWidgets(rawState) {
+  const next = normalizeState(rawState);
+  const untouched = normalizeState(withConversationDock(createDefaultState()));
+  if (JSON.stringify(next) !== JSON.stringify(untouched)) return next;
+  next.widgets = [
+    { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+    { id: 'goals-1', type: 'goals', size: 'small' },
+    { id: 'tracking-1', type: 'tracking', size: 'small' },
+    { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+    { id: 'usage-1', type: 'usage', size: 'medium' },
+  ];
+  next.positions.wide = [
+    { id: 'today-1', x: 0, y: 0 },
+    { id: 'goals-1', x: 4, y: 0 },
+    { id: 'tracking-1', x: 8, y: 0 },
+    { id: 'progress-1', x: 0, y: 2 },
+    { id: 'usage-1', x: 4, y: 2 },
+  ];
   return next;
 }
 

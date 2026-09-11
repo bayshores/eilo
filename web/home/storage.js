@@ -84,9 +84,14 @@ function record(raw) {
 export function normalizeHomePreferences(raw = {}) {
   const value = record(raw);
   return {
-    name: typeof value.name === 'string' && value.name.trim() ? value.name.slice(0, 40) : 'Sean',
+    name: typeof value.name === 'string' && value.name.trim() ? value.name.slice(0, 40) : 'You',
     pin: value.pin === true,
     reducedMotion: value.reducedMotion === true,
+    widgetPins: Array.isArray(value.widgetPins)
+      ? value.widgetPins
+          .filter((id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id))
+          .slice(0, 24)
+      : [],
   };
 }
 

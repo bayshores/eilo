@@ -2,7 +2,7 @@
 
 Implemented and checked September 9, 2026.
 
-Sean asked to delete activities and have more control over tasks. This adds optional direct corrections to the existing Goals and Activity views. Conversation and permitted activity remain the intended source of routine upkeep; this does not turn setup or progress forms into a required daily workflow.
+Optional direct corrections in Goals and Activity provide control over tasks and observed records. Conversation and permitted activity remain the intended source of routine upkeep; this does not turn setup or progress forms into a required daily workflow.
 
 ## Goals
 
@@ -36,7 +36,7 @@ Menus use the browser's popover top layer so a scrollable goal or Activity panel
 - All 73 frontend tests passed, including safe quantity correction order, Trash projection and direct-control draft/concurrency behavior.
 - A disposable local browser fixture verified inline add/edit, target/progress corrections, cancellation and Undo, delete/Undo, completed-goal Trash across reload, restoration of prior status/progress, and Activity removal/restoration. No real user record was changed for those checks.
 - At 860 by 600, the document stayed within the viewport. A menu-clipping defect found with the status notice present was corrected; the full menu then extended visibly past its panel boundary. Outside-click dismissal was checked in the browser. The temporary viewport and fixture were removed afterward.
-- The running Electron app was quit through its native menu, its owned service stopped, and the app reopened with the updated source. Conversation, message and task fingerprints matched before/after. The new controls were visible in the native app; Escape dismissed the menu and returned focus to its button.
-- No model inference, microphone capture, real activity collection, new grant or notification enablement was performed for these changes. Notification delivery and the full proactive coordinator remain separate work. This is a locally verified source update, not a new public release.
+- Native lifecycle verification covers close/reopen, owned-service cleanup, state preservation, visible controls, and Escape focus return using isolated state.
+- No model inference, microphone capture, activity collection, new grant, or notification enablement is implied by these controls. Notification delivery and the proactive coordinator remain separate work.
 
 The earlier navigation checkpoint's lack of task forms is superseded by this explicitly requested optional editor. The broader navigation composition and automatic-upkeep direction remain current. See [navigation](navigation-workspaces.md) and [current project decisions](../product.md).

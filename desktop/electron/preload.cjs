@@ -9,6 +9,24 @@ if (
   contextBridge.exposeInMainWorld(
     'eiloDesktop',
     Object.freeze({
+      openActivityConnection() {
+        return ipcRenderer.invoke('eilo:open-activity-connection');
+      },
+      openAccountAuthorization() {
+        return ipcRenderer.invoke('eilo:account-authorization');
+      },
+      openContextSource(contextId, sourceId) {
+        return [contextId, sourceId].every(
+          (id) => typeof id === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(id),
+        )
+          ? ipcRenderer.invoke('eilo:context-source', contextId, sourceId)
+          : Promise.resolve(false);
+      },
+      openContextPermission(kind) {
+        return ['text', 'visual'].includes(kind)
+          ? ipcRenderer.invoke('eilo:context-permission', kind)
+          : Promise.resolve(false);
+      },
       openGoogleAuthorization(url) {
         return typeof url === 'string' && url.length < 5000
           ? ipcRenderer.invoke('eilo:google-authorization', url)

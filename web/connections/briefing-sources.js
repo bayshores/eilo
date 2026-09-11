@@ -38,11 +38,9 @@ export function formatCheckedAt(value) {
 }
 
 function messageFor(error) {
-  if (error?.status === 401) return 'Your local session has expired. Reopen eïlo, then try again.';
-  if (error?.status === 409)
-    return 'This changed elsewhere. The latest connection state is shown below.';
-  if (error?.name === 'AbortError')
-    return 'That took too long. Try again when the connection is ready.';
+  if (error?.status === 401) return 'Your session expired. Reopen eïlo, then try again.';
+  if (error?.status === 409) return 'This changed elsewhere. Review the latest state below.';
+  if (error?.name === 'AbortError') return 'That took too long. Try again when ready.';
   if (typeof navigator !== 'undefined' && !navigator.onLine)
     return 'You appear to be offline. Reconnect, then try again.';
   return error?.message || 'Briefing sources could not be reached. Try again.';
@@ -205,13 +203,7 @@ export function mountBriefingSources(
     heading.append(title);
     content.append(heading);
     if (!snapshot) {
-      content.append(
-        el(
-          'p',
-          'briefing-sources__copy',
-          'Checking whether briefing sources are available in this build.',
-        ),
-      );
+      content.append(el('p', 'briefing-sources__copy', 'Checking connected sources…'));
       const actions = el('div', 'briefing-sources__actions');
       actions.append(button('Check connection', () => refresh()));
       content.append(actions);
@@ -220,7 +212,7 @@ export function mountBriefingSources(
         el(
           'p',
           'briefing-sources__copy',
-          'Briefing-source setup is not available in this build. You can keep using eïlo without connected sources.',
+          'Connected sources are unavailable here. You can keep using eïlo.',
         ),
       );
     } else {
@@ -228,7 +220,7 @@ export function mountBriefingSources(
         const description = el(
           'p',
           'briefing-sources__copy',
-          'Choose which connected information eïlo may use when answering or preparing a briefing.',
+          'Turn on only the sources you want eïlo to use in answers.',
         );
         content.append(description);
       }
@@ -240,13 +232,7 @@ export function mountBriefingSources(
       inboxTitle.id = 'briefing-inbox-title';
       inbox.append(inboxTitle);
       if (snapshot.authorizing) {
-        inbox.append(
-          el(
-            'p',
-            'briefing-sources__copy',
-            'Finish Google sign-in in your system browser, then return here.',
-          ),
-        );
+        inbox.append(el('p', 'briefing-sources__copy', 'Finish Google sign-in, then return here.'));
         const actions = el('div', 'briefing-sources__actions');
         if (authorizationUrl)
           actions.append(
@@ -270,10 +256,10 @@ export function mountBriefingSources(
             'p',
             'briefing-sources__copy',
             reconnecting
-              ? 'Reconnect this inbox only if you want relevant email excerpts used for answers and briefings.'
+              ? 'Reconnect this inbox to use relevant email excerpts in answers and briefings.'
               : snapshot.accounts.length
-                ? 'Connect another inbox only if you want relevant email excerpts used for answers and briefings.'
-                : 'Connect an inbox only if you want relevant email excerpts used for answers and briefings.',
+                ? 'Connect another inbox to use relevant email excerpts in answers and briefings.'
+                : 'Connect an inbox to use relevant email excerpts in answers and briefings.',
           ),
         );
         const consentLabel = el('label', 'briefing-sources__consent');
@@ -290,7 +276,7 @@ export function mountBriefingSources(
           el(
             'span',
             '',
-            'Use relevant email excerpts in answers. Luna processes them through your Codex sign-in; completed answers are saved in this conversation.',
+            'Allow email excerpts in Luna answers through your Codex sign-in. Answers are saved in this conversation.',
           ),
         );
         inbox.append(consentLabel);
@@ -346,7 +332,7 @@ export function mountBriefingSources(
               input.dataset.focus,
             ),
           );
-          toggle.append(input, el('span', '', 'Use inbox'));
+          toggle.append(input, el('span', '', 'Use in answers and briefings'));
           card.append(copy, toggle);
           const actions = el('div', 'briefing-sources__account-actions');
           if (account.state === 'reauth_required')
@@ -363,7 +349,7 @@ export function mountBriefingSources(
               el(
                 'p',
                 '',
-                'Remove this inbox from this Mac? Google app permission is unchanged, and your existing Calendar connection stays in place.',
+                'Remove this inbox from this Mac? Google permission and your Calendar connection stay unchanged.',
               ),
             );
             const yes = button(
@@ -426,14 +412,14 @@ export function mountBriefingSources(
         mutate('set_calendar_enabled', { enabled: calendarInput.checked }, 'calendar-enabled'),
       );
       const calendarCopy = el('span');
-      calendarCopy.append(el('strong', '', 'Use selected calendars in answers'));
+      calendarCopy.append(el('strong', '', 'Use calendars in answers'));
       calendarCopy.append(
         el(
           'small',
           '',
           calendar.available && calendar.selected_count
-            ? `${calendar.selected_count} selected calendar${calendar.selected_count === 1 ? '' : 's'}${calendar.account_label ? ` · ${calendar.account_label}` : ''}. Relevant event details are sent to Luna for answers and briefings.`
-            : 'Connect Calendar and select at least one calendar before you can use it in answers.',
+            ? `${calendar.selected_count} selected calendar${calendar.selected_count === 1 ? '' : 's'}${calendar.account_label ? ` · ${calendar.account_label}` : ''}. Relevant events go to Luna for answers and briefings.`
+            : 'Connect Calendar and select a calendar first.',
         ),
       );
       calendarLabel.append(calendarInput, calendarCopy);

@@ -8,7 +8,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
-os.environ["HERMES_HOME"] = str(root / ".state/hermes")
+os.environ["HERMES_HOME"] = str(Path(os.environ.get("EILO_DATA_HOME", root / ".state")) / "hermes")
 from app.connections import validate_mcp
 
 

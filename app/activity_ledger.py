@@ -1,14 +1,15 @@
-"""Conservative local record of observed, approved study-site sessions."""
+"""Conservative local record of observed, consented browser-context sessions."""
 
 from __future__ import annotations
 
+import math
 import re
 import time
 import uuid
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from app.accountability import DEFAULT_HOSTS
+from app.accountability import canonical_origin
 from app.tasks import TaskConflict, TaskError
 
 MAX_GAP_SECONDS = 12
@@ -16,7 +17,6 @@ RETENTION_SECONDS = 7 * 24 * 60 * 60
 MAX_SESSIONS = 128
 MAX_RELATED_TASKS = 32
 MAX_CONTROL_RECEIPTS = 256
-APPROVED_ORIGINS = frozenset(f"https://{host}" for host in DEFAULT_HOSTS)
 
 
 class ActivityLedger:
@@ -97,11 +97,46 @@ class ActivityLedger:
         if not isinstance(observation, dict) or observation.get("kind") != "approved_study_context":
             return None
         origin = observation.get("origin")
-        return origin if origin in APPROVED_ORIGINS else None
+        try:
+            return canonical_origin(origin)
+        except ValueError:
+            return None
 
     @staticmethod
     def _day(stamp):
         return datetime.fromtimestamp(stamp, UTC).date().isoformat()
+
+    @staticmethod
+    def _nonnegative_seconds(value):
+        """Return a persisted duration only when it is safe to aggregate."""
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        if not math.isfinite(value) or value < 0:
+            return None
+        return value
+
+    @staticmethod
+    def _session_origin(session):
+        try:
+            return canonical_origin(session.get("origin"))
+        except (AttributeError, ValueError):
+            return None
+
+    def _record_gap(self, session, start, end):
+        """Allocate a newly sampled bounded interval to each UTC calendar day."""
+        observed = end - start
+        session["observed_seconds"] += observed
+        buckets = session["observed_by_utc_day"]
+        cursor = start
+        while cursor < end:
+            current = datetime.fromtimestamp(cursor, UTC)
+            next_midnight = datetime.combine(
+                current.date() + timedelta(days=1), datetime.min.time(), UTC
+            ).timestamp()
+            segment_end = min(end, next_midnight)
+            day = current.date().isoformat()
+            buckets[day] = buckets.get(day, 0) + (segment_end - cursor)
+            cursor = segment_end
 
     def _open(self, origin, now):
         session = {
@@ -142,9 +177,7 @@ class ActivityLedger:
             gap = now - active["last_seen"]
             active["sample_count"] += 1
             if 0 < gap <= MAX_GAP_SECONDS:
-                active["observed_seconds"] += gap
-                day = self._day(active["last_seen"])
-                active["observed_by_utc_day"][day] = active["observed_by_utc_day"].get(day, 0) + gap
+                self._record_gap(active, active["last_seen"], now)
             if now > active["last_seen"]:
                 active["last_seen"] = now
         self._trim(now)
@@ -315,9 +348,44 @@ class ActivityLedger:
         for session in self._sessions():
             if "trashed_at" in session:
                 continue
-            seconds = session.get("observed_by_utc_day", {}).get(today, 0)
-            if seconds:
-                totals[session["origin"]] = totals.get(session["origin"], 0) + seconds
+            buckets = session.get("observed_by_utc_day")
+            seconds = (
+                self._nonnegative_seconds(buckets.get(today)) if isinstance(buckets, dict) else None
+            )
+            origin = self._session_origin(session)
+            if seconds and origin:
+                totals[origin] = totals.get(origin, 0) + seconds
+
+        end_day = datetime.fromtimestamp(now, UTC).date()
+        days = [end_day - timedelta(days=offset) for offset in range(6, -1, -1)]
+        dates = [day.isoformat() for day in days]
+        usage_by_day = {day: 0 for day in dates}
+        usage_by_origin = {}
+        for session in self._sessions():
+            if "trashed_at" in session:
+                continue
+            origin = self._session_origin(session)
+            buckets = session.get("observed_by_utc_day")
+            budget = self._nonnegative_seconds(session.get("observed_seconds"))
+            if not origin or not isinstance(buckets, dict) or budget is None:
+                continue
+            # Saved bucket data is treated as untrusted. A corrupt aggregate cannot
+            # turn one session into more observed time than its bounded total.
+            remaining = budget
+            for day in dates:
+                seconds = self._nonnegative_seconds(buckets.get(day))
+                if seconds is None or not seconds or remaining <= 0:
+                    continue
+                admitted = min(seconds, remaining)
+                usage_by_day[day] += admitted
+                usage_by_origin[origin] = usage_by_origin.get(origin, 0) + admitted
+                remaining -= admitted
+        usage_sites = [
+            {"origin": origin, "observed_seconds": seconds}
+            for origin, seconds in sorted(
+                usage_by_origin.items(), key=lambda item: (-item[1], item[0])
+            )
+        ]
         active = self._active()
         visible = [session for session in self._sessions() if "trashed_at" not in session]
         trashed = [session for session in self._sessions() if "trashed_at" in session]
@@ -329,4 +397,11 @@ class ActivityLedger:
             "trash_sessions": [self._public(session) for session in trashed],
             "active_session": self._public(active) if active else None,
             "today_observed_seconds_by_origin": totals,
+            "usage": {
+                "timezone": "UTC",
+                "scope": "retained_sessions",
+                "days": [{"date": day, "observed_seconds": usage_by_day[day]} for day in dates],
+                "sites": usage_sites,
+                "total_observed_seconds": sum(usage_by_day.values()),
+            },
         }

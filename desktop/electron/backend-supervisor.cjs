@@ -25,6 +25,7 @@ function createBackendSupervisor(options) {
     fetch = globalThis.fetch,
     environment = process.env,
     onState = () => {},
+    extraEnvironment = {},
     sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
     abortSignalTimeout = AbortSignal.timeout.bind(AbortSignal),
     requestTimeoutMs = 2_000,
@@ -32,7 +33,11 @@ function createBackendSupervisor(options) {
     setTimeoutFn = setTimeout,
     clearTimeoutFn = clearTimeout,
     port = DEFAULT_PORT,
-    attempts = 20,
+    // Cold managed Python startup can include runtime initialization before the
+    // loopback listener is available. Keep the default readiness budget at
+    // roughly 30 seconds while retaining injectable attempt/delay budgets for
+    // focused tests and constrained callers.
+    attempts = 120,
     retryDelayMs = 250,
   } = options || {};
 
@@ -75,7 +80,9 @@ function createBackendSupervisor(options) {
     if (actualRoot !== expectedRoot)
       throw new Error('The configured eïlo checkout is not the approved canonical checkout.');
     const script = path.join(actualRoot, 'scripts', 'local-chat');
-    const runtime = path.join(actualRoot, '.runtime', 'venv', 'bin', 'python');
+    const runtime = extraEnvironment.EILO_RUNTIME_HOME
+      ? path.join(extraEnvironment.EILO_RUNTIME_HOME, 'run-python')
+      : path.join(actualRoot, '.runtime', 'venv', 'bin', 'python');
     try {
       if (!fs.statSync(script).isFile() || !fs.statSync(runtime).isFile())
         throw new Error('missing');
@@ -208,7 +215,18 @@ function createBackendSupervisor(options) {
     if (child) {
       if (isSettled(child)) child = null;
       else {
-        const error = new Error('The owned local service has not stopped; restart is unavailable.');
+        const { root } = validateCheckout();
+        report('checking');
+        const existing = await inspectService(root);
+        if (existing.kind === 'matching') {
+          report('ready');
+          return { status: 'started', url: urlFor('/') };
+        }
+        const error = new Error(
+          existing.kind === 'foreign'
+            ? 'Another local service is already responding on the eïlo port.'
+            : 'The owned local service is not responding; restart is unavailable.',
+        );
         report('failed', error);
         throw error;
       }
@@ -231,7 +249,7 @@ function createBackendSupervisor(options) {
     try {
       owned = spawn(script, ['start', '--port', String(port)], {
         cwd: root,
-        env: safeEnvironment(environment),
+        env: { ...safeEnvironment(environment), ...extraEnvironment },
         shell: false,
         stdio: 'ignore',
       });

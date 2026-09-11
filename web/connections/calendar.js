@@ -37,15 +37,15 @@ export function isSnapshot(value) {
 export function describeSnapshot(snapshot) {
   if (!snapshot?.configured || !snapshot?.available || snapshot.state === 'unavailable')
     return 'Calendar is not available in this build.';
-  if (snapshot.state === 'disconnected') return 'Google Calendar is not connected.';
-  if (snapshot.state === 'authorizing') return 'Waiting for Google sign-in to finish.';
-  if (snapshot.state === 'choosing') return 'Choose the calendars eïlo can read.';
+  if (snapshot.state === 'disconnected') return 'Connect Google Calendar to get started.';
+  if (snapshot.state === 'authorizing') return 'Finish Google sign-in.';
+  if (snapshot.state === 'choosing') return 'Select calendars to read, then save.';
   if (snapshot.state === 'paused') return 'Calendar sync is paused.';
   if (snapshot.state === 'reauth_required') return 'Google Calendar access needs attention.';
   if (snapshot.state === 'error') return snapshot.error?.message || 'Calendar needs attention.';
   return snapshot.last_synced_at
     ? `Synced ${formatWhen(snapshot.last_synced_at)}.`
-    : 'Connected and ready to sync.';
+    : 'Connected. Ready to sync.';
 }
 
 export function formatWhen(value) {
@@ -294,7 +294,7 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Google sign-in setup is still being prepared for this build. You can keep using your workspace.',
+          'Calendar setup is unavailable here. You can keep using eïlo.',
         ),
       );
     } else if (snapshot.state === 'disconnected') {
@@ -302,16 +302,23 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Connect in your normal browser, then choose which calendars eïlo can read.',
+          'Connect Google Calendar, then choose calendars eïlo can read.',
+        ),
+      );
+      content.append(
+        element(
+          'p',
+          'calendar-connection__permission',
+          'Read-only. eïlo reads only calendars you select; sharing with answers stays separate.',
         ),
       );
       const disclosure = element('details', 'calendar-disclosure');
-      disclosure.append(element('summary', '', 'What Calendar access means'));
+      disclosure.append(element('summary', '', 'Calendar access details'));
       disclosure.append(
         element(
           'p',
           '',
-          'Google grants read access to your calendar list and events. eïlo fetches event details only from calendars you select, never edits Google events, keeps this initial calendar view on this Mac, and does not send calendar details to AI in this version.',
+          'eïlo reads selected calendars and keeps them on this Mac. It cannot edit Google events. Sending events to the AI is a separate choice under Use calendars in answers.',
         ),
       );
       content.append(disclosure);
@@ -322,7 +329,7 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Finish Google sign-in in your browser, then return here. You can cancel whenever you want.',
+          'Finish Google sign-in, then return here. You can cancel.',
         ),
       );
       if (authorizationUrl) add('Open Google sign-in', openSignIn, true);
@@ -333,7 +340,7 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Choose calendars eïlo can read. Your choices are not saved until you select Save calendars.',
+          'Select calendars eïlo can read. Save to confirm.',
         ),
       );
       if (snapshot.loading_calendars) {
@@ -369,7 +376,7 @@ export function mountCalendarConnection(
           element(
             'p',
             'calendar-connection__detail',
-            'No calendars were returned yet. Refresh to check again.',
+            'No calendars found yet. Refresh to try again.',
           ),
         );
         add('Refresh calendars', () => mutate('calendars'));
@@ -408,7 +415,7 @@ export function mountCalendarConnection(
           element(
             'p',
             '',
-            'Disconnect this Google account? Calendar reading will stop. If Gmail is connected with this account, it will need to be reconnected too.',
+            'Disconnect Google Calendar? Reading stops. Gmail using this account will need to reconnect.',
           ),
         );
         const confirm = button(
@@ -440,7 +447,7 @@ export function mountCalendarConnection(
           'p',
           'calendar-connection__detail',
           expired
-            ? 'Retry your saved access, or reconnect if Google no longer permits it.'
+            ? 'Retry access, or reconnect if Google no longer allows it.'
             : snapshot.error?.message || 'Calendar needs attention.',
         ),
       );

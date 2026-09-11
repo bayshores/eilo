@@ -21,7 +21,13 @@ class FakeApp extends EventEmitter {
   whenReady() {
     return this.ready;
   }
-  setPath() {}
+  paths = {};
+  setPath(name, value) {
+    this.paths[name] = value;
+  }
+  getPath(name) {
+    return '/user/' + name;
+  }
   getVersion() {
     return 'test';
   }
@@ -87,13 +93,44 @@ function drain() {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
+test('development and standalone register the fixed context host with their respective runtimes', async () => {
+  const development = buildHarness({ packaged: 'development' });
+  await drain();
+  assert.equal(development.supervisorOptions.rootPath, '/fixture/checkout');
+  assert.equal(development.app.paths.userData, '/fixture/checkout/.state/desktop/profile');
+  assert.equal(development.registrations.length, 1);
+  assert.equal(development.registrations[0].userData, '/fixture/checkout/.state/desktop/profile');
+  assert.equal(development.registrations[0].dataHome, '/fixture/checkout/.state');
+  assert.equal(development.registrations[0].workspacePath, '/fixture/checkout');
+  assert.equal(
+    development.registrations[0].pythonPath,
+    '/fixture/checkout/.runtime/venv/bin/python',
+  );
+  const standalone = buildHarness({ packaged: 'standalone' });
+  await drain();
+  assert.equal(standalone.supervisorOptions.rootPath, '/resources/workspace');
+  assert.equal(
+    standalone.supervisorOptions.extraEnvironment.EILO_RUNTIME_HOME,
+    '/resources/runtime',
+  );
+  assert.equal(standalone.app.paths.userData, '/user/appData/eilo/desktop/profile');
+  assert.equal(standalone.registrations.length, 1);
+  assert.equal(standalone.windows.length, 1);
+});
+
 function buildHarness({
   deferStop = false,
   notificationEnabled = true,
   dialogResponse = 0,
   googleAuthorizationState = null,
+  platform = 'linux',
+  chromeOpenError = null,
+  packaged = null,
 } = {}) {
   const app = new FakeApp();
+  app.isPackaged = Boolean(packaged);
+  let supervisorOptions;
+  const registrations = [];
   const ipcMain = new EventEmitter();
   ipcMain.handle = (name, handler) => {
     ipcMain[name] = handler;
@@ -118,6 +155,7 @@ function buildHarness({
   const windows = [];
   const notifications = [];
   const externalURLs = [];
+  const chromeOpens = [];
   let timer = null;
   let stateCalls = 0;
   const electron = {
@@ -162,10 +200,15 @@ function buildHarness({
     },
   };
   const fakeFs = {
+    existsSync: (file) => packaged === 'standalone' && file.endsWith('eilo-bundle.json'),
     readFileSync: (file) =>
-      file.endsWith('notifications.json')
-        ? JSON.stringify({ enabled: notificationEnabled, seen: [] })
-        : '',
+      file.endsWith('eilo-bundle.json')
+        ? JSON.stringify({ workspace: 'workspace', runtime: 'runtime' })
+        : file.endsWith('checkout.json')
+          ? JSON.stringify({ workspace: '/fixture/checkout' })
+          : file.endsWith('notifications.json')
+            ? JSON.stringify({ enabled: notificationEnabled, seen: [] })
+            : '',
     writeFileSync: () => {},
     renameSync: () => {},
     mkdirSync: () => {},
@@ -174,7 +217,24 @@ function buildHarness({
     if (name === 'electron') return electron;
     if (name === 'node:fs') return fakeFs;
     if (name === 'node:path') return path;
-    if (name === './backend-supervisor.cjs') return { createBackendSupervisor: () => supervisor };
+    if (name === 'node:child_process')
+      return {
+        execFile(command, args, options, callback) {
+          chromeOpens.push({ command, args, options });
+          callback(chromeOpenError);
+        },
+      };
+    if (name === './backend-supervisor.cjs')
+      return {
+        createBackendSupervisor: (options) => {
+          supervisorOptions = options;
+          return supervisor;
+        },
+      };
+    if (name === './native-context-registration.cjs')
+      return {
+        registerNativeContext: (options) => registrations.push(options),
+      };
     if (name === './notifications.cjs')
       return { createNotificationPolicy: require('./notifications.cjs').createNotificationPolicy };
     if (name === './security.cjs')
@@ -203,7 +263,7 @@ function buildHarness({
   const context = {
     require: requireStub,
     __dirname,
-    process: { umask: () => {}, pid: 1, platform: 'linux', resourcesPath: '/resources' },
+    process: { umask: () => {}, pid: 1, platform, resourcesPath: '/resources' },
     fetch: async (url) => {
       if (url.endsWith('/api/desktop'))
         return {
@@ -262,6 +322,11 @@ function buildHarness({
     windows,
     notifications,
     externalURLs,
+    chromeOpens,
+    get supervisorOptions() {
+      return supervisorOptions;
+    },
+    registrations,
     releaseStop,
     runTimer: async () => {
       timer();
@@ -421,4 +486,60 @@ test("authorization IPC opens only the local service's currently pending URL", a
   assert.deepEqual(h.externalURLs, [url]);
   assert.equal(await h.ipcMain['eilo:google-authorization'](trusted, `${url}/other`), false);
   assert.deepEqual(h.externalURLs, [url]);
+});
+
+test('Chrome handoff opens only the fixed connection URL for focused trusted Home', async () => {
+  const h = buildHarness({ platform: 'darwin' });
+  await drain();
+  const window = h.windows[0];
+  const event = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+  assert.equal(
+    await h.ipcMain['eilo:open-activity-connection'](event, 'https://example.test'),
+    true,
+  );
+  assert.equal(h.chromeOpens.length, 1);
+  assert.equal(h.chromeOpens[0].command, '/usr/bin/open');
+  assert.equal(
+    JSON.stringify(h.chromeOpens[0].args),
+    JSON.stringify(['-b', 'com.google.Chrome', 'http://127.0.0.1:8765/activity-connect']),
+  );
+  assert.equal(h.chromeOpens[0].options.timeout, 10000);
+  assert.equal(
+    await h.ipcMain['eilo:open-activity-connection']({
+      sender: {},
+      senderFrame: event.senderFrame,
+    }),
+    false,
+  );
+  assert.equal(
+    await h.ipcMain['eilo:open-activity-connection']({
+      ...event,
+      senderFrame: { url: event.senderFrame.url },
+    }),
+    false,
+  );
+  window.focused = false;
+  assert.equal(await h.ipcMain['eilo:open-activity-connection'](event), false);
+  window.focused = true;
+  window.visible = false;
+  assert.equal(await h.ipcMain['eilo:open-activity-connection'](event), false);
+  assert.equal(h.chromeOpens.length, 1);
+});
+
+test('Chrome launch failure and unsupported platforms do not report success', async () => {
+  for (const options of [
+    { platform: 'darwin', chromeOpenError: new Error('not installed') },
+    { platform: 'linux' },
+  ]) {
+    const h = buildHarness(options);
+    await drain();
+    const window = h.windows[0];
+    assert.equal(
+      await h.ipcMain['eilo:open-activity-connection']({
+        sender: window.webContents,
+        senderFrame: window.webContents.mainFrame,
+      }),
+      false,
+    );
+  }
 });

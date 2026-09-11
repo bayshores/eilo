@@ -83,16 +83,20 @@ class RuntimeConstructionTests(unittest.TestCase):
         fake_runtime = types.SimpleNamespace(
             resolve_runtime_provider=lambda **_kwargs: {"provider": human_driver.PROVIDER}
         )
-        with patch.dict(
-            sys.modules,
-            {
-                "hermes_cli.runtime_provider": fake_runtime,
-                "run_agent": types.SimpleNamespace(AIAgent=FakeAgent),
-            },
+        with (
+            patch.object(human_driver, "isolate_account") as account_boundary,
+            patch.dict(
+                sys.modules,
+                {
+                    "hermes_cli.runtime_provider": fake_runtime,
+                    "run_agent": types.SimpleNamespace(AIAgent=FakeAgent),
+                },
+            ),
         ):
             human_driver._runtime_and_agent(
                 session_id="fixture_session", ephemeral_system_prompt="request_human_001 revision 7"
             )
+        account_boundary.assert_called_once_with()
         self.assertEqual(constructed["ephemeral_system_prompt"], "request_human_001 revision 7")
         self.assertEqual(constructed["model"], human_driver.MODEL)
         self.assertEqual(constructed["provider"], human_driver.PROVIDER)

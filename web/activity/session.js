@@ -44,9 +44,9 @@ export function createActivitySession(client) {
   async function enable() {
     if (!capable())
       throw new Error(
-        'Open the Chrome connection page to share approved activity. Home can stay open here.',
+        'Install or enable the eïlo extension in Chrome, then reload the Chrome connection page.',
       );
-    const connected = globalThis.EiloActivityBridge.connect(
+    const connected = await globalThis.EiloActivityBridge.connect(
       globalThis.EILO_ACTIVITY_EXTENSION_ID,
       id,
       async (nonce, observation) => {
@@ -65,8 +65,16 @@ export function createActivitySession(client) {
         }
       },
     );
-    if (!connected.ok)
-      throw new Error('The eïlo Chrome extension could not connect. Open its setup instructions.');
+    if (!connected.ok) {
+      const reason = connected.reason;
+      throw new Error(
+        reason === 'browser_permission_required'
+          ? 'Open the eïlo extension and choose Allow Chrome.'
+          : reason === 'extension_update_required'
+            ? 'Reload eïlo in Chrome’s extensions page, then reload this page.'
+            : 'The eïlo extension could not connect. Reload this page and try again.',
+      );
+    }
     allowed = true;
     try {
       await client.activityControl('enable', id);
@@ -91,5 +99,6 @@ export function createActivitySession(client) {
         keepalive: true,
       }).catch(() => {});
   });
-  return { update, control, capable, owns };
+  const check = () => globalThis.EiloActivityBridge.check(globalThis.EILO_ACTIVITY_EXTENSION_ID);
+  return { update, control, capable, owns, check };
 }

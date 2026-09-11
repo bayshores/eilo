@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+umask 077
+
+EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+mkdir -p "$EILO_ROOT/.tmp/swift-module-cache"
+EILO_NATIVE_CHECKS=$(mktemp -d "$EILO_ROOT/.tmp/native-checks.XXXXXX")
+trap 'rm -rf "$EILO_NATIVE_CHECKS"' EXIT HUP INT TERM
+cd "$EILO_ROOT"
+
+# Both entrypoints below return before any collector or permission API is used.
+xcrun swiftc -module-cache-path "$EILO_ROOT/.tmp/swift-module-cache" \
+  activity/native/ContextCollectorPolicy.swift tests/context-collector-policy.swift \
+  -o "$EILO_NATIVE_CHECKS/policy-tests"
+"$EILO_NATIVE_CHECKS/policy-tests"
+
+xcrun swiftc -module-cache-path "$EILO_ROOT/.tmp/swift-module-cache" \
+  -framework AppKit -framework ApplicationServices -framework ScreenCaptureKit -framework Vision \
+  activity/native/ContextCollectorPolicy.swift activity/native/EiloContextCollector.swift \
+  -o "$EILO_NATIVE_CHECKS/EiloContextCollector"
+"$EILO_NATIVE_CHECKS/EiloContextCollector" --self-test

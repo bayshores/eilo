@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "private_directories": [
+    ".git",
+    ".state",
+    ".runtime",
+    ".local",
+    ".tmp",
+    ".venv",
+    ".agents",
+    ".codex",
+    "node_modules",
+    "__pycache__",
+    ".ruff_cache",
+    ".pytest_cache",
+    "coverage",
+    "htmlcov"
+  ],
+  "private_files": [
+    "AGENTS.md",
+    ".mcp.json",
+    "mcp.json",
+    ".DS_Store",
+    ".coverage",
+    "auth.json",
+    "credentials.json",
+    "cookies.json",
+    "local-chat.json",
+    "local-chat-process.json",
+    "broker.json",
+    "allowed-origins.json",
+    "checkout.json",
+    "publish-blocklist.json"
+  ],
+  "private_suffixes": [".db", ".sqlite", ".sqlite3", ".log", ".p12", ".pfx"],
+  "bundle_workspace_roots": [
+    "app",
+    "web",
+    "config",
+    "scripts",
+    "activity/extension",
+    "activity/native",
+    "desktop/electron",
+    "hermes-source.json",
+    "requirements.hermes.lock",
+    "requirements.integrations.lock",
+    "package.json",
+    "package-lock.json"
+  ],
+  "checkout_storage_directories": [".state", ".runtime", ".tmp", ".local"],
+  "private_ref_prefixes": [
+    "refs/heads/backup/",
+    "refs/heads/local/",
+    "refs/heads/private/",
+    "refs/tags/local/",
+    "refs/tags/private/"
+  ],
+  "public_commit_email_domains": ["users.noreply.github.com"]
+}

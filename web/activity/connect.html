@@ -10,68 +10,57 @@
   </head>
   <body>
     <main class="connect-page">
-      <a class="back-link" href="/home/">Back to eïlo Home</a>
+      <a class="back-link" href="/home/#activity">Back to eïlo</a>
       <section class="connect-intro" aria-labelledby="connect-title">
-        <p class="eyebrow">Optional Chrome connection</p>
-        <h1 id="connect-title">Let eïlo notice your study context.</h1>
-        <p class="lede"
-          >Connect only when you want eïlo to receive a small, approved signal from Chrome. Home in
-          Codex can stay separate.</p
-        >
+        <h1 id="connect-title">Connect Chrome.</h1>
+        <p class="lede">Let eïlo understand your context as you browse.</p>
       </section>
 
       <section class="connection-card" aria-labelledby="connection-heading">
         <div class="card-heading"
           ><div
-            ><h2 id="connection-heading">Chrome activity</h2
+            ><h2 id="connection-heading">Browser connection</h2
             ><p id="connection-status" class="status" role="status" aria-live="polite"
               >Checking this page…</p
             ></div
           ><span id="connection-state" class="state-pill">Idle</span></div
         >
-        <p id="connection-detail" class="detail">Nothing is shared until you choose Connect.</p>
+        <p id="connection-detail" class="detail">Checking the extension…</p>
+        <p id="connection-consent" class="consent" hidden
+          >Share active-site names and page titles. Selected activity may be sent to eïlo’s AI.</p
+        >
         <div class="actions" aria-label="Chrome activity controls">
-          <button id="connect" class="button button-primary" type="button">Connect Chrome</button>
-          <button id="pause" class="button button-secondary" type="button">Pause</button>
-          <button id="turn-off" class="button button-quiet" type="button">Turn off</button>
+          <a id="extension-setup" class="button button-primary" href="/activity-setup.html" hidden
+            >Set up Chrome extension</a
+          >
+          <button id="reload-page" class="button button-secondary" type="button" hidden
+            >Reload page</button
+          >
+          <button id="connect" class="button button-primary" type="button" disabled
+            >Connect Chrome</button
+          >
+          <button id="pause" class="button button-secondary" type="button" hidden>Pause</button>
+          <button id="turn-off" class="button button-quiet" type="button" hidden>Turn off</button>
         </div>
         <p id="action-feedback" class="feedback" role="status" aria-live="polite"></p>
       </section>
 
-      <section class="scope" aria-labelledby="scope-heading">
-        <p class="eyebrow">What you choose to share</p>
-        <h2 id="scope-heading">A deliberately small signal.</h2>
-        <div class="scope-grid">
-          <article
-            ><h3>Approved sites</h3
-            ><p
-              >LeetCode, NeetCode, and Python documentation selected in the eïlo extension.</p
-            ></article
-          >
-          <article
-            ><h3>During sharing</h3
-            ><p
-              >Only a normalized origin and sanitized page title from an approved active tab.</p
-            ></article
-          >
-          <article
-            ><h3>Kept locally</h3
-            ><p
-              >A seven-day session summary without page titles. Admitted model observations stay in
-              native conversation history.</p
-            ></article
-          >
-        </div>
-        <p class="not-shared"
-          ><strong>Never shared here:</strong> page bodies, screenshots, solutions, microphone
-          audio, or keystrokes.</p
+      <details class="scope">
+        <summary>What is shared?</summary>
+        <p
+          >The active site’s name and a shortened page title, across regular websites. You can
+          exclude sites from the extension’s Privacy &amp; controls.</p
         >
-      </section>
-
-      <aside class="next-step"
-        ><p>Keep this tab open while sharing. Closing it stops the page’s lease requests.</p
-        ><a href="/activity-setup.html">Set up the eïlo Chrome extension</a></aside
-      >
+        <p
+          >No page contents, screenshots, browsing history, private windows, audio, or
+          keystrokes.</p
+        >
+        <p
+          >Local activity summaries last seven days and contain no page titles. Selected AI
+          observations remain in your conversation. A visit does not prove attention or
+          completion.</p
+        >
+      </details>
     </main>
     <script type="module" src="/activity-connect.js"></script>
   </body>

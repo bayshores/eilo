@@ -86,7 +86,6 @@ class ProactiveLoop:
             "activity": {
                 "state": self.mode if self.active() or self.mode != "active" else "paused",
                 "reason": self.reason,
-                "allowed_hosts": self.state["allowed_hosts"],
                 "helper_available": self.helper.is_file(),
                 "chrome_available": self.chrome_available,
                 "consent_owner": self.active(),
@@ -250,7 +249,7 @@ class ProactiveLoop:
             self.client_id, self.lease_until = client_id, self.now() + LEASE_SECONDS
             self.mode, self.reason = (
                 "active",
-                "Enabled for this open page; Chrome context requires the extension and selected site grants.",
+                "Enabled for this open page; Chrome context requires the extension and its explicit browser permission.",
             )
             self.arm_lease_timer()
             self.latest, self.last_observation_at, self.stable_since, self.sample_request = (
@@ -404,7 +403,9 @@ class ProactiveLoop:
                 self.invalidate()
             self.chat.changed()
             return
-        observation = sanitize_observation(raw, self.state["allowed_hosts"])
+        # Older private state may retain an allowed_hosts field. It is deliberately
+        # ignored: source permission belongs to the extension, not a server list.
+        observation = sanitize_observation(raw)
         self.update_context(observation, self.now())
         self.chat.changed()
 
@@ -428,7 +429,7 @@ class ProactiveLoop:
         self.preview = observation
         self.chrome_available = observation["kind"] == "approved_study_context"
         self.reason = (
-            "Only this approved sample is eligible for context."
+            "Only this consented sample is eligible for context."
             if self.chrome_available
             else "Activity details are unshared. A limited goal/progress question may use this coarse signal; it is not evidence of distraction."
         )

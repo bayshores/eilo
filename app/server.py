@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Keep the supported direct-file launcher importable from any working directory.
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[0] = str(ROOT)
+sys.path.insert(0, str(ROOT))
 
 import psutil
 from aiohttp import web
@@ -52,6 +52,7 @@ def main() -> None:
     if args.action == "stop":
         stop_server()
         return
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     lock = (STATE / "local-chat.lock").open("a")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

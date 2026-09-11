@@ -1,29 +1,39 @@
 <!doctype html>
-<html lang="en"
-  ><head
-    ><meta charset="utf-8" /><meta
-      name="viewport"
-      content="width=device-width,initial-scale=1"
-    /><link rel="stylesheet" href="popup.css" /><title>eïlo activity context</title></head
-  >
-  <body
-    ><main
-      ><h1>eïlo activity context</h1
-      ><p
-        >Choose the study sites whose active-tab origin and title eïlo may request while its local
-        page is enabled.</p
-      ><p
-        >Chrome host grants can permit broader extension capabilities. This extension’s audited code
-        only reads active-tab metadata and does not modify tabs, page content, history, cookies, or
-        settings.</p
-      ><fieldset
-        ><label><input type="checkbox" value="https://leetcode.com/*" /> LeetCode</label
-        ><label><input type="checkbox" value="https://neetcode.io/*" /> NeetCode</label
-        ><label
-          ><input type="checkbox" value="https://docs.python.org/*" /> Python documentation</label
-        ></fieldset
-      ><button id="grant" type="button">Grant selected sites</button
-      ><button id="revoke" type="button">Revoke selected sites</button
-      ><p id="status" role="status"></p></main
-    ><script src="popup.js"></script></body
-></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>eïlo activity context</title>
+  </head>
+  <body>
+    <main>
+      <h1>eïlo in Chrome</h1>
+      <p class="consequence"
+        >Share site names and page titles with eïlo. Selected activity may reach its AI.</p
+      >
+      <button id="allow" class="primary" type="button">Allow Chrome</button>
+      <p id="status" role="status"></p>
+      <p id="native-status" class="transport" role="status"></p>
+      <details>
+        <summary>Privacy &amp; controls</summary>
+        <p
+          >Browser access shares site names and titles only while connected. Visible page text is
+          separate desktop opt-in and is never enabled here.</p
+        >
+        <p class="transport-help"
+          >Native transport works without keeping an eïlo page open. If the desktop helper is
+          missing, browser access can still use the existing page connection.</p
+        >
+        <button id="exclude" type="button">Exclude this site</button>
+        <div class="excluded" aria-labelledby="excluded-heading">
+          <p id="excluded-heading">Excluded sites</p>
+          <ul id="excluded-hosts"></ul>
+        </div>
+        <button id="remove-access" class="quiet" type="button">Remove browser access</button>
+      </details>
+    </main>
+    <script src="core.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

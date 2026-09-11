@@ -20,6 +20,7 @@ import aiohttp
 from aiohttp import web
 
 from app.calendar_source import CalendarSourceError, fetch_calendars, fetch_events
+from app.paths import state_directory
 from app.persistence import write_private
 
 SCOPES = (
@@ -257,8 +258,8 @@ class GoogleCalendarConnection:
         self, root, *, on_change=lambda: None, store=None, transport=None, clock=time.time
     ):
         self.root, self.clock, self.on_change = Path(root), clock, on_change
-        self.path = self.root / ".state/google-calendar.json"
-        self.config_path = self.root / ".state/google-calendar-client.json"
+        self.path = state_directory(self.root) / "google-calendar.json"
+        self.config_path = state_directory(self.root) / "google-calendar-client.json"
         self.store = store if store is not None else MacCredentialStore(self.root)
         self.transport = transport
         self.data = empty_state()

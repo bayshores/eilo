@@ -105,6 +105,7 @@ export function mountConnectionsManager(
     openGoogleAuthorization = async () => false,
     openBriefingAuthorization = async () => false,
     onActivitySetup = () => {},
+    mountActivitySetup = null,
     onChanged = () => {},
     mountCalendar = null,
     mountBriefingSources = null,
@@ -253,15 +254,27 @@ export function mountConnectionsManager(
       return;
     }
     if (item.id === 'browser-activity') {
+      if (typeof mountActivitySetup === 'function') {
+        const existing = childHosts.get(item.id);
+        if (existing) {
+          host.append(existing);
+          return;
+        }
+        const embedded = make('div', 'connections-manager__embedded');
+        host.append(embedded);
+        childHosts.set(item.id, embedded);
+        mounted.set(item.id, mountActivitySetup(embedded));
+        return;
+      }
       const copy = make(
         'p',
         'connections-manager__detail-copy',
-        'Choose the sites eïlo may observe before activity becomes available. Observation does not establish attention or task completion.',
+        'Start by installing the Chrome extension.',
       );
       host.append(
         copy,
         button(
-          'Choose approved sites',
+          'Install Chrome extension',
           () => onActivitySetup(),
           'connections-manager__button connections-manager__button--primary',
         ),
@@ -291,13 +304,7 @@ export function mountConnectionsManager(
     addFact('State', item.state || (item.enabled ? 'Enabled' : 'Disabled'));
     if (facts.childElementCount) host.append(facts);
     if (item.error) host.append(make('p', 'connections-manager__error', item.error));
-    host.append(
-      make(
-        'p',
-        'connections-manager__detail-copy',
-        'Connection setup only. MCP tools are not yet available in conversations.',
-      ),
-    );
+    host.append(make('p', 'connections-manager__detail-copy', 'Not available in chats yet.'));
     if (item.transport === 'stdio')
       host.append(
         make('p', 'connections-manager__detail-copy', 'Testing starts this command on your Mac.'),
@@ -439,11 +446,7 @@ export function mountConnectionsManager(
     title.id = 'connections-add-mcp-title';
     form.append(
       title,
-      make(
-        'p',
-        'connections-manager__detail-copy',
-        'Add a local or HTTPS MCP endpoint. It stays off until you enable it.',
-      ),
+      make('p', 'connections-manager__detail-copy', 'Add a connection. It starts off.'),
     );
     const field = (label, name, type = 'text', placeholder = '') => {
       const wrap = make('label', 'connections-manager__field');
@@ -474,7 +477,7 @@ export function mountConnectionsManager(
     const hint = make(
       'p',
       'connections-manager__field-hint',
-      'Only an HTTPS address is accepted. Headers and secret values are not entered here.',
+      'Use HTTPS. Authentication secrets are not supported here.',
     );
     const updateTarget = () => {
       const stdio = select.value === 'stdio';
@@ -484,8 +487,8 @@ export function mountConnectionsManager(
       input.type = stdio ? 'text' : 'url';
       input.placeholder = stdio ? 'Example: npx' : 'https://…';
       hint.textContent = stdio
-        ? 'Arguments may be a JSON array or one argument per line. The MCP starts disabled.'
-        : 'Only an HTTPS address is accepted. Headers and secret values are not entered here.';
+        ? 'One argument per line, or a JSON array.'
+        : 'Use HTTPS. Authentication secrets are not supported here.';
       args.hidden = !stdio;
     };
     const args = make('label', 'connections-manager__field');

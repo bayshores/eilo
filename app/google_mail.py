@@ -27,6 +27,7 @@ from app.google_calendar import (
     _read_bounded_body,
     valid_credentials,
 )
+from app.paths import state_directory
 from app.persistence import write_private
 
 MAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
@@ -42,7 +43,7 @@ class GoogleMail:
         self, root, calendar, on_change=lambda: None, *, store_factory=None, transport=None
     ):
         self.root, self.calendar, self.on_change = root, calendar, on_change
-        self.path = root / ".state/briefing-sources.json"
+        self.path = state_directory(root) / "briefing-sources.json"
         self.data = {"revision": 0, "accounts": [], "calendar_sub": None}
         self.error = None
         if self.path.exists():

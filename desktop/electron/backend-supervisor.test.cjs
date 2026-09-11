@@ -173,6 +173,134 @@ test('failed readiness cleans up the owned child and reports failure', async () 
   assert.equal(states.at(-1), 'failed');
 });
 
+test('repeated start reuses a verified healthy owned child', async () => {
+  const owned = child();
+  let identityRequests = 0;
+  let spawns = 0;
+  const supervisor = createBackendSupervisor({
+    rootPath: ROOT,
+    canonicalRoot: ROOT,
+    fs: checkoutFs(),
+    spawn: () => {
+      spawns += 1;
+      return owned;
+    },
+    fetch: async (url) => {
+      if (url.endsWith('/api/desktop')) {
+        identityRequests += 1;
+        if (identityRequests === 1)
+          throw Object.assign(new Error('not listening yet'), { cause: { code: 'ECONNREFUSED' } });
+        return response(true, { app: 'eilo', protocol: 1, workspace: ROOT });
+      }
+      return response(true, {});
+    },
+    attempts: 2,
+    sleep: async () => {},
+  });
+
+  await supervisor.start();
+  const reconnected = await supervisor.start();
+
+  assert.equal(reconnected.status, 'started');
+  assert.equal(spawns, 1);
+  assert.equal(identityRequests, 3);
+  assert.deepEqual(owned.killCalls, []);
+  await supervisor.stop();
+});
+
+test('default readiness budget permits a delayed cold managed start', async () => {
+  const owned = child();
+  let spawned = false;
+  let identityRequests = 0;
+  const delays = [];
+  const supervisor = createBackendSupervisor({
+    rootPath: ROOT,
+    canonicalRoot: ROOT,
+    fs: checkoutFs(),
+    spawn: () => {
+      spawned = true;
+      return owned;
+    },
+    fetch: async (url) => {
+      if (url.endsWith('/api/desktop')) {
+        if (!spawned)
+          throw Object.assign(new Error('not listening yet'), { cause: { code: 'ECONNREFUSED' } });
+        identityRequests += 1;
+        if (identityRequests < 120)
+          throw Object.assign(new Error('not listening yet'), { cause: { code: 'ECONNREFUSED' } });
+        return response(true, { app: 'eilo', protocol: 1, workspace: ROOT });
+      }
+      return response(true, {});
+    },
+    sleep: async (milliseconds) => delays.push(milliseconds),
+  });
+
+  assert.equal((await supervisor.start()).status, 'started');
+  assert.equal(identityRequests, 120);
+  assert.deepEqual(delays, Array(119).fill(250));
+  await supervisor.stop();
+});
+
+test('a failed owned child is not reused, signaled, or replaced', async () => {
+  const owned = child();
+  let online = false;
+  let spawns = 0;
+  const supervisor = createBackendSupervisor({
+    rootPath: ROOT,
+    canonicalRoot: ROOT,
+    fs: checkoutFs(),
+    spawn: () => {
+      spawns += 1;
+      online = true;
+      return owned;
+    },
+    fetch: async (url) => {
+      if (!online) throw Object.assign(new Error('offline'), { cause: { code: 'ECONNREFUSED' } });
+      return url.endsWith('/api/desktop')
+        ? response(true, { app: 'eilo', protocol: 1, workspace: ROOT })
+        : response(true, {});
+    },
+    attempts: 2,
+  });
+
+  await supervisor.start();
+  assert.equal(spawns, 1);
+  online = false;
+  await assert.rejects(supervisor.start(), /not responding; restart is unavailable/);
+  assert.equal(spawns, 1);
+  assert.deepEqual(owned.killCalls, []);
+});
+
+test('a foreign responder never displaces an owned child', async () => {
+  const owned = child();
+  let workspace = null;
+  let spawns = 0;
+  const supervisor = createBackendSupervisor({
+    rootPath: ROOT,
+    canonicalRoot: ROOT,
+    fs: checkoutFs(),
+    spawn: () => {
+      spawns += 1;
+      workspace = ROOT;
+      return owned;
+    },
+    fetch: async (url) => {
+      if (!workspace)
+        throw Object.assign(new Error('not listening yet'), { cause: { code: 'ECONNREFUSED' } });
+      return url.endsWith('/api/desktop')
+        ? response(true, { app: 'eilo', protocol: 1, workspace })
+        : response(true, {});
+    },
+    attempts: 1,
+  });
+
+  await supervisor.start();
+  workspace = '/another/eilo';
+  await assert.rejects(supervisor.start(), /already responding/);
+  assert.equal(spawns, 1);
+  assert.deepEqual(owned.killCalls, []);
+});
+
 test('stop waits for an owned child exit', async () => {
   const spawned = child();
   const supervisor = createBackendSupervisor({
@@ -276,11 +404,11 @@ test('shutdown times out, escalates only the owned child, and reports failure', 
   assert.deepEqual(owned.killCalls, ['SIGTERM', 'SIGKILL']);
   assert.equal(supervisor.status().phase, 'failed');
   assert.equal(supervisor.status().ownsChild, true);
-  await assert.rejects(supervisor.start(), /has not stopped/);
+  assert.equal((await supervisor.start()).status, 'started');
   assert.deepEqual(
     owned.killCalls,
     ['SIGTERM', 'SIGKILL'],
-    'retry never signals or spawns a retained child',
+    'retry reuses a verified retained child without signaling or spawning it',
   );
 });
 

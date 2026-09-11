@@ -1,0 +1,352 @@
+.activity-day-map {
+  padding: 24px 26px;
+  border-radius: 22px;
+  background: #292b30;
+  color: #f3f2f4;
+}
+.activity-day-map__header,
+.activity-day-map__details,
+.activity-day-map__lane,
+.activity-day-map__detail-copy {
+  display: flex;
+}
+.activity-day-map__header,
+.activity-day-map__details {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.activity-day-map h2,
+.activity-day-map h3,
+.activity-day-map p {
+  margin: 0;
+}
+.activity-day-map h2 {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.activity-day-map__header p,
+.activity-day-map__lane-label span,
+.activity-day-map__detail-label,
+.activity-day-map__forget-copy {
+  color: #b6b6bd;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.activity-day-map__header p {
+  margin-top: 5px;
+}
+.activity-day-map__manage {
+  flex: 0 0 auto;
+  min-height: 34px;
+}
+.activity-day-map__chooser {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 17px;
+}
+.activity-day-map__timezone {
+  color: #9699a3;
+  font-size: 12px;
+}
+.activity-day-map__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.activity-day-map__day {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #51545d;
+  border-radius: 16px;
+  background: transparent;
+  color: #d6d7dc;
+  font-size: 13px;
+}
+.activity-day-map__day[data-selected='true'] {
+  border-color: var(--peach);
+  background: #443a34;
+  color: #fff0e5;
+}
+.activity-day-map__select {
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid #51545d;
+  border-radius: 8px;
+  background: #202226;
+  color: #e7e7eb;
+  font-size: 13px;
+}
+.activity-day-map__surface {
+  overflow: hidden;
+  padding: 17px 16px 14px;
+  border: 1px solid #454850;
+  border-radius: 16px;
+  background: #202226;
+}
+.activity-day-map__axis {
+  position: relative;
+  height: 16px;
+  margin-left: 135px;
+  color: #9699a3;
+  font-size: 11px;
+}
+.activity-day-map__axis-label {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.activity-day-map__axis-label.is-first {
+  transform: none;
+}
+.activity-day-map__axis-label.is-last {
+  transform: translateX(-100%);
+}
+.activity-day-map__tracks {
+  margin-top: 9px;
+}
+.activity-day-map__lane {
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid #363940;
+}
+.activity-day-map__lane-label {
+  flex: 0 0 123px;
+  min-width: 0;
+}
+.activity-day-map__lane-label strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.activity-day-map__lane-label span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.activity-day-map__lane-rows {
+  flex: 1;
+  min-width: 0;
+}
+.activity-day-map__lane-row {
+  position: relative;
+  height: 38px;
+  margin: 4px 0;
+  border-radius: 5px;
+  background: #30333a;
+}
+.activity-day-map__lane[data-tone='0'] {
+  --activity-lane: #fac399;
+  --activity-fill: #5b493f;
+  --activity-fill-active: #86614c;
+}
+.activity-day-map__lane[data-tone='1'] {
+  --activity-lane: #a6c5b4;
+  --activity-fill: #41564d;
+  --activity-fill-active: #577665;
+}
+.activity-day-map__lane[data-tone='2'] {
+  --activity-lane: #b4b1da;
+  --activity-fill: #4d4b68;
+  --activity-fill-active: #67638b;
+}
+.activity-day-map__lane[data-tone='3'] {
+  --activity-lane: #94b9c9;
+  --activity-fill: #405864;
+  --activity-fill-active: #587989;
+}
+.activity-day-map__session {
+  position: absolute;
+  top: 0;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+}
+.activity-day-map__span,
+.activity-day-map__point {
+  position: absolute;
+  top: 5px;
+  display: block;
+  height: 28px;
+  border: 1px solid var(--activity-lane);
+  border-radius: 4px;
+  background: var(--activity-fill);
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+.activity-day-map__span {
+  overflow: hidden;
+}
+.activity-day-map__session-title {
+  display: block;
+  overflow: hidden;
+  padding: 5px 7px;
+  color: #fff4ed;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-day-map__point {
+  width: 9px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+}
+.activity-day-map__session:hover .activity-day-map__span,
+.activity-day-map__session[data-selected='true'] .activity-day-map__span {
+  background: var(--activity-fill-active);
+  transform: scaleY(1.12);
+}
+.activity-day-map__session:hover .activity-day-map__point,
+.activity-day-map__session[data-selected='true'] .activity-day-map__point {
+  background: var(--activity-fill-active);
+  transform: translateX(-50%) scaleY(1.12);
+}
+.activity-day-map__session[data-selected='true'] .activity-day-map__span,
+.activity-day-map__session[data-selected='true'] .activity-day-map__point {
+  box-shadow: 0 0 0 1px #fff0e5;
+}
+.activity-day-map.reduce-motion .activity-day-map__span,
+.activity-day-map.reduce-motion .activity-day-map__point,
+body.reduce-motion .activity-day-map__span,
+body.reduce-motion .activity-day-map__point {
+  transition: none;
+}
+.activity-day-map__more {
+  margin-top: 11px;
+  min-height: 32px;
+  font-size: 13px;
+}
+.activity-day-map__details {
+  margin-top: 16px;
+  padding: 16px 0 0;
+  border-top: 1px solid #454850;
+}
+.activity-day-map__detail-copy {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+}
+.activity-day-map__detail-copy h3 {
+  font-size: 16px;
+  font-weight: 500;
+}
+.activity-day-map__detail-label {
+  flex: 0 0 100px;
+  padding-top: 3px;
+}
+.activity-day-map__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  margin: 0;
+}
+.activity-day-map__facts div {
+  min-width: 90px;
+}
+.activity-day-map__facts dt {
+  color: #aeb0b8;
+  font-size: 12px;
+}
+.activity-day-map__facts dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.activity-day-map__return-point {
+  display: flex;
+  gap: 8px;
+  color: #d9dadf;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.activity-day-map__return-point span {
+  flex: 0 0 auto;
+  color: #aeb0b8;
+}
+.activity-day-map__forget,
+.activity-day-map__forget-confirm {
+  flex: 0 0 auto;
+  min-height: 34px;
+  font-size: 13px;
+}
+.activity-day-map__forget-confirm {
+  padding: 7px 10px;
+  border: 1px solid #fac399;
+  border-radius: 8px;
+  background: #5b493f;
+  color: #fff0e5;
+}
+.activity-day-map__empty {
+  padding: 11px 0 1px;
+}
+.activity-day-map__empty > p {
+  color: #b6b6bd;
+  font-size: 14px;
+}
+.activity-day-map__empty-axis {
+  height: 44px;
+  margin: 16px 0 6px;
+  border-bottom: 1px solid #454850;
+}
+.activity-day-map__axis.is-quiet {
+  margin-left: 0;
+  margin-top: -1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-day-map__span,
+  .activity-day-map__point {
+    transition: none;
+  }
+}
+@media (max-width: 620px) {
+  .activity-day-map {
+    padding: 20px 18px;
+  }
+  .activity-day-map__header {
+    gap: 12px;
+  }
+  .activity-day-map__axis {
+    margin-left: 0;
+  }
+  .activity-day-map__lane {
+    display: block;
+  }
+  .activity-day-map__lane-label {
+    margin-bottom: 6px;
+  }
+  .activity-day-map__details {
+    display: block;
+  }
+  .activity-day-map__detail-label {
+    margin-bottom: 8px;
+  }
+  .activity-day-map__forget,
+  .activity-day-map__forget-confirm {
+    margin-top: 12px;
+  }
+}
+
+/* This marker is injected only by the explicitly generated visual-review fixture. */
+.activity-preview-notice {
+  height: 28px;
+  padding: 6px 16px;
+  text-align: center;
+  background: #34312e;
+  color: #e0c8b5;
+  font-size: 11px;
+  line-height: 16px;
+}
+.activity-preview .app-window {
+  height: calc(100dvh - 28px);
+}

@@ -10,7 +10,8 @@ from aiohttp import web
 from app.chat_catalog import CatalogError
 from app.chat_service import LocalChat
 from app.errors import ChatError
-from app.http_api import activity, assets, conversations, integrations, speech
+from app.http_api import account, activity, assets, context, conversations, integrations, speech
+from app.native_bridge import NativeBridgeError
 from app.paths import ROOT
 from app.transcription import Transcriber
 
@@ -61,6 +62,8 @@ def create_app(chat: LocalChat, port: int) -> web.Application:
     speech.register(app, transcriber)
     conversations.register(app, chat)
     activity.register(app, chat)
+    context.register(app, chat)
+    account.register(app, chat)
 
     async def desktop_identity(request: web.Request) -> web.Response:
         return web.json_response({"app": "eilo", "protocol": 1, "workspace": str(ROOT)})
@@ -77,6 +80,15 @@ def create_app(chat: LocalChat, port: int) -> web.Application:
             cleanup.push_async_callback(chat.close)
             cleanup.push_async_callback(chat.calendar.close)
             await chat.initialize()
+            if hasattr(chat, "account"):
+                await chat.account.start()
+            if hasattr(chat, "context"):
+                await chat.context.start()
+                try:
+                    await chat.context_capture.start()
+                except (OSError, NativeBridgeError):
+                    # A capture transport failure must never prevent conversation.
+                    chat.context.set_capture_health("browser", "error", {"stage": "startup"})
             await chat.calendar.start()
             yield
 

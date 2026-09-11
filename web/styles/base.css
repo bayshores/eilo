@@ -41,6 +41,11 @@ select:focus-visible {
   outline: 2px solid var(--peach);
   outline-offset: 4px;
 }
+/* Pointer activation keeps focus for behavior, but does not leave a keyboard cue behind. */
+body[data-focus-origin='pointer']
+  :is(button, input, textarea, select, summary, a, [role='button']):focus-visible {
+  outline: none !important;
+}
 button {
   -webkit-tap-highlight-color: transparent;
 }
@@ -318,14 +323,21 @@ h1 {
   min-width: 0;
   min-height: 100%;
 }
-.widget {
-  position: absolute;
-  top: 0;
-  left: 0;
+.adaptive-preview-host {
+  min-width: 0;
+  min-height: 100%;
+}
+/* Shared visual shell. Manual placement and adaptive motion own their geometry. */
+.home-widget {
   container-type: inline-size;
   container-name: widget;
   background: var(--panel);
   border-radius: 22px;
+}
+.widget {
+  position: absolute;
+  top: 0;
+  left: 0;
   transform: translate(var(--left, 0), var(--top, 0));
   width: var(--width, 200px);
   height: var(--height, 240px);
@@ -803,12 +815,19 @@ body.drag-active {
   container-name: widget;
   overflow: hidden;
 }
+.widget-preview:is([data-type='tracking'], [data-type='usage']) {
+  height: 240px;
+  container-type: size;
+}
 .widget-preview[data-type='progress'] {
   background: var(--peach);
   color: #20201f;
 }
 .widget-preview .widget-content {
   padding: 21px 20px;
+}
+.widget-preview .context-widget {
+  padding: 16px 20px;
 }
 .widget-preview h2 {
   font-size: 21px;
@@ -1622,7 +1641,7 @@ body {
   --cue-surface: #eab184;
   --cue-active: #392d25;
 }
-.app-window:not(.editing) .widget .widget-content {
+.app-window:not(.editing) .home-widget .widget-content {
   padding-top: 34px;
 }
 .hold-cue {

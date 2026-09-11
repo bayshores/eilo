@@ -450,7 +450,7 @@
 .connections-manager input:focus-visible,
 .connections-manager select:focus-visible,
 .connections-manager textarea:focus-visible,
-.connections-manager__switch:focus-within {
+body:not([data-focus-origin='pointer']) .connections-manager__switch:focus-within {
   outline: 3px solid #f3b490;
   outline-offset: 3px;
 }

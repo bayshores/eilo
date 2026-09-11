@@ -10,7 +10,7 @@
 .live-content > h2 {
   flex-shrink: 0;
 }
-.widget:has(.live-content) {
+.home-widget:has(.live-content) {
   container-type: size;
 }
 .live-content h2 {

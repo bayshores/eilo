@@ -3,5 +3,6 @@
 set -eu
 EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 . "$EILO_ROOT/scripts/lib/runtime.sh"
+eilo_initialize_profile
 cd "$EILO_ROOT"
 exec "$EILO_PYTHON" "$EILO_ROOT/app/server.py" "$@"

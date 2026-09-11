@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const ALLOWED_HOSTS = new Set(['leetcode.com', 'neetcode.io', 'docs.python.org']);
+  const BROWSER_ORIGINS = ['http://*/*', 'https://*/*'];
   const PAGE_ORIGIN = 'http://127.0.0.1:8765';
   const PORT_NAME = 'eilo-metadata-v1';
 
@@ -16,28 +16,67 @@
       : '';
   }
   function approvedOrigin(rawUrl) {
-    if (typeof rawUrl !== 'string') return null;
+    if (typeof rawUrl !== 'string' || /\s/.test(rawUrl)) return null;
     try {
       const url = new URL(rawUrl);
+      const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
       if (
-        url.protocol !== 'https:' ||
-        !ALLOWED_HOSTS.has(url.hostname.toLowerCase()) ||
+        !['http:', 'https:'].includes(url.protocol) ||
         url.username ||
         url.password ||
-        (url.port && url.port !== '443')
+        !url.hostname ||
+        url.origin === PAGE_ORIGIN ||
+        privateHost(host)
       )
         return null;
-      return `https://${url.hostname.toLowerCase()}`;
+      return url.origin;
     } catch {
       return null;
     }
   }
+  function privateHost(host) {
+    if (host === 'localhost' || host.endsWith('.localhost')) return true;
+    const octets = host.split('.').map(Number);
+    if (
+      octets.length === 4 &&
+      octets.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)
+    ) {
+      return (
+        octets[0] === 0 ||
+        octets[0] === 10 ||
+        octets[0] === 127 ||
+        (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168)
+      );
+    }
+    const normalized = host.toLowerCase();
+    return (
+      normalized === '::' ||
+      normalized === '::1' ||
+      /^fe[89ab][0-9a-f]:/.test(normalized) ||
+      normalized.startsWith('fc') ||
+      normalized.startsWith('fd') ||
+      normalized.includes('::ffff:')
+    );
+  }
   function observationForTab(tab) {
-    const origin = approvedOrigin(tab && tab.url);
+    const origin = tab?.incognito ? null : approvedOrigin(tab && tab.url);
     const safeTitle = title(tab && tab.title);
     return origin && safeTitle
       ? { kind: 'approved_study_context', origin, title: safeTitle }
       : { kind: 'activity_unshared' };
+  }
+  function isExcluded(origin, excludedHosts) {
+    if (!origin || !Array.isArray(excludedHosts)) return false;
+    const hostname = new URL(origin).hostname;
+    return excludedHosts.some(
+      (host) =>
+        typeof host === 'string' &&
+        host.length > 0 &&
+        (hostname === host || hostname.endsWith(`.${host}`)),
+    );
   }
   function senderIsEiloPage(sender) {
     // frameId is present for normal extension page ports. If a Chrome build omits
@@ -83,11 +122,12 @@
     );
   }
   globalThis.EiloActivityExtensionCore = {
-    ALLOWED_HOSTS,
+    BROWSER_ORIGINS,
     PAGE_ORIGIN,
     PORT_NAME,
     approvedOrigin,
     observationForTab,
+    isExcluded,
     senderIsEiloPage,
     validRequest,
     equivalentTab,

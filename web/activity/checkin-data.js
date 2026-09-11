@@ -1,84 +1,28 @@
 const PHASES = {
-  off: [
-    'Check-ins off',
-    'eïlo will respond when you message it. Automatic check-ins are paused.',
-    'off',
-  ],
-  unavailable: [
-    'Needs attention',
-    'The local agent is unavailable. Check the conversation connection before expecting a check-in.',
-    'warning',
-  ],
-  in_conversation: [
-    'In conversation',
-    'eïlo is responding to you. Automatic check-ins wait until that conversation turn finishes.',
-    'active',
-  ],
-  no_conversation: [
-    'Ready when you are',
-    'Start a conversation so eïlo has somewhere to continue with you.',
-    'waiting',
-  ],
-  on_break: [
-    'You’re on a break',
-    'Check-ins wait while your break is active. Your goals are kept.',
-    'paused',
-  ],
-  no_goals: [
-    'Waiting for a goal',
-    'Tell eïlo what you want to work toward. It needs an open goal to make a check-in relevant.',
-    'waiting',
-  ],
-  activity_off: [
-    'Waiting for activity',
-    'Activity sharing is off, so eïlo cannot notice changes in what you’re doing or initiate an activity-based check-in.',
-    'waiting',
-  ],
+  off: ['Check-ins off', 'Automatic check-ins are paused. You can still chat.', 'off'],
+  unavailable: ['Needs attention', 'Reconnect the conversation to restore check-ins.', 'warning'],
+  in_conversation: ['In conversation', 'Check-ins wait while eïlo replies.', 'active'],
+  no_conversation: ['Ready when you are', 'Start a conversation with eïlo.', 'waiting'],
+  on_break: ['You’re on a break', 'Check-ins wait until your break ends.', 'paused'],
+  no_goals: ['Waiting for a goal', 'Tell eïlo what you want to work toward.', 'waiting'],
+  activity_off: ['Waiting for activity', 'Browser activity sharing is off.', 'waiting'],
   activity_paused: [
     'Activity disconnected',
-    'Sharing has paused. Reconnect the Chrome activity page to let eïlo notice changes again.',
+    'Reconnect the Chrome activity page to resume sharing.',
     'waiting',
   ],
-  deciding: [
-    'Considering a check-in',
-    'eïlo is reviewing the current context. It may reach out or decide to leave you to it.',
-    'active',
-  ],
+  deciding: ['Considering a check-in', 'eïlo is reviewing context. It may stay quiet.', 'active'],
   awaiting_observation: [
     'Waiting for context',
-    'Activity sharing is connected. eïlo is waiting for its first usable observation.',
+    'Connected. Waiting for approved activity.',
     'waiting',
   ],
-  settling: [
-    'Letting you settle in',
-    'eïlo waits for activity to settle before deciding whether a check-in would help.',
-    'active',
-  ],
-  human_grace: [
-    'Giving you room',
-    'You recently spoke with eïlo. It gives you time to act before considering a check-in.',
-    'active',
-  ],
-  cooldown: [
-    'Giving you room',
-    'A check was made recently. eïlo waits before considering another.',
-    'active',
-  ],
-  unchanged: [
-    'Waiting for a change',
-    'The current context has already been considered. eïlo waits for a change or something new from you.',
-    'active',
-  ],
-  budget: [
-    'Quiet for now',
-    'The check-in limit has been reached. eïlo will become eligible to check again later.',
-    'paused',
-  ],
-  eligible: [
-    'Ready to notice',
-    'The conditions allow another check. The next observation can prompt eïlo to decide whether reaching out would help.',
-    'active',
-  ],
+  settling: ['Letting you settle in', 'Waiting for activity to settle.', 'active'],
+  human_grace: ['Giving you room', 'Waiting after your recent conversation.', 'active'],
+  cooldown: ['Giving you room', 'Waiting before the next check.', 'active'],
+  unchanged: ['Waiting for a change', 'This context has already been considered.', 'active'],
+  budget: ['Quiet for now', 'The check-in limit has been reached.', 'paused'],
+  eligible: ['Ready to notice', 'New activity may prompt a check-in.', 'active'],
 };
 
 export const OUTCOMES = {
@@ -105,8 +49,7 @@ export function checkinView(view) {
       phase: 'unavailable',
       tone: 'warning',
       title: view?.connection === 'loading' ? 'Connecting…' : 'Status unavailable',
-      description:
-        'Live check-in status will appear when the local service is connected. Saved information is not proof that eïlo is running.',
+      description: 'Reconnect to see current check-in status.',
       chip: 'Check-ins · status unavailable',
       history: [],
       eligibleAt: null,
@@ -162,7 +105,7 @@ export function checkinTime(value) {
 export function observedContext(observation) {
   if (!observation) return 'Nothing observed yet';
   return observation.kind === 'approved_study_context'
-    ? 'Approved site context received'
+    ? 'Browser context received'
     : observation.kind === 'activity_unshared'
       ? 'Activity details not shared'
       : 'Activity unavailable';

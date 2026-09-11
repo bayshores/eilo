@@ -1,6 +1,8 @@
 # Private runtime, conversations, credentials, and local build output.
 /.runtime/
 /.state/
+# Durable personal development notes and local-only overrides.
+.local/
 /.tmp/
 /.venv/
 /.ruff_cache/

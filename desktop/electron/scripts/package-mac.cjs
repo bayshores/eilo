@@ -4,6 +4,10 @@ const fs = require('node:fs');
 const { packager } = require('@electron/packager');
 
 async function main() {
+  if (process.argv.includes('--release'))
+    throw new Error(
+      'This command creates a development-checkout artifact and cannot make a release.',
+    );
   if (process.platform !== 'darwin') throw new Error('This first desktop build targets macOS.');
   const source = path.resolve(__dirname, '..'),
     root = path.resolve(source, '../..');

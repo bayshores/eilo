@@ -10,6 +10,7 @@ from app.accountability import validate_decision
 from app.briefing import TOOL_NAMES
 from app.errors import ChatError
 from app.paths import STATE
+from app.runtime_auth import isolate_account
 
 MODEL = "gpt-5.6-luna"
 PROVIDER = "openai-codex"
@@ -18,6 +19,7 @@ PROVIDER = "openai-codex"
 def check_config() -> None:
     """Fail closed if the pinned runtime permits another provider or tools."""
     try:
+        isolate_account()
         from hermes_cli.config import load_config
         from hermes_cli.tools_config import _get_platform_tools
         from model_tools import get_tool_definitions

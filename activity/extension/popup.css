@@ -1,28 +1,172 @@
+:root {
+  color-scheme: dark;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('assets/ibm-plex-sans.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
 body {
-  width: 330px;
+  width: 344px;
   margin: 0;
-  color: #25221e;
-  background: #f6f1e9;
-  font:
-    14px/1.45 system-ui,
-    sans-serif;
+  color: #f2ebe2;
+  background: #191b1e;
+  font-size: 14px;
+  line-height: 1.45;
 }
 main {
   padding: 18px;
 }
 h1 {
-  font:
-    600 18px/1.1 Georgia,
-    serif;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
 }
-label {
-  display: block;
-  margin: 8px 0;
+p {
+  margin: 0;
+}
+h1 + p {
+  margin-top: 7px;
+  color: #c5c5ce;
+}
+.consequence {
+  margin-top: 14px;
+  color: #f2ebe2;
 }
 button {
-  margin: 8px 6px 0 0;
-  padding: 7px 9px;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 10px;
+  color: #f2ebe2;
+  background: #41434a;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: #50535b;
+}
+button:disabled {
+  color: #a8a8af;
+  background: #35373d;
+  cursor: default;
+}
+button.primary {
+  width: 100%;
+  margin-top: 16px;
+  color: #28211e;
+  background: #e4ad83;
+}
+button.primary:hover:not(:disabled) {
+  background: #efbb96;
 }
 #status {
   min-height: 1.4em;
+  margin-top: 9px;
+  color: #c5c5ce;
+  font-size: 13px;
+}
+#status:empty {
+  display: none;
+}
+.transport {
+  min-height: 1.2em;
+  margin-top: 4px;
+  color: #a8a8af;
+  font-size: 12px;
+}
+.transport:empty {
+  display: none;
+}
+.transport-help {
+  margin-top: 8px;
+  color: #a8a8af;
+  font-size: 12px;
+}
+details {
+  margin-top: 16px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  background: #292b30;
+}
+summary {
+  min-height: 24px;
+  padding: 3px 1px;
+  font-weight: 600;
+  cursor: pointer;
+}
+details > p {
+  margin-top: 8px;
+  color: #c5c5ce;
+}
+details button {
+  margin-top: 12px;
+}
+.excluded {
+  margin-top: 14px;
+}
+.excluded > p {
+  color: #c5c5ce;
+  font-size: 13px;
+}
+#excluded-hosts {
+  display: grid;
+  gap: 6px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+}
+#excluded-hosts li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #222429;
+}
+#excluded-hosts span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#excluded-hosts button {
+  min-height: 28px;
+  margin: 0;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+button.quiet {
+  color: #c5c5ce;
+  background: transparent;
+}
+button.quiet:hover:not(:disabled) {
+  color: #f2ebe2;
+  background: #41434a;
+}
+:is(button, summary):focus-visible {
+  outline: 3px solid #f3b490;
+  outline-offset: 3px;
+}
+body[data-focus-origin='pointer'] :is(button, summary):focus-visible {
+  outline: none;
+}
+@media (pointer: coarse) {
+  button,
+  summary {
+    min-height: 44px;
+  }
+  #excluded-hosts button {
+    min-height: 36px;
+  }
 }

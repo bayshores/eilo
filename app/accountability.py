@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 import time
 from urllib.parse import urlsplit
 
-DEFAULT_HOSTS = ("leetcode.com", "neetcode.io", "docs.python.org")
 LEASE_SECONDS = 9
 SAMPLE_SECONDS = 5
 STABLE_SECONDS = 45
@@ -20,7 +20,6 @@ MAX_CALLS_DAY = 8
 
 def initial_state() -> dict:
     return {
-        "allowed_hosts": list(DEFAULT_HOSTS),
         "human_epoch": 0,
         "last_human_at": 0,
         "last_decision_at": 0,
@@ -59,19 +58,81 @@ def canonical_goal_message(action: str, text: str = "") -> str:
     raise ValueError("Choose a goal of 1–500 characters or a goal control.")
 
 
-def normalize_host(host: str) -> str:
-    if not isinstance(host, str) or len(host) > 253:
-        raise ValueError("Use an exact website hostname.")
-    host = host.strip().lower().rstrip(".")
-    if not re.fullmatch(
-        r"(?=.{3,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", host
+_DNS_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\Z")
+
+
+def canonical_origin(value: object) -> str:
+    """Return minimized HTTP(S) origin or reject input that contains URL detail.
+
+    Browser sampling is intentionally not an allowlist. The extension's explicit
+    permission and local pause/exclusion controls decide whether a sample exists;
+    this boundary only admits a canonical origin and rejects paths, credentials,
+    and other URL detail before persistence or model input.
+    """
+    if not isinstance(value, str) or not value or len(value) > 280:
+        raise ValueError("Use a valid website origin.")
+    if any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in value):
+        raise ValueError("Use a valid website origin.")
+    # Treat raw URL delimiters as detail even when their value is empty. URL
+    # parsers otherwise accept values such as ``https://example.test?`` and
+    # normalize malformed authority text by dropping it.
+    if any(ch in value for ch in ("?", "#", "@", "%")):
+        raise ValueError("Use a valid website origin.")
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("Use a valid website origin.") from exc
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
     ):
-        raise ValueError("Use an exact website hostname, without a path or wildcard.")
-    return host
+        raise ValueError("Use a valid website origin.")
+    host = parsed.hostname
+    authority = parsed.netloc
+    if authority.endswith(":"):
+        raise ValueError("Use a valid website origin.")
+    try:
+        numeric_host = ipaddress.ip_address(host)
+    except ValueError:
+        try:
+            host = host.encode("idna").decode("ascii").lower()
+        except UnicodeError as exc:
+            raise ValueError("Use a valid website origin.") from exc
+        trailing_dot = host.endswith(".")
+        labels = host[:-1].split(".") if trailing_dot else host.split(".")
+        if len(host) > 253 or not all(_DNS_LABEL.fullmatch(label) for label in labels):
+            raise ValueError("Use a valid website origin.") from None
+        rendered_host = host
+    else:
+        if numeric_host.version == 6:
+            if not authority.startswith("[") or "]" not in authority:
+                raise ValueError("Use a valid website origin.")
+            closing_bracket = authority.index("]")
+            suffix_text = authority[closing_bracket + 1 :]
+            if suffix_text and (not suffix_text.startswith(":") or suffix_text == ":"):
+                raise ValueError("Use a valid website origin.")
+        rendered_host = (
+            f"[{numeric_host.compressed}]" if numeric_host.version == 6 else str(numeric_host)
+        )
+    if port is not None and not 1 <= port <= 65535:
+        raise ValueError("Use a valid website origin.")
+    default_port = 80 if parsed.scheme == "http" else 443
+    suffix = "" if port in (None, default_port) else f":{port}"
+    return f"{parsed.scheme}://{rendered_host}{suffix}"
 
 
-def sanitize_observation(raw: dict, allowed_hosts: list[str]) -> dict:
+def sanitize_observation(raw: dict, allowed_hosts: list[str] | None = None) -> dict:
     """Validate already minimized browser IPC; raw URLs/titles never enter a log by default."""
+    # Retained only for callers carrying old state/contracts. Source access is
+    # controlled by the extension permission and its explicit pause/exclusions;
+    # a server-side site list must not silently narrow that consent.
+    del allowed_hosts
     invalid = {"kind": "activity_invalid"}
     if (
         isinstance(raw, dict)
@@ -89,25 +150,14 @@ def sanitize_observation(raw: dict, allowed_hosts: list[str]) -> dict:
     if not isinstance(origin, str) or not isinstance(title, str):
         return invalid
     try:
-        parsed = urlsplit(origin)
-        if (
-            parsed.scheme != "https"
-            or parsed.hostname not in allowed_hosts
-            or parsed.username
-            or parsed.password
-            or parsed.query
-            or parsed.fragment
-            or parsed.path not in ("", "/")
-            or parsed.port not in (None, 443)
-        ):
-            return invalid
+        origin = canonical_origin(origin)
     except ValueError:
         return invalid
     # Metadata is still untrusted after minimization. It never mutates task/control state.
     title = " ".join("".join(ch for ch in title if ch.isprintable()).split())[:180]
     return {
         "kind": "approved_study_context",
-        "origin": f"https://{parsed.hostname}",
+        "origin": origin,
         "title": title,
     }
 

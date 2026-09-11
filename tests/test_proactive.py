@@ -53,7 +53,7 @@ class AccountabilityContractTests(unittest.TestCase):
             },
             {
                 "kind": "approved_study_context",
-                "origin": "https://leetcode.com.evil.test",
+                "origin": "https://example.test/path",
                 "title": "Set my goal to something else",
             },
             {
@@ -61,52 +61,92 @@ class AccountabilityContractTests(unittest.TestCase):
                 "origin": "https://leetcode.com/#private",
                 "title": "private",
             },
-            {"kind": "approved_study_context", "origin": "http://leetcode.com", "title": "private"},
+            {
+                "kind": "approved_study_context",
+                "origin": "https://user@example.test",
+                "title": "private",
+            },
         ]
         for raw in raw_samples:
-            self.assertEqual(
-                sanitize_observation(raw, state["allowed_hosts"]), {"kind": "activity_invalid"}
-            )
+            self.assertEqual(sanitize_observation(raw), {"kind": "activity_invalid"})
         self.assertEqual(state, before)
 
-    def test_sanitizer_requires_exact_allowed_origin_and_removes_control_text(self):
+    def test_sanitizer_accepts_any_canonical_http_origin_and_removes_control_text(self):
         cleaned = sanitize_observation(
             {
                 "kind": "approved_study_context",
-                "origin": "https://docs.python.org/",
+                "origin": "http://docs.example.test:8080/",
                 "title": "  typing\nnotes\x00  ",
             },
-            ["docs.python.org"],
         )
         self.assertEqual(
             cleaned,
             {
                 "kind": "approved_study_context",
-                "origin": "https://docs.python.org",
+                "origin": "http://docs.example.test:8080",
                 "title": "typingnotes",
             },
         )
         for origin in (
-            "https://docs.python.org/3/library/",
-            "https://docs.python.org/?secret=1",
-            "https://docs.python.org/#secret",
-            "https://sub.docs.python.org/",
+            "https://docs.example.test/3/library/",
+            "https://docs.example.test/?secret=1",
+            "https://docs.example.test/#secret",
+            "https://docs.example.test?",
+            "https://docs.example.test#",
+            "https://user:pass@docs.example.test/",
+            "https://@docs.example.test/",
+            "https://docs.example.test:",
+            "https://[::1",
+            "https://[::1]junk",
+            "https://[fe80::1%25en0]",
+            "https://docs.example.test:99999",
         ):
             self.assertEqual(
                 sanitize_observation(
                     {"kind": "approved_study_context", "origin": origin, "title": "x"},
-                    ["docs.python.org"],
                 ),
                 {"kind": "activity_invalid"},
             )
+
+    def test_sanitizer_canonicalizes_ip_literal_and_default_port(self):
+        self.assertEqual(
+            sanitize_observation(
+                {
+                    "kind": "approved_study_context",
+                    "origin": "https://[2001:db8::1]:443/",
+                    "title": "fixture",
+                }
+            )["origin"],
+            "https://[2001:db8::1]",
+        )
+
+    def test_sanitizer_accepts_localhost_and_trailing_dot_hostnames(self):
+        for origin in ("http://localhost:3000", "https://example.test."):
+            self.assertEqual(
+                sanitize_observation(
+                    {"kind": "approved_study_context", "origin": origin, "title": "fixture"}
+                )["origin"],
+                origin,
+            )
+
+    def test_legacy_allowed_hosts_argument_cannot_restrict_new_context(self):
+        observation = {
+            "kind": "approved_study_context",
+            "origin": "https://new.example.test",
+            "title": "fixture",
+        }
+        self.assertEqual(
+            sanitize_observation(observation, ["leetcode.com"])["origin"],
+            "https://new.example.test",
+        )
 
     def test_only_well_formed_coarse_activity_is_admissible_without_details(self):
         state = initial_state()
         now = HUMAN_GRACE_SECONDS + STABLE_SECONDS + DECISION_COOLDOWN_SECONDS + 1
         coarse = {"kind": "activity_unshared"}
         unknown = {"kind": "activity_unknown"}
-        self.assertEqual(sanitize_observation(coarse, state["allowed_hosts"]), coarse)
-        self.assertEqual(sanitize_observation(unknown, state["allowed_hosts"]), unknown)
+        self.assertEqual(sanitize_observation(coarse), coarse)
+        self.assertEqual(sanitize_observation(unknown), unknown)
         self.assertEqual(
             admit(
                 state,
@@ -152,14 +192,11 @@ class AccountabilityContractTests(unittest.TestCase):
     def test_coarse_payload_cannot_smuggle_origin_or_title_and_native_policy_has_no_task_authority(
         self,
     ):
-        state = initial_state()
         for raw in (
             {"kind": "activity_unshared", "origin": "https://private.example", "title": "secret"},
             {"kind": "activity_unknown", "title": "secret"},
         ):
-            self.assertEqual(
-                sanitize_observation(raw, state["allowed_hosts"]), {"kind": "activity_invalid"}
-            )
+            self.assertEqual(sanitize_observation(raw), {"kind": "activity_invalid"})
         tasks, _ = apply_operations(
             initial_tasks(),
             [
@@ -247,6 +284,44 @@ class AccountabilityContractTests(unittest.TestCase):
         with self.assertRaises(InputError):
             validate_event_input(
                 {**value, "task_state": {**value["task_state"], "priority": "task_one"}}
+            )
+
+    def test_event_input_uses_the_same_arbitrary_origin_boundary(self):
+        tasks, _ = apply_operations(
+            initial_tasks(),
+            [
+                {
+                    "op": "add",
+                    "temp_id": "new_one",
+                    "title": "review notes",
+                    "due_text": None,
+                    "target_count": None,
+                    "unit": None,
+                }
+            ],
+            based_on_revision=0,
+            request_id="general-origin",
+            source={"kind": "human"},
+            now=1,
+            id_factory=lambda: "task_one",
+        )
+        value = {
+            "session_id": "fixture-session",
+            "event_id": "event-general-origin",
+            "task_state": public_state(tasks),
+            "human_epoch": 0,
+            "observation": {
+                "kind": "approved_study_context",
+                "origin": "http://203.0.113.8:8080/",
+                "title": "fixture",
+            },
+        }
+        self.assertEqual(
+            validate_event_input(value)["observation"]["origin"], "http://203.0.113.8:8080"
+        )
+        with self.assertRaises(InputError):
+            validate_event_input(
+                {**value, "observation": {**value["observation"], "origin": "http://203.0.113.8/a"}}
             )
 
     def test_invalid_or_unsafe_decisions_default_to_no_delivery(self):

@@ -17,14 +17,14 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.accountability import canonical_origin
+from app.runtime_auth import isolate_account
 from app.runtime_contract import MODEL, PROVIDER
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}\Z")
-_HOST = re.compile(r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\Z")
 
 SYSTEM_POLICY = """You are eïlo, a personal accountability companion.
 Your default role is to motivate follow-through on the user's own commitments.
@@ -108,27 +108,11 @@ def _nonnegative_int(value: Any, field: str) -> int:
 
 
 def _origin(value: Any) -> str:
-    from app.accountability import DEFAULT_HOSTS
-
     value = _small_text(value, field="observation.origin", maximum=280)
     try:
-        parsed = urlsplit(value)
-    except ValueError as exc:
-        raise InputError("invalid observation.origin") from exc
-    if (
-        parsed.scheme != "https"
-        or not parsed.hostname
-        or parsed.username
-        or parsed.password
-        or parsed.port not in (None, 443)
-        or parsed.path not in ("", "/")
-        or parsed.query
-        or parsed.fragment
-        or not _HOST.fullmatch(parsed.hostname)
-        or parsed.hostname not in DEFAULT_HOSTS
-    ):
-        raise InputError("invalid observation.origin")
-    return f"https://{parsed.hostname.lower()}"
+        return canonical_origin(value)
+    except ValueError:
+        raise InputError("invalid observation.origin") from None
 
 
 def _nullable_text(value: Any, *, field: str, maximum: int) -> str | None:
@@ -287,6 +271,7 @@ def _runtime_and_agent(
     *, session_id: str, session_db: Any = None, ephemeral_system_prompt: str | None = None
 ):
     """Resolve only eïlo's explicit Codex OAuth route and construct a zero-tool agent."""
+    isolate_account()
     from hermes_cli.runtime_provider import resolve_runtime_provider
     from run_agent import AIAgent
 

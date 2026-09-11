@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel) || exit 1
+configured=$(git config --get core.hooksPath || true)
+if [ -n "$configured" ] && [ "$configured" != ".githooks" ] && [ "$configured" != "$root/.githooks" ]; then
+  echo "An existing custom core.hooksPath is configured; integrate the eilo source guards there." >&2
+  exit 1
+fi
+for hook in pre-commit pre-push; do
+  [ -x "$root/.githooks/$hook" ] || { echo "Missing executable eilo hook: .githooks/$hook" >&2; exit 1; }
+done
+if [ -n "$configured" ]; then
+  echo "eilo source guards are already active"
+  exit 0
+fi
+default_hooks=$(git rev-parse --git-path hooks)
+for hook in "$default_hooks"/*; do
+  [ -f "$hook" ] && [ -x "$hook" ] || continue
+  case "$hook" in *.sample) continue ;; esac
+  echo "Existing executable Git hooks would be hidden; integrate the eilo source guards there first." >&2
+  exit 1
+done
+git config --local core.hooksPath .githooks
+echo "eilo source guards are active through core.hooksPath=.githooks"

@@ -27,6 +27,10 @@ affordance rather than a permanent archive.
 
 ## Connections and permissions
 
+Open **Connections → Browser activity**. When the Mac app detects the extension, choose **Connect Chrome**. You do not need to keep a connection page open with the native host. Visible text and adaptive help remain separate choices.
+
+During development, an older installed extension/host may still show the one-step-at-a-time guide and compatibility connection page. That path keeps its page-open requirement. Optional website exclusions are available in the extension and Home’s **Home context → Sources → Excluded websites**. No mandatory site selection is needed.
+
 Connections lists sources and their current state. Connecting a source only grants
 the scope shown in that flow. It does not automatically:
 
@@ -48,7 +52,27 @@ recording. Review the resulting editable draft before choosing Send.
 
 ## Layout
 
+**Tracking** shows which sources are available and whether connected Calendar or
+Gmail data can be used in answers. **Browser usage** shows seven days of recorded
+browser time. Select a daily bar to inspect that day, or hover, focus, or click
+a website segment for its recorded time. Activity shows website lanes with page
+titles and details on selection. These views fill as Chrome records activity;
+they do not measure total device screen time. Daily bars use UTC.
+
+Both are in **Edit home → Add widgets**. They also appear automatically on a fresh
+or untouched Home. Your custom arrangement is kept.
+
 Home widgets can be rearranged with the supported hold gesture and resized from
 their corner grips. Layout editing is optional. You can leave it through the
 visible controls, Escape, or a background click; changing layout never changes
 goals or conversation content.
+
+## Adaptive Home — private development
+
+Open **Home context**. **Arrange Home for me** controls whether Home adapts its layout; turning it off keeps your manual arrangement. In **Sources**, **Understand my work** separately lets the existing AI use your conversation and permitted activity.
+
+**Pin** keeps a widget through work changes; **Undo** restores the preceding composition. Home waits while you type, select text or use a widget menu. Notes stay editable. A widget's **More** menu lets you say whether it is useful for this work; saved preferences can be inspected or reset in **Home context → Memory**.
+
+In **Home context → Sources**, desktop capture, Chrome, visible text and AI help have separate controls. **Pause capture** stops new capture. **Home context → Memory → Forget activity & context** removes activity and what was learned from it; saved conversations and explicitly chosen notes/preferences stay separate. Activity presents compact work episodes with details on selection. Recorded usage is not proof of focus or task completion.
+
+On a new private installation, **Connect ChatGPT** starts your own account sign-in. Enter its code on the official page opened by **Continue in browser**. The app does not import another Codex application's credentials.

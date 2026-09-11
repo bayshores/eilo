@@ -13,8 +13,10 @@ const {
 } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFile } = require('node:child_process');
 const { createBackendSupervisor } = require('./backend-supervisor.cjs');
 const { createNotificationPolicy } = require('./notifications.cjs');
+const { registerNativeContext } = require('./native-context-registration.cjs');
 const {
   ORIGIN,
   localURL,
@@ -29,16 +31,37 @@ const {
 function runDesktop() {
   app.setName('eïlo');
   process.umask(0o077);
-  let root, supervisor;
+  let root,
+    supervisor,
+    standalone = false;
   try {
-    root = app.isPackaged
-      ? JSON.parse(fs.readFileSync(path.join(process.resourcesPath, 'checkout.json'), 'utf8'))
-          .workspace
-      : path.resolve(__dirname, '../..');
+    if (app.isPackaged) {
+      standalone = fs.existsSync(path.join(process.resourcesPath, 'eilo-bundle.json'));
+      if (standalone) {
+        const manifest = JSON.parse(
+          fs.readFileSync(path.join(process.resourcesPath, 'eilo-bundle.json'), 'utf8'),
+        );
+        if (manifest.workspace !== 'workspace' || manifest.runtime !== 'runtime')
+          throw new Error('Invalid private bundle');
+        root = path.join(process.resourcesPath, 'workspace');
+      } else {
+        root = JSON.parse(
+          fs.readFileSync(path.join(process.resourcesPath, 'checkout.json'), 'utf8'),
+        ).workspace;
+      }
+    } else root = path.resolve(__dirname, '../..');
     supervisor = createBackendSupervisor({
       rootPath: root,
       shutdownTimeoutMs: 20_000,
       onState: onBackendState,
+      canonicalRoot: standalone ? root : undefined,
+      extraEnvironment: standalone
+        ? {
+            EILO_DATA_HOME: path.join(app.getPath('appData'), 'eilo'),
+            EILO_CACHE_HOME: path.join(app.getPath('cache'), 'eilo'),
+            EILO_RUNTIME_HOME: path.join(process.resourcesPath, 'runtime'),
+          }
+        : {},
     });
     supervisor.validateCheckout();
   } catch {
@@ -51,7 +74,9 @@ function runDesktop() {
     });
     return;
   }
-  const stateRoot = path.join(root, '.state', 'desktop');
+  const stateRoot = standalone
+    ? path.join(app.getPath('appData'), 'eilo', 'desktop')
+    : path.join(root, '.state', 'desktop');
   fs.mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
   app.setPath('userData', path.join(stateRoot, 'profile'));
   app.setPath('sessionData', path.join(stateRoot, 'profile'));
@@ -527,6 +552,25 @@ function runDesktop() {
         }
       })();
     });
+    ipcMain.handle('eilo:open-activity-connection', async (event) => {
+      if (
+        !trustedSender(event) ||
+        !window?.isVisible() ||
+        !window?.isFocused() ||
+        process.platform !== 'darwin'
+      )
+        return false;
+      // A fixed page in a fixed browser; renderer input never becomes a URL,
+      // process name, argument, or shell command. Opening it does not enable sharing.
+      return new Promise((resolve) => {
+        execFile(
+          '/usr/bin/open',
+          ['-b', 'com.google.Chrome', ORIGIN + '/activity-connect'],
+          { timeout: 10_000 },
+          (error) => resolve(!error),
+        );
+      });
+    });
     ipcMain.handle('eilo:google-authorization', (event, url) =>
       openAuthorizedProvider(event, url, {
         endpoint: '/api/integrations/google-calendar',
@@ -572,6 +616,64 @@ function runDesktop() {
       if (!trustedSender(event)) return null;
       return notificationStatus();
     });
+    ipcMain.handle('eilo:context-permission', async (event, kind) => {
+      if (
+        !trustedSender(event) ||
+        !window?.isVisible() ||
+        !window?.isFocused() ||
+        !['text', 'visual'].includes(kind)
+      )
+        return false;
+      const pane = kind === 'text' ? 'Privacy_Accessibility' : 'Privacy_ScreenCapture';
+      await shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${pane}`);
+      return true;
+    });
+    ipcMain.handle('eilo:account-authorization', async (event) => {
+      if (!trustedSender(event) || !window?.isVisible() || !window?.isFocused()) return false;
+      try {
+        const response = await fetch(ORIGIN + '/api/state', {
+          headers: { 'X-Eilo-Client': 'local-chat' },
+          signal: AbortSignal.timeout(3000),
+        });
+        const { account } = await response.json();
+        if (!response.ok || account?.state !== 'awaiting_sign_in') return false;
+        await shell.openExternal('https://auth.openai.com/codex/device');
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    ipcMain.handle('eilo:context-source', async (event, contextId, sourceId) => {
+      if (!trustedSender(event) || !window?.isVisible() || !window?.isFocused()) return false;
+      if (
+        ![contextId, sourceId].every(
+          (id) => typeof id === 'string' && /^[A-Za-z0-9_.:-]{1,160}$/.test(id),
+        )
+      )
+        return false;
+      try {
+        const response = await fetch(ORIGIN + '/api/state', {
+          headers: { 'X-Eilo-Client': 'local-chat' },
+          signal: AbortSignal.timeout(3000),
+        });
+        const state = await response.json();
+        const context = state.current_work_context;
+        if (!response.ok || context?.id !== contextId) return false;
+        const source = context.resources?.find((item) => item.id === sourceId);
+        const url = new URL(source?.url);
+        if (
+          !['https:', 'http:'].includes(url.protocol) ||
+          url.username ||
+          url.password ||
+          url.origin !== source.origin
+        )
+          return false;
+        await shell.openExternal(url.href);
+        return true;
+      } catch {
+        return false;
+      }
+    });
     ipcMain.handle('eilo:set-check-in-notifications', async (event, enabled) => {
       if (!trustedSender(event)) return null;
       if (typeof enabled !== 'boolean') return notificationStatus();
@@ -584,6 +686,23 @@ function runDesktop() {
       }
     });
     app.whenReady().then(async () => {
+      try {
+        registerNativeContext(
+          standalone
+            ? {
+                userData: path.join(app.getPath('appData'), 'eilo'),
+                resourcesPath: process.resourcesPath,
+              }
+            : {
+                userData: path.join(root, '.state', 'desktop', 'profile'),
+                dataHome: path.join(root, '.state'),
+                workspacePath: root,
+                pythonPath: path.join(root, '.runtime', 'venv', 'bin', 'python'),
+              },
+        );
+      } catch {
+        serviceError = 'Browser context host could not be registered.';
+      }
       policy = createNotificationPolicy({
         load: () => {
           try {

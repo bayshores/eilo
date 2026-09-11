@@ -58,9 +58,8 @@ export function mountCheckinCenter(
   recentHeading.append(el('h3', '', 'Latest activity'), button('View log', onLog));
   const recentBody = el('div', 'checkin-recent-body');
   recent.append(recentHeading, recentBody);
-  const conditions = el('section', 'checkin-conditions');
-  conditions.setAttribute('aria-label', 'When eïlo reaches out');
-  conditions.append(el('h3', '', 'When eïlo reaches out'));
+  const conditions = el('details', 'checkin-conditions checkin-help');
+  conditions.append(el('summary', '', 'How check-ins work'));
   const conditionsBody = el('div');
   conditions.append(conditionsBody);
   columns.append(recent, conditions);
@@ -106,16 +105,16 @@ export function mountCheckinCenter(
         ? 'Turn off alerts'
         : 'Enable alerts';
     deliveryText.textContent = !capable
-      ? 'Check-ins appear in eïlo. Open the desktop app to manage alerts outside this window.'
+      ? 'Manage desktop alerts in the eïlo app.'
       : !deliveryState
-        ? 'Alert status is unavailable. Check-ins can still appear in eïlo.'
+        ? 'Alert status unavailable. In-app check-ins still work.'
         : !deliveryState.supported
           ? 'Desktop alerts are unavailable on this device.'
           : deliveryState.error
             ? 'The last alert could not be delivered. Check macOS notification settings.'
             : deliveryState.enabled
-              ? 'On · eïlo can notify you when it’s out of view. macOS Focus may still silence alerts.'
-              : 'Off · check-ins stay inside eïlo until you enable desktop alerts.';
+              ? 'On · macOS Focus may silence alerts.'
+              : 'Off · check-ins appear inside eïlo.';
   }
   async function refreshDelivery() {
     if (
@@ -143,8 +142,8 @@ export function mountCheckinCenter(
     try {
       await onToggle(enabled);
       feedback.textContent = enabled
-        ? 'Check-ins are allowed. Activity sharing is controlled separately.'
-        : 'Automatic check-ins are off. Activity sharing has not changed.';
+        ? 'Check-ins on. Sharing stays separate.'
+        : 'Check-ins off. Sharing unchanged.';
     } catch (error) {
       feedback.textContent = error.message || 'Could not confirm the change. Try again.';
     } finally {
@@ -180,29 +179,27 @@ export function mountCheckinCenter(
     // Keep one stable button, including focus, while live status refreshes.
     cta.dataset.action = 'connect';
     if (!value.supported) {
-      nextText.textContent =
-        'The local workspace needs to reconnect before these controls can be used.';
+      nextText.textContent = 'Reconnect your workspace.';
       cta.hidden = true;
     } else if (value.phase === 'off') {
-      nextText.textContent =
-        'Turn on Allow check-ins whenever you want eïlo to consider reaching out.';
+      nextText.textContent = 'Turn on Allow check-ins to resume.';
       cta.hidden = true;
     } else if (['activity_off', 'activity_paused', 'awaiting_observation'].includes(value.phase)) {
       nextText.textContent =
-        'Connect the eïlo Chrome extension and keep its activity page open. Closing that page stops sharing.';
-      cta.textContent = source?.state === 'active' ? 'Check connection' : 'Connect activity';
+        source?.state === 'active'
+          ? 'Check your Chrome connection.'
+          : 'Start with the Chrome extension.';
+      cta.textContent = source?.state === 'active' ? 'Check connection' : 'Set up Chrome';
     } else if (['no_goals', 'no_conversation'].includes(value.phase)) {
-      nextText.textContent =
-        'Say what matters in your normal conversation. There is no separate task form to maintain.';
+      nextText.textContent = 'Start in the conversation.';
       cta.textContent = 'Talk to eïlo';
       cta.dataset.action = 'discuss';
     } else if (value.phase === 'on_break') {
-      nextText.textContent =
-        'Tell eïlo when you want to resume. Taking a break does not erase your progress.';
+      nextText.textContent = 'Tell eïlo when you want to resume.';
       cta.textContent = 'Talk to eïlo';
       cta.dataset.action = 'discuss';
     } else if (value.eligibleAt) {
-      nextText.textContent = `Eligible to check again after ${checkinTime(value.eligibleAt)}. That is an earliest check time, not a promised message.`;
+      nextText.textContent = `May check after ${checkinTime(value.eligibleAt)}. A message is not guaranteed.`;
       cta.hidden = true;
     } else {
       next.hidden = true;
@@ -233,8 +230,6 @@ export function mountCheckinCenter(
       recentBody.append(
         button(observedContext(value.observation), onObserved, 'checkin-observation'),
       );
-    const detailsOpen = !!conditionsBody.querySelector('details')?.open,
-      summaryFocused = document.activeElement === conditionsBody.querySelector('summary');
     conditionsBody.replaceChildren();
     const rules = el('ol', 'checkin-rule-list');
     const rule = (title, text) => {
@@ -261,10 +256,7 @@ export function mountCheckinCenter(
         : 'eïlo waits after you speak and lets activity settle before checking.',
     );
     conditionsBody.append(rules);
-    const details = el('details', 'checkin-details'),
-      summary = el('summary', '', 'Limits & delivery');
-    details.open = detailsOpen;
-    details.append(summary);
+    const details = el('div', 'checkin-details');
     const limit =
       Number.isFinite(r.cooldown_seconds) &&
       Number.isFinite(r.max_per_hour) &&
@@ -280,20 +272,13 @@ export function mountCheckinCenter(
       ),
     );
     conditionsBody.append(details);
-    if (summaryFocused) summary.focus({ preventScroll: true });
   }
   return { update };
 }
 
 export function renderAgentLog(host, view, { onCheckIns }) {
   const value = checkinView(view);
-  host.append(
-    el(
-      'p',
-      'activity-explanation',
-      'Each entry is an actual check by eïlo. Waiting conditions appear in Overview; they are not counted as agent runs.',
-    ),
-  );
+  host.append(el('p', 'activity-explanation', 'Completed and interrupted agent checks.'));
   if (!value.history.length) {
     const empty = el('div', 'workspace-empty-state');
     empty.append(
@@ -302,7 +287,7 @@ export function renderAgentLog(host, view, { onCheckIns }) {
         'p',
         '',
         value.supported
-          ? 'Once the activation conditions are met, this log will show checks, quiet decisions and interrupted attempts.'
+          ? 'Checks will appear here.'
           : 'Reconnect to the local workspace to see confirmed activity.',
       ),
     );

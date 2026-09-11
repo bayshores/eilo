@@ -6,6 +6,9 @@
 * {
   box-sizing: border-box;
 }
+[hidden] {
+  display: none !important;
+}
 body {
   margin: 0;
   min-width: 320px;
@@ -17,15 +20,15 @@ a {
   text-underline-offset: 3px;
 }
 .connect-page {
-  width: min(100% - 40px, 760px);
+  width: min(100% - 40px, 580px);
   margin: 0 auto;
-  padding: 48px 0 64px;
+  padding: 48px 0;
 }
 .back-link {
   display: inline-block;
   color: #cfc2b6;
   font-size: 15px;
-  margin-bottom: 62px;
+  margin-bottom: 40px;
 }
 .connect-intro {
   max-width: 630px;
@@ -48,7 +51,7 @@ h1 {
   max-width: 610px;
   margin-bottom: 20px;
   color: #fff8f0;
-  font-size: clamp(38px, 7vw, 58px);
+  font-size: clamp(32px, 6vw, 44px);
   font-weight: 500;
   line-height: 1.03;
   letter-spacing: -0.04em;
@@ -75,7 +78,7 @@ h3 {
   line-height: 1.55;
 }
 .lede {
-  margin-bottom: 42px;
+  margin-bottom: 28px;
 }
 .connection-card {
   padding: 28px;
@@ -126,6 +129,9 @@ h3 {
   gap: 10px;
 }
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 43px;
   border: 0;
   border-radius: 11px;
@@ -133,6 +139,7 @@ h3 {
   font: inherit;
   font-weight: 500;
   cursor: pointer;
+  text-decoration: none;
 }
 .button:focus-visible,
 .next-step a:focus-visible,
@@ -143,6 +150,9 @@ h3 {
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+body[data-focus-origin='pointer'] :is(button, summary, a):focus-visible {
+  outline: none !important;
 }
 .button-primary {
   color: #251b17;
@@ -170,48 +180,35 @@ h3 {
   line-height: 1.45;
 }
 .scope {
-  margin-top: 58px;
+  margin-top: 24px;
+  color: #cfc2b6;
+  font-size: 15px;
+  line-height: 1.5;
 }
-.scope-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
-  margin-top: 28px;
+.scope summary {
+  cursor: pointer;
+  padding: 10px 0;
 }
-.scope-grid p {
-  margin-bottom: 0;
-  font-size: 15.5px;
-}
-.not-shared {
-  max-width: 650px;
-  margin: 32px 0 0;
-  color: #e9ddd1 !important;
-}
-.not-shared strong {
-  color: #fff8f0;
-  font-weight: 500;
-}
-.next-step {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 28px;
-  margin-top: 58px;
-  padding: 22px 0;
-}
-.next-step p {
-  max-width: 420px;
-  margin-bottom: 0;
+.scope p {
+  margin: 12px 0;
   font-size: 15px;
 }
-.next-step a {
-  flex: 0 0 auto;
-  color: #e0a27e;
-  font-weight: 500;
+.scope summary:focus-visible {
+  outline: 2px solid #f3b490;
+  outline-offset: 3px;
+}
+.consent {
+  margin: 22px 0;
+  color: #e3d7cc;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.feedback:empty {
+  display: none;
 }
 @media (max-width: 620px) {
   .connect-page {
-    width: min(100% - 32px, 760px);
+    width: min(100% - 32px, 580px);
     padding-top: 28px;
   }
   .back-link {
@@ -219,15 +216,6 @@ h3 {
   }
   .connection-card {
     padding: 23px;
-  }
-  .scope-grid {
-    grid-template-columns: 1fr;
-    gap: 22px;
-  }
-  .next-step {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 14px;
   }
 }
 

@@ -39,6 +39,8 @@ jobs:
           npm ci
       - name: Check source, boundaries, and isolated regressions
         run: npm run check
-      - name: Compile the macOS activity helper without collecting activity
+      - name: Compile and test macOS helpers without collecting activity
         if: runner.os == 'macOS'
-        run: ./scripts/build-activity-helper
+        run: |
+          ./scripts/build-activity-helper
+          ./scripts/check-context-collector

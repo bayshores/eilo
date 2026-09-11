@@ -4,7 +4,7 @@ export function mountSpeechInput(container, client) {
   const controls = document.createElement('div');
   controls.className = 'speech-controls';
   controls.innerHTML =
-    '<div class="speech-actions"><button type="button" class="speech-mic" aria-label="Start recording" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span class="speech-button-label">Speak</span></button><label class="sr-only" for="speech-mode">Microphone mode</label><select id="speech-mode" aria-label="Microphone mode"><option value="toggle">Click to toggle</option><option value="hold">Hold to talk</option></select><div class="speech-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><button type="button" class="text-button speech-cancel" hidden>Cancel</button></div><p class="speech-status" role="status">Speech is transcribed on this Mac. Nothing is sent until you choose Send.</p>';
+    '<div class="speech-actions"><button type="button" class="speech-mic" aria-label="Start recording" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span class="speech-button-label">Speak</span></button><label class="sr-only" for="speech-mode">Microphone mode</label><select id="speech-mode" aria-label="Microphone mode"><option value="toggle">Click to toggle</option><option value="hold">Hold to talk</option></select><div class="speech-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><button type="button" class="text-button speech-cancel" hidden>Cancel</button></div><p class="speech-status" role="status">Transcribed on this Mac. Review before sending.</p>';
   container.append(controls);
   const send = container.querySelector('.live-send'),
     footer = container.querySelector('.live-composer-footer');
@@ -61,7 +61,7 @@ export function mountSpeechInput(container, client) {
         : state === 'requesting'
           ? 'Cancel microphone request'
           : mode.value === 'hold'
-            ? 'Hold to talk. Hold Space or Enter while this button is focused.'
+            ? 'Hold to talk. Hold Space or Enter when this button is focused.'
             : 'Start recording',
     );
     cancel.hidden = !recording && !busy;
@@ -70,14 +70,14 @@ export function mountSpeechInput(container, client) {
       (state === 'recording'
         ? 'Listening…'
         : state === 'requesting'
-          ? 'Allow microphone access to begin.'
+          ? 'Allow microphone access.'
           : state === 'transcribing'
             ? 'Transcribing on this Mac…'
             : state === 'stopping'
-              ? 'Finishing the recording…'
+              ? 'Finishing…'
               : mode.value === 'hold'
-                ? 'Hold the button, Space or Enter to speak. Release to transcribe.'
-                : 'Transcribed locally. Review your words before sending.');
+                ? 'Hold to talk. Space or Enter work when focused.'
+                : 'Transcribed on this Mac. Review before sending.');
   }
   const capture = createSpeechCapture({
     onState: stateChanged,
@@ -102,7 +102,7 @@ export function mountSpeechInput(container, client) {
       if (disposed) return;
       available = value.ready === true;
       if (available) stateChanged({ state: 'idle' });
-      else status.textContent = 'Local speech setup is unavailable. You can still type.';
+      else status.textContent = 'Local speech is unavailable. You can still type.';
     })
     .catch(() => {
       if (!disposed) status.textContent = 'Could not check local speech. You can still type.';

@@ -1,14 +1,16 @@
 import { mountCalendarConnection } from '../connections/calendar.js';
 import { calendarAgenda, calendarTime } from '../calendar/agenda.js';
-import { createLiveWidgetRenderer } from '../home/live-widgets.js';
+import { createLiveWidgetRenderer, widgetFingerprint } from '../home/live-widgets.js';
 import { createWorkspaceViews } from './views.js';
 import { createHomeClient } from '../chat/client.js';
 import { createActivitySession } from '../activity/session.js';
+import { mountChromeSetup } from '../activity/setup.js';
 import { createLiveUpdates } from '../chat/live-updates.js';
 import { mountSpeechInput } from '../speech/input.js';
 import { mountWorkflowProgress } from '../chat/workflow-progress.js';
 import { mountBriefingSources } from '../connections/briefing-sources.js';
 import { mountConnectionsManager } from '../connections/manager.js';
+import { mountAccount } from '../connections/account.js';
 import { mountChatLibrary } from '../chat/library.js';
 import { mountChatSwitcher } from '../chat/switcher.js';
 import { localCommand, commandMatches } from '../chat/commands.js';
@@ -51,6 +53,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     desktopNotice = '';
   let stopDesktop = null,
     calendarPanel = null,
+    browserPanel = null,
     briefingSourcesPanel = null,
     workflowPanel = null;
   let dismissedWorkflowRunId = '';
@@ -58,6 +61,8 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   workflowHost.hidden = true;
   dock.append(workflowHost);
   dialog.addEventListener('close', () => {
+    browserPanel?.destroy();
+    browserPanel = null;
     calendarPanel?.destroy();
     calendarPanel = null;
     briefingSourcesPanel?.destroy();
@@ -74,6 +79,9 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   pages.hidden = true;
   board.after(pages);
   const header = document.querySelector('.home-header h1');
+  const accountHost = node('div', 'account-host');
+  document.querySelector('.home-header').after(accountHost);
+  mountAccount(accountHost, { client });
   header.tabIndex = -1;
   let currentPage = 'home';
   let connectionsPanel = null,
@@ -81,6 +89,28 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     quickChats = null,
     connectionsRevision = null,
     commandsHidden = false;
+  const browserGuides = new Set();
+  function mountBrowserGuide(host) {
+    const guide = mountChromeSetup(host, {
+      onControl: (action) => activity.control(action),
+      onNativeControl: (action) =>
+        client.contextCommand('configure', {
+          ...current.snapshot.adaptive.policy,
+          ...(action === 'connect'
+            ? { enabled: true, browser_enabled: true }
+            : { browser_enabled: false }),
+        }),
+    });
+    browserGuides.add(guide);
+    guide.update(current);
+    return {
+      update: guide.update,
+      destroy() {
+        browserGuides.delete(guide);
+        guide.destroy();
+      },
+    };
+  }
   const views = createWorkspaceViews({
     container: pages,
     onDiscuss: (text) => talk(text),
@@ -94,6 +124,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     onCheckinToggle: (enabled) =>
       client.activityControl(enabled ? 'enable_check_ins' : 'pause_check_ins', crypto.randomUUID()),
     onActivitySetup: () => openDetail('browser-setup'),
+    onContextCommand: (action, fields) => client.contextCommand(action, fields),
   });
   const connectionsHost = node('div', 'connections-page'),
     libraryHost = node('div', 'library-page');
@@ -121,6 +152,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
         openGoogleAuthorization,
         openBriefingAuthorization,
         onActivitySetup: () => openDetail('browser-setup'),
+        mountActivitySetup: (host) => mountBrowserGuide(host),
         onChanged: (next) => {
           connectionsRevision = next.revision;
           client.refresh();
@@ -458,14 +490,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 70;
       const oldScroll = log.scrollTop;
       log.replaceChildren();
-      if (!entries.length)
-        log.append(
-          node(
-            'p',
-            'live-empty',
-            'Tell eïlo what matters to you. You can add commitments, share progress or correct something in your own words.',
-          ),
-        );
+      if (!entries.length) log.append(node('p', 'live-empty', 'What matters right now?'));
       entries.forEach((entry) => log.append(miniMessage(entry)));
       if (!messageFingerprint || atBottom) log.scrollTop = log.scrollHeight;
       else log.scrollTop = oldScroll;
@@ -533,11 +558,13 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       activity: 'Conversation updates',
       connections: 'Connections & privacy',
     }[type];
-    if (type === 'browser-setup' && body.querySelector('.chrome-connection-body')) {
-      title.textContent = 'Browser activity';
-      renderChromeConnection(body.querySelector('.chrome-connection-body'));
+    if (type === 'browser-setup' && body.querySelector('.chrome-setup')) {
+      title.textContent = 'Set up Chrome activity';
+      browserPanel?.update(current);
       return true;
     }
+    browserPanel?.destroy();
+    browserPanel = null;
     calendarPanel?.destroy();
     calendarPanel = null;
     briefingSourcesPanel?.destroy();
@@ -552,10 +579,10 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       return true;
     }
     if (type === 'browser-setup') {
-      title.textContent = 'Browser activity';
-      const chromeBody = node('div', 'chrome-connection-body');
+      title.textContent = 'Set up Chrome activity';
+      const chromeBody = node('div');
       body.append(chromeBody);
-      renderChromeConnection(chromeBody);
+      browserPanel = mountBrowserGuide(chromeBody);
     } else if (type === 'calendar-day') {
       title.textContent = 'Your day';
       const calendar = current.snapshot.integrations?.google_calendar,
@@ -672,82 +699,6 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     }
     return true;
   }
-  function renderChromeConnection(body) {
-    if (!body) return;
-    const source = current.snapshot.accountability?.activity || {},
-      sharing = source.state || 'unknown';
-    const signature = JSON.stringify([sharing, source.helper_available, activity.capable()]);
-    if (body.dataset.signature === signature) return;
-    body.dataset.signature = signature;
-    body.replaceChildren();
-    body.append(
-      node('p', '', `Chrome activity is ${sharing}.`),
-      node(
-        'p',
-        'muted',
-        'Share approved active-site names and titles with eïlo. It can remember observed sessions and use that context for check-ins. Page visits do not count as completed tasks.',
-      ),
-    );
-    body.append(
-      node(
-        'p',
-        'muted',
-        'Available sites: LeetCode, NeetCode and Python documentation. Choose grants in the eïlo Chrome extension. The activity summary retains normalized site names and observed sessions for seven days; page titles are excluded from that summary. Admitted model observations remain in the local conversation runtime.',
-      ),
-    );
-    const actions = node('div', 'connection-actions'),
-      feedback = node('p', 'connection-feedback');
-    feedback.setAttribute('role', 'status');
-    const run = async (actionName) => {
-      try {
-        feedback.textContent = '';
-        await activity.control(actionName);
-      } catch (error) {
-        feedback.textContent = error.message;
-      }
-    };
-    if (activity.capable()) {
-      const enable = action('Connect Chrome activity', () => run('enable'), 'button primary');
-      enable.disabled = sharing === 'active' || !source.helper_available;
-      actions.append(enable);
-    } else {
-      body.append(
-        node(
-          'p',
-          'muted',
-          'Open the connection page in Chrome and leave it open while sharing. You can keep using Home in this browser.',
-        ),
-      );
-      actions.append(
-        action(
-          'Copy Chrome connection link',
-          async () => {
-            try {
-              await navigator.clipboard.writeText(location.origin + '/activity-connect');
-              feedback.textContent =
-                'Copied. Open that address in Chrome, then enable activity there.';
-            } catch {
-              feedback.textContent = location.origin + '/activity-connect';
-            }
-          },
-          'button',
-        ),
-      );
-    }
-    if (sharing === 'active') actions.append(action('Pause sharing', () => run('pause'), 'button'));
-    if (sharing !== 'off') actions.append(action('Turn off', () => run('off'), 'button'));
-    const setup = node('a', 'text-button', 'Extension setup');
-    setup.href = '/activity-setup.html';
-    actions.append(setup);
-    body.append(actions, feedback);
-    body.append(
-      node(
-        'p',
-        'muted',
-        'Sharing stops when its connection page closes or loses its lease. Microphone recording is separate and starts only when you use Speak.',
-      ),
-    );
-  }
   function start() {
     document.title = 'eïlo — Home';
     document.querySelector('.app-window').setAttribute('aria-label', 'eïlo Home');
@@ -798,6 +749,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     client.subscribe((next) => {
       current = next;
       activity.update(next);
+      for (const guide of browserGuides) guide.update(next);
       updates.update(next);
       views.update(next);
       libraryPanel?.update(next.snapshot);
@@ -827,17 +779,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
                   ? 'On a break'
                   : `${value.open.length} open commitment${value.open.length === 1 ? '' : 's'}`;
       renderWorkflow(next.snapshot?.workflow_run ?? null);
-      const nextFingerprint = JSON.stringify([
-        next.snapshot?.tasks,
-        next.snapshot?.messages,
-        next.snapshot?.pending_message,
-        next.snapshot?.integrations?.google_calendar,
-        next.snapshot?.accountability?.observed_activity,
-        next.snapshot?.accountability?.activity?.state,
-        next.snapshot?.workflow_run,
-        next.localPending,
-        next.connection,
-      ]);
+      const nextFingerprint = widgetFingerprint(next);
       if (nextFingerprint !== fingerprint) {
         fingerprint = nextFingerprint;
         refreshWidgets();
@@ -902,6 +844,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     });
   }
   return {
+    client,
     renderBody,
     renderDetail,
     start,

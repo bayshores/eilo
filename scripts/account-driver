@@ -1,0 +1,6 @@
+#!/bin/zsh
+set -euo pipefail
+EILO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$EILO_ROOT/scripts/lib/runtime.sh"
+eilo_initialize_profile
+exec "$EILO_PYTHON" "$EILO_ROOT/app/account_driver.py" "$@"

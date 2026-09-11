@@ -9,6 +9,7 @@ import {
   projectLayout,
   updateLayout,
   withConversationDock,
+  withTrackingWidgets,
 } from './layout.js';
 
 const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -31,6 +32,8 @@ test('catalog and defaults are stable and match the intended wide arrangement', 
     'conversation',
     'clock',
     'notes',
+    'tracking',
+    'usage',
   ]);
   const layout = projectLayout(createDefaultState());
   assert.deepEqual(
@@ -42,6 +45,31 @@ test('catalog and defaults are stable and match the intended wide arrangement', 
       { id: 'conversation-1', x: 7, y: 2, w: 5, h: 2 },
     ],
   );
+});
+
+test('tracking widgets fit an untouched live Home and never reset a custom arrangement', () => {
+  const previous = withConversationDock(createDefaultState());
+  const original = structuredClone(previous);
+  const next = withTrackingWidgets(previous);
+  assert.deepEqual(
+    next.widgets.map((widget) => widget.type),
+    ['today', 'goals', 'tracking', 'progress', 'usage'],
+  );
+  assertUsable(next, 'wide');
+  assert.ok(projectLayout(next, 'wide').every((widget) => widget.y + widget.h <= 4));
+  assert.deepEqual(previous, original);
+  assert.deepEqual(withTrackingWidgets(next), next);
+  const removed = updateLayout(next, { type: 'remove', id: 'tracking-1' });
+  assert.deepEqual(withTrackingWidgets(removed), removed, 'a removed widget is not re-added');
+  const custom = updateLayout(previous, {
+    type: 'add',
+    widgetType: 'clock',
+    size: 'small',
+    id: 'custom-clock',
+  });
+  assert.deepEqual(withTrackingWidgets(custom), custom);
+  const empty = { version: 1, widgets: [], positions: {} };
+  assert.deepEqual(withTrackingWidgets(empty), empty);
 });
 
 test('withConversationDock removes only Conversation metadata and fills the untouched default slot', () => {

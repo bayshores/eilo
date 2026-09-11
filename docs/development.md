@@ -9,6 +9,7 @@ checked-in lockfiles; `uv.lock` owns Python development dependencies and
 ```sh
 uv sync --group dev
 npm ci
+./scripts/install-source-guards
 ```
 
 The root preview does not need credentials:
@@ -35,11 +36,19 @@ upstream source at `.runtime/hermes-agent`, install its dependencies from
 [`requirements.integrations.lock`](../requirements.integrations.lock) into a
 Python 3.13 environment at `.runtime/venv`, and install the extracted Hermes
 package there in editable mode without resolving a different dependency set.
-Runtime provisioning is currently manual; the development `.app` also depends
-on this checkout. The launchers create only project-local configuration from
-the public templates, and existing private configuration is never overwritten.
+Development runtime provisioning is manual; the development `.app` also depends
+on this checkout. The separate [private Mac build](beta-release.md) packages a
+managed runtime for isolated standalone testing. The launchers create only
+app-owned configuration from the templates, and existing private configuration
+is never overwritten.
 The provider sign-in is a separate, explicit setup step; it is not needed for
 the preview, unit tests, or CI.
+
+The development Electron host registers the fixed Chrome Native Messaging bridge
+using `.runtime/venv/bin/python` and this checkout's `.state`. This prepares the
+transport only; browser access, activity capture, and AI use remain separate
+choices. The standalone bundle registers the same extension identity against its
+managed runtime and Application Support state.
 
 ## Daily commands
 
@@ -54,6 +63,12 @@ the preview, unit tests, or CI.
 Tests create a temporary test home beneath `.tmp`; they must not read, write, or
 depend on `.state/hermes`. Tests must also avoid real accounts, model calls,
 microphone capture, operating-system permissions, and activity collection.
+
+On macOS, run `./scripts/check-context-collector` after changing native capture
+code. It compiles the collector in temporary output and runs its policy tests and
+isolated self-test without collecting activity or querying permissions. CI runs
+this check alongside compilation of the existing activity helper. The temporary
+binaries do not replace a running app's helper.
 
 ## Change workflow
 
@@ -84,7 +99,12 @@ and never use a personal conversation as a disposable test fixture.
 
 ## Repository hygiene
 
-Do not commit `.state/`, `.runtime/`, `.tmp/`, credentials, account exports,
+Follow the [source/private data boundary](data-boundary.md). Personal development
+records belong in ignored `.local`; they are not product documentation. Local
+Git guards inspect staged blobs and all outgoing commits in addition to CI
+checks. Packaging accepts reviewed indexed source, not a recursive checkout copy.
+
+Do not commit `.state/`, `.runtime/`, `.tmp/`, `.local/`, credentials, account exports,
 local model files, generated desktop artifacts, or caches. Keep changes focused;
 do not combine feature behavior, dependency upgrades, and broad formatting unless
 the task requires all of them.

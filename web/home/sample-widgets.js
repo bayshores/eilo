@@ -1,4 +1,5 @@
-import { SAMPLE } from '../preview/fixtures.js';
+import { SAMPLE, SOURCE_WIDGET_SAMPLE } from '../preview/fixtures.js';
+import { renderTrackingWidget, renderUsageWidget } from './context-widgets.js';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -31,7 +32,11 @@ export function renderSampleWidget(
   { content, preview = false, onOpenGoals, onNotesChange } = {},
 ) {
   container.innerHTML = '';
-  if (widget.type === 'today') {
+  if (widget.type === 'tracking') {
+    renderTrackingWidget(container, SOURCE_WIDGET_SAMPLE);
+  } else if (widget.type === 'usage') {
+    renderUsageWidget(container, SOURCE_WIDGET_SAMPLE);
+  } else if (widget.type === 'today') {
     container.innerHTML = `<h2>Today</h2><p class="widget-subtitle">${SAMPLE.day}</p><div class="agenda-items"></div>`;
     const list = container.querySelector('.agenda-items');
     SAMPLE.agenda.forEach((item) => {

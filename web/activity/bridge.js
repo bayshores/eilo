@@ -31,7 +31,7 @@
     )
       return false;
     return (
-      Object.keys(value).length === 3 && value.origin.length <= 253 && value.title.length <= 180
+      Object.keys(value).length === 3 && value.origin.length <= 280 && value.title.length <= 180
     );
   }
   function clear(reason) {
@@ -39,7 +39,58 @@
     pendingNonce = null;
     status(false, reason);
   }
-  function connect(extensionId, nextClientId, onObservation, onStatus) {
+  function readiness(nextPort) {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timeout);
+        resolve(result);
+      };
+      const timeout = setTimeout(
+        () => finish({ ok: false, reason: 'extension_update_required' }),
+        3000,
+      );
+      nextPort.onMessage.addListener((message) => {
+        if (message?.type !== 'ready' || message.protocol !== 2) return;
+        finish(
+          message.granted === true
+            ? { ok: true }
+            : { ok: false, reason: 'browser_permission_required' },
+        );
+      });
+      nextPort.onDisconnect.addListener(() =>
+        finish({ ok: false, reason: 'extension_disconnected' }),
+      );
+    });
+  }
+  function openPort(extensionId) {
+    if (!EXTENSION_ID.test(extensionId || '') || !globalThis.chrome?.runtime?.connect) return null;
+    try {
+      const nextPort = globalThis.chrome.runtime.connect(extensionId, { name: PORT_NAME });
+      return nextPort?.postMessage &&
+        nextPort.onMessage?.addListener &&
+        nextPort.onDisconnect?.addListener
+        ? nextPort
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  // Readiness does not request a sample or start the server's activity lease.
+  async function check(extensionId) {
+    const probe = openPort(extensionId);
+    if (!probe) return { ok: false, reason: 'chrome_unavailable' };
+    const result = await readiness(probe);
+    try {
+      probe.disconnect();
+    } catch {
+      /* The extension may already have disconnected. */
+    }
+    return result;
+  }
+  async function connect(extensionId, nextClientId, onObservation, onStatus) {
     disconnect();
     observationCallback = typeof onObservation === 'function' ? onObservation : null;
     statusCallback = typeof onStatus === 'function' ? onStatus : null;
@@ -51,18 +102,8 @@
       status(false, 'chrome_unavailable');
       return { ok: false, reason: 'chrome_unavailable' };
     }
-    let nextPort;
-    try {
-      nextPort = globalThis.chrome.runtime.connect(extensionId, { name: PORT_NAME });
-    } catch {
-      status(false, 'connection_failed');
-      return { ok: false, reason: 'connection_failed' };
-    }
-    if (
-      !nextPort?.postMessage ||
-      !nextPort.onMessage?.addListener ||
-      !nextPort.onDisconnect?.addListener
-    ) {
+    const nextPort = openPort(extensionId);
+    if (!nextPort) {
       status(false, 'connection_failed');
       return { ok: false, reason: 'connection_failed' };
     }
@@ -82,8 +123,15 @@
       observationCallback?.(message.nonce, message.observation);
     });
     nextPort.onDisconnect.addListener(() => {
+      // Read lastError to acknowledge a rejected Chrome messaging connection.
+      void globalThis.chrome?.runtime?.lastError;
       if (port === nextPort) clear('extension_disconnected');
     });
+    const ready = await readiness(nextPort);
+    if (!ready.ok || port !== nextPort) {
+      if (port === nextPort) disconnect();
+      return ready.ok ? { ok: false, reason: 'extension_disconnected' } : ready;
+    }
     status(true, 'connected');
     return { ok: true };
   }
@@ -126,5 +174,5 @@
     }
     if (old) status(false, 'disconnected');
   }
-  globalThis.EiloActivityBridge = { connect, update, disconnect };
+  globalThis.EiloActivityBridge = { connect, check, update, disconnect };
 })();
