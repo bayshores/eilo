@@ -288,6 +288,7 @@ export function renderUsageWidget(container, view, onActivity = () => {}, onConn
   state.layout.hidden = !data.available || !data.hasData;
   state.empty.hidden = !state.layout.hidden;
   state.scope.hidden = state.layout.hidden;
+  container.classList.toggle('usage-widget--empty', state.layout.hidden);
   if (state.layout.hidden) {
     state.reset.hidden = true;
     setText(

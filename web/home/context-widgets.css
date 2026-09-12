@@ -360,6 +360,33 @@
   border-bottom-color: #fac39938;
   border-radius: 6px 6px 0 0;
 }
+.usage-widget--empty .usage-empty {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 0;
+  margin: 0;
+}
+.usage-widget--empty .usage-empty__chart {
+  display: none;
+}
+.usage-widget--empty .usage-empty strong {
+  font-size: 16px;
+  line-height: 1.2;
+}
+.usage-widget--empty .usage-empty p {
+  max-width: 28ch;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+.usage-widget--empty .usage-footer {
+  margin-top: 0;
+}
+.usage-widget--empty .context-widget__action {
+  margin-top: 0;
+  min-height: 28px;
+  padding-block: 3px;
+}
 @container widget (max-height: 280px) {
   .tracking-sources {
     gap: 8px;
