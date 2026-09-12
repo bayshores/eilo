@@ -169,6 +169,7 @@ export function createContextPanel({
     panel.setAttribute('aria-labelledby', tab.id);
     const extra = extraSections.find((item) => item.id === id);
     if (extra?.element) panel.append(extra.element);
+    else if (host) panel.append(node('h2', 'settings-section-heading', label));
     tab.addEventListener('click', () => selectTab(id));
     tab.addEventListener('keydown', (event) => {
       const ids = [...tabButtons.keys()];
@@ -238,13 +239,14 @@ export function createContextPanel({
 
   const overview = panels.get('overview');
   const work = section('Current work');
+  work.classList.add('context-work');
   const workTitle = node('p', 'context-work__title');
   const provenance = node('p', 'context-caption');
   const returnPoint = node('p', 'context-work__return');
   const workActions = node('div', 'context-actions');
   const talk = button('Tell eïlo', 'button context-primary');
   talk.addEventListener('click', () => closeThen(onTalk));
-  const correct = button('Edit');
+  const correct = button('Edit', 'button context-work__edit');
   const correction = node('form', 'context-correction');
   correction.hidden = true;
   const titleField = field('What you’re working on', 'A short title', 100);
@@ -267,6 +269,7 @@ export function createContextPanel({
   cancelEdit.addEventListener('click', () => {
     correction.hidden = true;
     workActions.hidden = false;
+    correct.focus();
   });
   correction.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -292,24 +295,25 @@ export function createContextPanel({
     switchRow(
       'arrange',
       'Add relevant widgets',
-      'Let eïlo add widgets as your work changes. You can move, resize, or remove any widget.',
+      'Add widgets as your work changes. Your layout stays editable.',
       (checked) => run('home', 'set_mode', { mode: checked ? 'adaptive' : 'manual' }),
     ),
   );
-  const layoutHint = node('p', 'context-caption');
   const undo = action('Undo last suggestions', 'home', 'undo');
-  layout.append(layoutHint, undo);
+  layout.append(undo);
   if (onRestoreHome) {
     const restore = button('Restore starter layout', 'button');
     restore.addEventListener('click', onRestoreHome);
-    layout.append(
-      restore,
-      node(
-        'p',
-        'context-caption',
-        'Your notes and saved contents are kept. You can undo the layout change.',
-      ),
+    const restoreRow = node('div', 'context-restore-row');
+    const copy = node('div');
+    copy.append(
+      node('strong', '', 'Starter layout'),
+      node('p', 'context-caption', 'Rearrange Home. Notes and saved contents stay.'),
     );
+    restore.textContent = 'Restore';
+    restore.setAttribute('aria-label', 'Restore starter layout');
+    restoreRow.append(copy, restore);
+    layout.append(restoreRow);
   }
   const chooseSources = button('Choose context sources', 'context-navigation-row');
   chooseSources.innerHTML =
@@ -566,14 +570,11 @@ export function createContextPanel({
           ? 'From permitted activity'
           : 'You can correct this'
       : 'Start with a conversation. Choose activity sources when you’re ready.';
+    provenance.hidden = !context || !['explicit', 'observed'].includes(context.confidence);
     returnPoint.textContent = context?.return_point || '';
     returnPoint.hidden = !context?.return_point;
     talk.hidden = Boolean(context);
     correct.hidden = !context;
-    layoutHint.textContent =
-      current?.mode === 'adaptive'
-        ? 'Your existing widgets and placement choices stay. Use Edit home to arrange any widget.'
-        : 'Automatic additions are off. Your existing widgets stay editable.';
     undo.hidden = !current?.can_undo;
     const policy = current?.policy || {};
     visual.hidden = !current?.visual_available;
