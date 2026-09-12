@@ -557,3 +557,379 @@
     padding-block: 4px;
   }
 }
+
+/* The PR's warm, translucent surfaces share the existing widget geometry. */
+.home-widget {
+  border: 1px solid #ffffff0d;
+  box-shadow:
+    inset 0 1px #ffffff05,
+    0 8px 24px #00000012;
+}
+.home-widget:hover {
+  border-color: #ffffff24;
+}
+.widget[data-type='today'].home-widget {
+  background:
+    radial-gradient(ellipse at 95% 0%, #fac39940, transparent 60%),
+    radial-gradient(ellipse at 0% 100%, #b4b1da25, transparent 65%),
+    linear-gradient(130deg, #292b30 18%, #3a302c 100%);
+  border-color: #fac39930;
+}
+.widget[data-type='goals'].home-widget {
+  background: linear-gradient(135deg, #36333e, #2b3035 62%, #292b30);
+}
+.widget[data-type='usage'].home-widget {
+  background: linear-gradient(135deg, #34302d, #292b30 55%);
+}
+.widget[data-type='progress'].home-widget {
+  background: linear-gradient(135deg, #fac399, #efbb93 72%, #e3b5a0);
+}
+:root[data-source='live'] .home-launcher.live-content {
+  display: grid;
+  grid-template-rows: auto minmax(44px, 1fr) auto;
+  gap: 16px;
+}
+.home-launcher.live-content > h2 {
+  font-size: clamp(24px, 4cqw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+.launcher-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+.launcher-action {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 14px 16px;
+  border: 1px solid #ffffff12;
+  border-radius: 14px;
+  box-shadow: inset 0 1px #ffffff09;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+.launcher-action:hover {
+  border-color: #ffffff40;
+  background: #ffffff24;
+}
+.launcher-action--sand {
+  background: #fac3992e;
+}
+.launcher-action--lavender {
+  background: #b4b1da30;
+}
+.launcher-action--blue {
+  background: #94b9c92b;
+}
+.launcher-action--mint {
+  background: #a6c5b429;
+}
+.launcher-today {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid #ffffff12;
+  border-radius: 12px;
+  background: #17191b55;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.launcher-today:hover {
+  background: #17191b88;
+}
+.launcher-today__label {
+  flex: 0 0 auto;
+  color: var(--peach);
+  font-weight: 500;
+}
+.launcher-today__copy {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.launcher-today__arrow {
+  flex: 0 0 auto;
+}
+@container widget (max-width: 620px) {
+  .launcher-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .launcher-action {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+  :root[data-source='live'] .home-launcher.live-content {
+    gap: 12px;
+  }
+}
+@container widget (max-height: 250px) {
+  :root[data-source='live'] .home-launcher.live-content {
+    gap: 8px;
+  }
+  .home-launcher.live-content > h2 {
+    font-size: 24px;
+  }
+  .launcher-action {
+    padding: 8px 10px;
+  }
+  .launcher-today {
+    padding-block: 8px;
+  }
+}
+/* Short cards keep complete labels and a separate footer. */
+@container widget (max-height: 195px) {
+  :root[data-source='live'] .app-window:not(.editing) .home-widget .widget-content.home-launcher {
+    padding: 12px;
+    grid-template-rows: minmax(44px, 1fr) auto;
+  }
+  .home-launcher.live-content > h2 {
+    display: none;
+  }
+  .launcher-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .launcher-action {
+    min-height: 32px;
+    font-size: 12px;
+    padding: 6px;
+  }
+}
+
+/* Use the available grid space; the composer height is measured by normal layout. */
+:root[data-source='live'] .workspace.conversation-active {
+  grid-template-rows: minmax(0, 1fr);
+}
+:root[data-source='live']
+  .workspace.conversation-active
+  > :is(.home-header, .board-scroll, .workspace-page, .home-pagination) {
+  display: none;
+}
+:root[data-source='live'] .workspace.conversation-active .conversation-dock {
+  grid-row: 1;
+  align-self: stretch;
+  width: min(900px, 100%);
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.workspace.conversation-active .conversation-dock .live-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+:root[data-source='live'] .workspace.conversation-active .conversation-thread {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  padding: 0 0 16px;
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+}
+.workspace.conversation-active .conversation-thread .live-messages {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 8px;
+}
+.conversation-back {
+  align-self: flex-start;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.conversation-back:hover {
+  color: var(--ink);
+  background: #ffffff0a;
+}
+.conversation-dock .live-composer {
+  flex: 0 0 auto;
+  border: 1px solid #fac39930;
+  background: linear-gradient(135deg, #fac39914, #2b2d32 40%);
+  box-shadow:
+    inset 0 1px #ffffff05,
+    0 10px 30px #0003;
+}
+.conversation-dock .live-composer:focus-within {
+  border-color: #fac39966;
+}
+.conversation-thread .live-snippet-user {
+  margin-left: auto;
+  max-width: 85%;
+  padding: 12px 16px;
+  border: 1px solid #ffffff0a;
+  border-radius: 14px;
+  background: #fac39914;
+}
+.conversation-thread .live-snippet-assistant {
+  padding: 2px;
+}
+.conversation-thread .live-snippet p {
+  line-height: 1.55;
+}
+.launcher-action:focus-visible,
+.launcher-today:focus-visible,
+.conversation-back:focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: 2px;
+}
+
+.conversation-context {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(100%, 860px);
+  min-height: 38px;
+  margin: 10px auto 28px;
+  padding: 8px 12px;
+  border: 1px solid #ffffff0d;
+  border-radius: 12px;
+  background: #ffffff04;
+  color: #aaa8b0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.conversation-context-mark {
+  color: var(--peach);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+.conversation-context-label {
+  opacity: 0.72;
+}
+
+.conversation-empty-state {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: min(34dvh, 280px);
+  color: #b8b5bd;
+  text-align: center;
+  opacity: 0.78;
+  animation: conversation-empty-in 200ms ease-out;
+}
+.conversation-empty-orb {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 16px;
+  border: 1px solid rgb(243 184 137 / 24%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgb(243 184 137 / 58%), transparent 28%),
+    radial-gradient(circle at 72% 72%, rgb(184 169 217 / 42%), transparent 34%),
+    rgb(255 255 255 / 3%);
+  box-shadow: 0 0 25px rgb(243 184 137 / 11%);
+}
+.conversation-empty-state .live-empty {
+  color: inherit;
+  font-size: 15px;
+}
+
+.conversation-thread .live-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+}
+.conversation-thread .live-snippet-assistant .live-speaker::before {
+  content: 'ë';
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgb(243 184 137 / 25%);
+  border-radius: 7px;
+  color: var(--peach);
+  background: rgb(243 184 137 / 8%);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace.conversation-active {
+  background:
+    radial-gradient(circle at 24% 76%, #f3b88915, transparent 38%),
+    radial-gradient(circle at 78% 16%, #b8a9d911, transparent 36%);
+}
+.conversation-context {
+  flex: 0 0 auto;
+  margin: 10px 0 0;
+}
+.conversation-empty-state {
+  animation: none;
+}
+.workspace.conversation-active .live-composer {
+  border-radius: 17px;
+  padding: 12px 15px;
+}
+.conversation-thread .live-snippet {
+  margin-bottom: 27px;
+}
+.conversation-thread .live-snippet p {
+  font-size: 15.5px;
+}
+@media (max-height: 500px) {
+  .conversation-context {
+    display: none;
+  }
+  :root[data-source='live'] .workspace.conversation-active .conversation-dock {
+    padding-top: 0;
+  }
+}
+
+.workspace.conversation-active .dock-history {
+  display: none;
+}
+.workspace.conversation-active .conversation-thread .live-messages .live-snippet-user {
+  background: #fac39914;
+}
+
+/* Home keeps a compact draft preview; the conversation gives long drafts room. */
+.workspace:not(.conversation-active) .conversation-dock .live-input {
+  height: 28px !important;
+  max-height: 28px;
+}
