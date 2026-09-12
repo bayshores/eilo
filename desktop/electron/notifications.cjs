@@ -70,7 +70,34 @@ function createNotificationPolicy({
     )
       return null;
 
-    return snapshot.messages
+    let notificationEventIds = null;
+    const accountability = snapshot.accountability;
+    if (
+      accountability !== undefined &&
+      accountability !== null &&
+      typeof accountability === 'object' &&
+      !Array.isArray(accountability)
+    ) {
+      const checkIns = accountability.check_ins;
+      if (
+        checkIns !== undefined &&
+        checkIns !== null &&
+        typeof checkIns === 'object' &&
+        !Array.isArray(checkIns) &&
+        Object.hasOwn(checkIns, 'notification_event_ids')
+      ) {
+        if (
+          !Array.isArray(checkIns.notification_event_ids) ||
+          !checkIns.notification_event_ids.every(
+            (eventId) => typeof eventId === 'string' && ID_PATTERN.test(eventId),
+          )
+        )
+          return null;
+        notificationEventIds = new Set(checkIns.notification_event_ids);
+      }
+    }
+
+    const messages = snapshot.messages
       .flatMap((message) => {
         if (!message || typeof message !== 'object' || Array.isArray(message)) return [];
         const { id: messageId, event_id: eventId, role, origin, text } = message;
@@ -88,6 +115,7 @@ function createNotificationPolicy({
         return [{ conversationId, eventId, messageId, key: `${conversationId}\u0000${eventId}` }];
       })
       .slice(-MAX_SEEN_KEYS);
+    return { messages, notificationEventIds };
   }
 
   function setEnabled(value) {
@@ -100,8 +128,9 @@ function createNotificationPolicy({
   function inspect(snapshot, { foreground = false } = {}) {
     if (!enabled) return status();
 
-    const checkIns = checkInsFrom(snapshot);
-    if (checkIns === null) return status();
+    const qualified = checkInsFrom(snapshot);
+    if (qualified === null) return status();
+    const { messages: checkIns, notificationEventIds } = qualified;
 
     const conversationId = snapshot.conversation_id;
     if (needsBaseline || currentConversationId !== conversationId) {
@@ -121,8 +150,11 @@ function createNotificationPolicy({
     markSeen(fresh.map(({ key }) => key));
     if (!persist()) return status();
 
-    if (!foreground) {
-      const latest = fresh[fresh.length - 1];
+    const eligible = notificationEventIds
+      ? fresh.filter(({ eventId }) => notificationEventIds.has(eventId))
+      : fresh;
+    if (!foreground && eligible.length > 0) {
+      const latest = eligible[eligible.length - 1];
       try {
         show({
           conversationId: latest.conversationId,

@@ -45,18 +45,13 @@ input.
 
 ### One Home component design
 
-Manual Home is the visual authority for both modes. Adaptive Home changes the
-contents, emphasis and placement of those components; it must not introduce a
-separate card style, type scale, notes editor or tracking/usage presentation.
-Reuse Home's shared surfaces and content primitives. Keep the existing sidebar,
-conversation dock and pinned widgets stable. New content types must follow the
-same design, with no decorative heading badges or additional visual skin.
+Every card on Home is a normal widget with the same move, resize, remove, and keyboard controls. Permitted context can add relevant widgets and update their contents; it must not hide existing widgets or replace the board with a separate fixed layout. Preserve saved positions and sizes through content updates. Removed automatic widgets stay removed until explicitly added again; whole-card pages use a compact arrow-and-dot control when all widgets cannot fit. A chosen note remains editable and separate from the layout.
 
-The header offers one Home context entry point. A plain-language Arrange Home for me setting controls automatic composition; do not bring back a competing Adaptive/Manual mode pair. Setup and settings must never consume unmeasured space above the widget canvas or hide its bottom edges.
+**Settings** is available in the floating navigation, organized into General, Home & context, Activity & AI, Connections, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Setup and settings never take space away from the widget canvas. Keep Check-ins and its explicit on/off action visible at the top of Activity Overview, including when modern activity records are available.
 
 ### Frontend instructions
 
-Across the frontend, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
+Use familiar controls, alignment, and selected states to make interactions apparent. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
 
 Keep the consequence of a permission or destructive action visible at the decision point. Progressive disclosure must not hide what information reaches the AI, merge independent permissions, imply that a setup step granted access, or replace a necessary recovery instruction with a generic error. Preserve user-written content and real source data; this rule governs product instructions and help.
 
@@ -72,8 +67,10 @@ Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actua
   reflect the person's actual task and available evidence: a meaningful status,
   next step, or an appropriate unit when a count is useful. Do not default every
   task to problems solved, a fixed checklist, or a universal focus score.
-- Preserve the current sidebar's appearance and interactions during the visual
-  polish pass. Generated alternatives do not supersede the existing navigation.
+- Preserve the floating sidebar. Its hover target includes a forgiving gutter,
+  it stays open while the pointer or keyboard is using it, and it waits before
+  hiding after pointer exit. Keep full Home cards above the composer; never
+  slice a widget at the canvas boundary.
 - Favor automatic upkeep from conversation and explicitly permitted context over
   repetitive forms.
 - Keep Home, Goals, and Activity distinct: a configurable daily surface, a goal

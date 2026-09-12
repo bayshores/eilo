@@ -35,7 +35,11 @@ export function extensionSetupBridge({
     async probe() {
       const value = await send('eilo-setup-status');
       return value?.installed === true && typeof value.granted === 'boolean'
-        ? { installed: true, granted: value.granted }
+        ? {
+            installed: true,
+            granted: value.granted,
+            ...(value.setup_protocol === 2 ? { setup_protocol: 2 } : {}),
+          }
         : null;
     },
     async open() {

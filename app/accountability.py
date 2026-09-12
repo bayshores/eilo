@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import math
 import re
 import time
 from urllib.parse import urlsplit
@@ -163,7 +164,58 @@ def sanitize_observation(raw: dict, allowed_hosts: list[str] | None = None) -> d
 
 
 def fingerprint(observation: dict) -> str:
+    if observation.get("kind") == "work_context":
+        # Repeated samples renew freshness without becoming a new reason to interrupt.
+        observation = {
+            key: value
+            for key, value in observation.items()
+            if key not in {"captured_at", "observation_id", "episode_id"}
+        }
     return hashlib.sha256(json.dumps(observation, sort_keys=True).encode()).hexdigest()
+
+
+def validate_context_observation(value: object) -> dict | None:
+    fields = {
+        "kind",
+        "source_id",
+        "policy_epoch",
+        "observation_id",
+        "episode_id",
+        "captured_at",
+        "app_name",
+        "origin",
+        "title",
+        "summary",
+        "return_point",
+    }
+    if not isinstance(value, dict) or set(value) != fields or value["kind"] != "work_context":
+        return None
+    if not isinstance(value["source_id"], str) or value["source_id"] not in {"browser", "desktop"}:
+        return None
+    if type(value["policy_epoch"]) is not int or value["policy_epoch"] < 0:
+        return None
+    stamp = value["captured_at"]
+    if type(stamp) not in {int, float} or not math.isfinite(stamp) or stamp <= 0:
+        return None
+    for key in ("observation_id", "episode_id"):
+        if not isinstance(value[key], str) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}", value[key]
+        ):
+            return None
+    for key, limit in (("app_name", 120), ("title", 180), ("summary", 800), ("return_point", 280)):
+        if (
+            not isinstance(value[key], str)
+            or len(value[key]) > limit
+            or any(ord(ch) < 32 for ch in value[key])
+        ):
+            return None
+    result = dict(value)
+    if value["origin"] is not None:
+        try:
+            result["origin"] = canonical_origin(value["origin"])
+        except ValueError:
+            return None
+    return result
 
 
 def admit(
@@ -182,6 +234,7 @@ def admit(
         "approved_study_context",
         "activity_unshared",
         "activity_unknown",
+        "work_context",
     ):
         return False, "invalid"
     if now - stable_since < STABLE_SECONDS:

@@ -103,8 +103,17 @@ chrome.runtime.onMessageExternal?.addListener((message, sender, sendResponse) =>
   }
   if (validExternalMessage(message, 'eilo-setup-status')) {
     void hasGrant().then(
-      (granted) => sendResponse({ installed: true, granted, native: publicNativeStatus() }),
-      () => sendResponse({ installed: true, granted: false, native: publicNativeStatus() }),
+      async (granted) => {
+        if (granted) await refreshNativeStatus();
+        sendResponse({ installed: true, granted, setup_protocol: 2, native: publicNativeStatus() });
+      },
+      () =>
+        sendResponse({
+          installed: true,
+          granted: false,
+          setup_protocol: 2,
+          native: publicNativeStatus(),
+        }),
     );
     return true;
   }

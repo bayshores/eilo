@@ -10,6 +10,12 @@ from app import event_driver, human_driver
 
 class FakeDB:
     persisted = []
+    opened = []
+    append_calls = 0
+
+    def __init__(self, *, read_only=False):
+        self.read_only = read_only
+        self.opened.append(read_only)
 
     def __enter__(self):
         return self
@@ -32,12 +38,17 @@ class FakeDB:
     def get_session_title(self, value):
         return "eilo-ui-" + "a" * 32
 
+    def append_message(self, *args, **kwargs):
+        type(self).append_calls += 1
+        raise AssertionError("event inference must not append native messages")
+
 
 class FakeAgent:
     def __init__(self, chunks, final):
         self.chunks, self.final, self.session_id = chunks, final, "session-1"
 
     def run_conversation(self, *args, **kwargs):
+        self.kwargs = kwargs
         callback = kwargs.get("stream_callback")
         if callback:
             for chunk in self.chunks:
@@ -85,6 +96,8 @@ HUMAN = {
 
 class DriverStreamingTests(unittest.TestCase):
     def setUp(self):
+        FakeDB.opened = []
+        FakeDB.append_calls = 0
         self.modules = patch.dict(
             sys.modules, {"hermes_state": types.SimpleNamespace(SessionDB=FakeDB)}
         )
@@ -115,6 +128,9 @@ class DriverStreamingTests(unittest.TestCase):
         self.assertEqual(seen[-1], "Are you still working on this?")
         self.assertEqual(receipt["decision"]["decision"], "ask")
         self.assertNotIn("event-1", seen)
+        self.assertEqual(receipt["assistant_id"], None)
+        self.assertFalse(receipt["audit"]["persisted"])
+        self.assertEqual(FakeDB.opened, [True])
 
     def test_quiet_and_human_update_never_preview(self):
         quiet = json.dumps({"event_id": "event-1", "decision": "quiet", "message": ""})
@@ -162,6 +178,67 @@ class DriverStreamingTests(unittest.TestCase):
             receipt = human_driver.run_human(HUMAN, seen.append)
         self.assertEqual(seen, [])
         self.assertEqual(receipt["proposal"]["kind"], "update")
+
+    def test_event_failures_and_decisions_never_append_to_native_history(self):
+        quiet = json.dumps({"event_id": "event-1", "decision": "quiet", "message": ""})
+        for result in ({"final_response": quiet}, {"failed": True}):
+            agent = FakeAgent([], quiet)
+            with (
+                patch.object(agent, "run_conversation", return_value=result),
+                patch.object(
+                    event_driver,
+                    "_runtime_and_agent",
+                    return_value=(
+                        agent,
+                        {
+                            "model": event_driver.MODEL,
+                            "provider": event_driver.PROVIDER,
+                            "tool_schema_count": 0,
+                        },
+                    ),
+                ),
+            ):
+                if result.get("failed"):
+                    with self.assertRaises(RuntimeError):
+                        event_driver.run_event(EVENT)
+                else:
+                    receipt = event_driver.run_event(EVENT)
+                    self.assertEqual(receipt["decision"]["decision"], "quiet")
+        self.assertEqual(FakeDB.append_calls, 0)
+
+    def test_event_history_keeps_published_checkins_and_drops_legacy_event_artifacts(self):
+        final = json.dumps({"event_id": "event-1", "decision": "quiet", "message": ""})
+        FakeDB.persisted = [
+            {"role": "user", "content": "legacy observation", "display_kind": "eilo_observation"},
+            {
+                "role": "assistant",
+                "content": "legacy decision",
+                "display_kind": "eilo_decision",
+                "display_metadata": {"event_id": "old"},
+            },
+            {
+                "role": "assistant",
+                "content": "validated check-in",
+                "display_kind": "eilo_decision",
+                "display_metadata": {"event_id": "published", "publication_version": 2},
+            },
+        ]
+        agent = FakeAgent([], final)
+        with patch.object(
+            event_driver,
+            "_runtime_and_agent",
+            return_value=(
+                agent,
+                {
+                    "model": event_driver.MODEL,
+                    "provider": event_driver.PROVIDER,
+                    "tool_schema_count": 0,
+                },
+            ),
+        ):
+            event_driver.run_event(EVENT)
+        history = agent.kwargs["conversation_history"]
+        self.assertEqual([message["content"] for message in history], ["validated check-in"])
 
     def test_stream_cli_writes_preview_then_result_ndjson_without_changing_receipt_shape(self):
         output = io.StringIO()

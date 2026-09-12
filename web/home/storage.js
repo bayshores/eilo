@@ -86,11 +86,17 @@ export function normalizeHomePreferences(raw = {}) {
   return {
     name: typeof value.name === 'string' && value.name.trim() ? value.name.slice(0, 40) : 'You',
     pin: value.pin === true,
+    homeLayoutVersion: value.homeLayoutVersion === 2 ? 2 : 1,
     reducedMotion: value.reducedMotion === true,
     widgetPins: Array.isArray(value.widgetPins)
       ? value.widgetPins
           .filter((id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id))
           .slice(0, 24)
+      : [],
+    dismissedContextWidgets: Array.isArray(value.dismissedContextWidgets)
+      ? [...new Set(value.dismissedContextWidgets)]
+          .filter((id) => typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$/.test(id))
+          .slice(-128)
       : [],
   };
 }

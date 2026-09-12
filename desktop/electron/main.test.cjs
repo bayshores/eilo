@@ -540,7 +540,7 @@ test('Chrome handoff opens only the fixed connection URL for focused trusted Hom
   assert.equal(h.chromeOpens.length, 1);
 });
 
-test('Chrome setup opens its exact extension page only from the focused trusted Home', async () => {
+test('Chrome setup opens the connection guide only from the focused trusted Home', async () => {
   const h = buildHarness({ platform: 'darwin' });
   await drain();
   const window = h.windows[0];
@@ -551,7 +551,7 @@ test('Chrome setup opens its exact extension page only from the focused trusted 
     JSON.stringify([
       '-b',
       'com.google.Chrome',
-      'chrome-extension://clbapkcnonmjmmkjfeaonpjcepelimae/popup.html',
+      'http://127.0.0.1:8765/activity-connect?client=desktop',
     ]),
   );
   assert.equal(h.chromeOpens[0].options.timeout, 10_000);

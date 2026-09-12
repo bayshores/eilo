@@ -38,6 +38,7 @@ const button = (label, handler, primary = false) => {
   return element;
 };
 const EXTENSIONS_ADDRESS = 'chrome://extensions/';
+const CONNECTION_ADDRESS = 'http://127.0.0.1:8765/activity-connect?client=desktop';
 const STEP_KEY = 'eilo.chrome-setup.v2';
 
 /** One current action. Merely opening this card never grants or enables activity. */
@@ -53,6 +54,7 @@ export function mountChromeSetup(
     onRefresh = null,
     onDone = null,
     onDismiss = null,
+    returnToDesktop = false,
     bridge = extensionSetupBridge(),
     storage = null,
   } = {},
@@ -106,7 +108,7 @@ export function mountChromeSetup(
     onDismiss ? onDismiss() : globalThis.location?.assign('/home/'),
   );
   const navigation = make('div', 'chrome-setup__navigation');
-  navigation.append(back, installed, added, pause, later);
+  navigation.append(back, installed, added, later);
   for (const [index, control] of [back, installed, added, pause, later].entries())
     control.dataset.focus = `chrome-setup-navigation-${index}`;
   const folderValue = make('code', 'chrome-setup__folder');
@@ -126,17 +128,20 @@ export function mountChromeSetup(
     'Can’t open setup? In Chrome’s extensions, choose eïlo → Details → Extension options.',
   );
   const address = make('code', 'chrome-setup__folder', EXTENSIONS_ADDRESS);
-  const repair = button('Open Chrome extensions', async () => {
-    if (openExtensions && (await openExtensions())) return;
-    await copyValue(EXTENSIONS_ADDRESS, 'Paste this address into Chrome.');
-  });
+  const repair = button(
+    typeof openExtensions === 'function' ? 'Open Chrome extensions' : 'Copy extensions address',
+    async () => {
+      if (openExtensions && (await openExtensions())) return;
+      await copyValue(EXTENSIONS_ADDRESS, 'Paste this address into Chrome.');
+    },
+  );
   const reveal = button('Show extension folder', async () => {
     if (revealFolder && (await revealFolder())) return;
     await loadFolder();
     await copyValue(folder, 'Extension folder copied.');
   });
   const recheck = button('Check connection', () => monitor.start({ restart: true }));
-  details.append(help, address, repair, reveal, recheck);
+  details.append(help, address, repair, reveal, recheck, pause);
   content.append(heading, copy, folderValue, hint, actions, receipt, feedback, navigation, details);
   root.append(progress, visual, content);
   container.replaceChildren(root);
@@ -231,6 +236,8 @@ export function mountChromeSetup(
   async function handoff() {
     if (bridge.available && (await bridge.open())) return true;
     if (typeof openChrome === 'function' && (await openChrome())) return true;
+    if (!bridge.available)
+      return copyValue(CONNECTION_ADDRESS, 'Paste this connection address into Chrome.');
     if (bridge.setupURL) return copyValue(bridge.setupURL, 'Paste the setup address into Chrome.');
     feedback.textContent = 'In Chrome’s extensions, choose eïlo → Details → Extension options.';
     details.open = true;
@@ -258,10 +265,12 @@ export function mountChromeSetup(
     busy = true;
     render();
     try {
-      if (action === 'extensions') {
-        if (typeof openExtensions === 'function' && (await openExtensions())) changeStep(1);
-        else if (await copyValue(EXTENSIONS_ADDRESS, 'Paste this address into Chrome.'))
-          changeStep(1);
+      if (action === 'extensions' || action === 'reload') {
+        const opened = typeof openExtensions === 'function' && (await openExtensions());
+        if (opened || (await copyValue(EXTENSIONS_ADDRESS, 'Paste this address into Chrome.'))) {
+          if (action === 'extensions') changeStep(1);
+          else monitor.start({ restart: true });
+        }
       } else if (action === 'folder') {
         await loadFolder();
         await copyValue(folder, 'Folder copied. Paste it into Chrome’s folder picker.');
@@ -299,31 +308,40 @@ export function mountChromeSetup(
       root.dataset.state = state.id;
       visual.dataset.stage = String(state.stage);
       progress.textContent =
-        state.stage === 3
-          ? 'Ready to go'
-          : ['Chrome → eïlo', 'Install once', 'Connect once'][Math.min(state.stage, 2)];
+        state.id === 'update'
+          ? 'Update connection'
+          : state.stage === 3
+            ? 'Ready to go'
+            : ['Chrome → eïlo', 'Install once', 'Connect once'][Math.min(state.stage, 2)];
       heading.textContent = state.title;
-      copy.textContent = state.copy;
-      primary.textContent = state.label;
+      copy.textContent =
+        returnToDesktop && state.id === 'connected'
+          ? 'Chrome is connected. Return to the eïlo desktop app; you can close this tab.'
+          : state.copy;
+      primary.textContent =
+        ['reload', 'extensions'].includes(state.action) && typeof openExtensions !== 'function'
+          ? 'Copy extensions address'
+          : state.label;
       receipt.textContent =
         state.id === 'connected' && state.received ? 'Website activity received' : '';
       receipt.hidden = !receipt.textContent;
       animateSetup(content);
     }
     primary.disabled = busy || (['connect', 'resume'].includes(state.action) && !onNativeControl);
+    primary.hidden = returnToDesktop && state.id === 'connected';
     primary.setAttribute('aria-busy', String(busy));
     folderValue.textContent = folder || EXTENSIONS_ADDRESS;
     folderValue.hidden = state.id !== 'install';
     hint.hidden = state.id !== 'install';
-    back.hidden = step === 0 || ['connected', 'ready', 'paused'].includes(state.id);
-    installed.hidden = !['handoff', 'extensions'].includes(state.id);
+    back.hidden = step === 0 || !['install', 'finish'].includes(state.id);
+    installed.hidden = state.id !== 'extensions';
     added.hidden = state.id !== 'install';
     pause.hidden =
       view?.snapshot?.adaptive?.policy?.browser_enabled !== true ||
       !onNativeControl ||
       view?.connection !== 'connected';
     pause.disabled = busy;
-    later.hidden = state.id === 'connected';
+    later.hidden = returnToDesktop || state.id === 'connected';
     if (['connected', 'ready', 'paused'].includes(state.id)) monitor.stop();
   }
   render();

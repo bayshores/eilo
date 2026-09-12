@@ -1,5 +1,5 @@
 /** Pure, storage-friendly layout metadata for the eilo widget prototype. */
-export const CATALOG = Object.freeze({
+const catalog = {
   today: {
     title: 'Today',
     sizes: { small: { w: 3, h: 2 }, medium: { w: 4, h: 3 }, large: { w: 4, h: 4 } },
@@ -32,7 +32,16 @@ export const CATALOG = Object.freeze({
     title: 'Browser usage',
     sizes: { small: { w: 4, h: 2 }, medium: { w: 8, h: 2 }, large: { w: 8, h: 3 } },
   },
+};
+// Context cards are generated from the bounded adaptive composition, not offered
+// as a generic manual widget. Keeping it out of enumeration preserves that split.
+Object.defineProperty(catalog, 'context', {
+  value: Object.freeze({
+    title: 'Work context',
+    sizes: { small: { w: 4, h: 2 }, medium: { w: 6, h: 2 }, large: { w: 8, h: 3 } },
+  }),
 });
+export const CATALOG = Object.freeze(catalog);
 
 export const MODES = Object.freeze({ wide: 12, compact: 6, stacked: 1 });
 const DEFAULT_WIDGETS = Object.freeze([
@@ -47,17 +56,21 @@ const DEFAULT_WIDE = Object.freeze([
   { id: 'progress-1', x: 4, y: 2 },
   { id: 'conversation-1', x: 7, y: 2 },
 ]);
+const UNIQUE_SOURCE_WIDGET_TYPES = new Set(['today', 'goals', 'progress', 'tracking', 'usage']);
 // 24 stacked eight-row widgets need 192 rows.
 const ROW_LIMIT = 192;
 const ANCHOR_LIMIT = 80;
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const validMode = (mode) => (Object.hasOwn(MODES, mode) ? mode : 'wide');
+export const validContextComponentId = (value) =>
+  typeof value === 'string' && value.length <= 160 && /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/.test(value);
 const validWidget = (widget) =>
   isObject(widget) &&
   typeof widget.id === 'string' &&
   widget.id.trim() &&
   Object.hasOwn(CATALOG, widget.type) &&
-  Object.hasOwn(CATALOG[widget.type].sizes, widget.size);
+  Object.hasOwn(CATALOG[widget.type].sizes, widget.size) &&
+  (widget.type !== 'context' || validContextComponentId(widget.componentId));
 const integer = (value) =>
   Number.isFinite(value) ? Math.max(0, Math.min(ROW_LIMIT, Math.floor(value))) : null;
 const anchor = (value) =>
@@ -160,6 +173,28 @@ export function withTrackingWidgets(rawState) {
   return next;
 }
 
+/**
+ * Live source widgets render one shared backend view per type. Keep their first
+ * saved instance and geometry, while leaving intentionally repeatable personal
+ * and contextual widgets alone.
+ */
+export function withUniqueSourceWidgets(rawState) {
+  const normalized = normalizeState(rawState);
+  const seen = new Set();
+  const removed = new Set();
+  for (const widget of normalized.widgets)
+    if (UNIQUE_SOURCE_WIDGET_TYPES.has(widget.type)) {
+      if (seen.has(widget.type)) removed.add(widget.id);
+      else seen.add(widget.type);
+    }
+  if (!removed.size) return rawState;
+  const next = cloneState(normalized);
+  next.widgets = next.widgets.filter((widget) => !removed.has(widget.id));
+  for (const mode of Object.keys(next.positions))
+    next.positions[mode] = next.positions[mode].filter((position) => !removed.has(position.id));
+  return next;
+}
+
 export function normalizeState(rawObject) {
   if (!isObject(rawObject) || rawObject.version !== 1 || !Array.isArray(rawObject.widgets))
     return createDefaultState();
@@ -168,8 +203,13 @@ export function normalizeState(rawObject) {
     .filter(validWidget)
     .filter((widget) => !ids.has(widget.id) && ids.add(widget.id))
     .slice(0, 24)
-    .map(({ id, type, size, footprints }) => {
-      const clean = { id, type, size },
+    .map(({ id, type, size, footprints, componentId }) => {
+      const clean = {
+          id,
+          type,
+          size,
+          ...(type === 'context' ? { componentId } : {}),
+        },
         normalized = normalizedFootprints(type, footprints);
       return normalized ? { ...clean, footprints: normalized } : clean;
     });
@@ -253,6 +293,7 @@ export function projectLayout(state, mode = 'wide') {
       id: widget.id,
       type: widget.type,
       size: widget.size,
+      ...(widget.type === 'context' ? { componentId: widget.componentId } : {}),
       ...dimensions(widget, selectedMode),
     };
     const preferred = saved.get(widget.id);
@@ -264,6 +305,84 @@ export function projectLayout(state, mode = 'wide') {
     );
   }
   return placed;
+}
+
+/**
+ * Explicitly pack the current mode from the top left without changing widget
+ * sizes, content, or any other responsive mode.  Existing geometry remains
+ * untouched until the caller chooses this action.
+ */
+export function tidyHomeLayout(state, mode = 'wide') {
+  const safe = normalizeState(state);
+  const selectedMode = validMode(mode);
+  const layout = projectLayout(safe, selectedMode);
+  const visualOrder = [...layout].sort((left, right) => left.y - right.y || left.x - right.x);
+  const placed = [];
+  for (const item of visualOrder) placed.push(fit(item, placed, MODES[selectedMode]));
+  const positions = new Map(placed.map(({ id, x, y }) => [id, { id, x, y }]));
+  const nextPositions = layout.map(({ id }) => positions.get(id));
+  const currentPositions = safe.positions[selectedMode] || [];
+  if (samePositions(currentPositions, nextPositions)) return state;
+  const next = cloneState(safe);
+  next.positions[selectedMode] = nextPositions;
+  return next;
+}
+
+function samePositions(left, right) {
+  return (
+    left.length === right.length &&
+    left.every(
+      (position, index) =>
+        position.id === right[index].id &&
+        position.x === right[index].x &&
+        position.y === right[index].y,
+    )
+  );
+}
+
+/**
+ * Produce display-only Home pages. Saved positions and footprints stay intact;
+ * cards taller than a page are shortened only in this returned projection.
+ */
+export function paginateHomeLayout(state, mode = 'wide', rows = 4) {
+  const selectedMode = validMode(mode);
+  const pageRows = Number.isInteger(rows) && rows >= 1 && rows <= ROW_LIMIT ? rows : 4;
+  const columns = MODES[selectedMode];
+  const ordered = [...projectLayout(state, selectedMode)].sort(
+    (left, right) => left.y - right.y || left.x - right.x,
+  );
+  const pages = [];
+  let page = [];
+  for (const source of ordered) {
+    const item = { ...source, h: Math.min(source.h, pageRows) };
+    let placed = fitWithinPage(item, page, columns, pageRows, source.x, source.y % pageRows);
+    if (!placed && page.length) {
+      pages.push(page);
+      page = [];
+      placed = fitWithinPage(item, page, columns, pageRows, source.x, source.y % pageRows);
+    }
+    if (placed) page.push(placed);
+  }
+  if (page.length) pages.push(page);
+  return pages;
+}
+
+function fitWithinPage(item, placed, columns, rows, preferredX, preferredY) {
+  const preferred = { ...item, x: preferredX, y: preferredY };
+  if (
+    preferred.x >= 0 &&
+    preferred.y >= 0 &&
+    preferred.x + preferred.w <= columns &&
+    preferred.y + preferred.h <= rows &&
+    !placed.some((other) => overlaps(preferred, other))
+  )
+    return preferred;
+  for (let y = 0; y <= rows - item.h; y++)
+    for (let x = 0; x <= columns - item.w; x++) {
+      const candidate = { ...item, x, y };
+      if (!placed.some((other) => overlaps(candidate, other))) return candidate;
+    }
+  return null;
 }
 
 function previewSlots(item, columns, rows, preferredX, preferredY) {
@@ -667,11 +786,17 @@ export function updateLayout(state, action) {
       safe.widgets.length >= 24 ||
       safe.widgets.some((widget) => widget.id === id) ||
       !Object.hasOwn(CATALOG, action.widgetType) ||
-      !Object.hasOwn(CATALOG[action.widgetType].sizes, action.size)
+      !Object.hasOwn(CATALOG[action.widgetType].sizes, action.size) ||
+      (action.widgetType === 'context' && !validContextComponentId(action.componentId))
     )
       return state;
     const next = cloneState(safe);
-    next.widgets.push({ id, type: action.widgetType, size: action.size });
+    next.widgets.push({
+      id,
+      type: action.widgetType,
+      size: action.size,
+      ...(action.widgetType === 'context' ? { componentId: action.componentId } : {}),
+    });
     const layout = projectLayout(next, mode);
     next.positions[mode] = savedPositions(layout);
     return reconcileSavedModes(next);

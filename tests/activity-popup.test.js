@@ -55,7 +55,10 @@ async function mount({
   const elements = Object.fromEntries(
     [
       'allow',
-      'open-eilo',
+      'retry-connection',
+      'connection-help',
+      'permission-consequence',
+      'connection-heading',
       'exclude',
       'remove-access',
       'excluded-hosts',
@@ -154,30 +157,82 @@ test('popup mount reads only permission and excluded-host state', async () => {
   ]);
 });
 
-test('a preexisting grant starts one bounded native-status check without requesting access', async () => {
-  const popup = await mount({ granted: true, nativeState: 'connected' });
+test('an already-granted disconnected Chrome stays in setup without repermission or Home navigation', async () => {
+  const popup = await mount({ granted: true, nativeState: 'disconnected' });
   await new Promise(setImmediate);
   assert.equal(
     popup.calls.filter(([name]) => name === 'request').length,
     0,
     'status monitoring never asks Chrome for access',
   );
-  assert.equal(
-    popup.calls.filter(([name]) => name === 'contains').length >= 2,
-    true,
-    'the initial mount schedules a bounded follow-up status check',
-  );
   assert.equal(popup.calls.filter(([name]) => name === 'sendMessage').length >= 2, true);
+  assert.equal(
+    popup.calls.some(([name]) => name === 'create'),
+    false,
+  );
+  assert.equal(popup.elements.allow.hidden, true);
+  assert.equal(popup.elements['retry-connection'].hidden, false);
+  assert.equal(popup.elements['connection-help'].hidden, false);
+  assert.equal(
+    popup.elements['permission-consequence'].textContent,
+    'Keep the eïlo desktop app open, then retry the connection.',
+  );
+  assert.equal(popup.elements['connection-heading'].textContent, 'Chrome access is allowed');
 });
 
-test('popup distinguishes a verified transport and activity sent from an attached port', async () => {
-  const popup = await mount({ nativeState: 'ready' });
+test('popup does not treat an attached port as a verified desktop connection', async () => {
+  const popup = await mount({ granted: true, nativeState: 'ready' });
   assert.equal(popup.elements['native-status'].textContent, '');
+  assert.equal(popup.elements['retry-connection'].hidden, false);
   assert.deepEqual(json(popup.calls.at(-1)), ['sendMessage', { type: 'eilo-native-status' }]);
-  const verified = await mount({ nativeState: { state: 'ready', handshake_verified: true } });
-  assert.equal(verified.elements['native-status'].textContent, 'Connected to eïlo.');
-  const shared = await mount({ nativeState: { state: 'shared', handshake_verified: true } });
-  assert.equal(shared.elements['native-status'].textContent, 'Recent activity sent to eïlo.');
+});
+
+test('popup distinguishes verified ready, shared, and disabled states', async () => {
+  const verified = await mount({
+    granted: true,
+    nativeState: { state: 'ready', connected: true, handshake_verified: true },
+  });
+  assert.equal(verified.elements['native-status'].textContent, '');
+  assert.equal(verified.elements['retry-connection'].hidden, true);
+  assert.equal(verified.elements['connection-heading'].textContent, 'Chrome connected');
+  const shared = await mount({
+    granted: true,
+    nativeState: { state: 'shared', connected: true, handshake_verified: true },
+  });
+  assert.equal(shared.elements['native-status'].textContent, 'Recent activity was sent to eïlo.');
+  const disabled = await mount({
+    granted: true,
+    nativeState: { state: 'disabled', connected: true, handshake_verified: true },
+  });
+  assert.equal(disabled.elements['native-status'].textContent, '');
+  assert.equal(disabled.elements['connection-heading'].textContent, 'Chrome is ready');
+});
+
+test('a verified unshared page remains connected without a retry', async () => {
+  const popup = await mount({
+    granted: true,
+    nativeState: { state: 'unshared', connected: true, handshake_verified: true },
+  });
+  assert.equal(popup.elements['native-status'].textContent, 'This page is not being shared.');
+  assert.equal(popup.elements['connection-heading'].textContent, 'Chrome connected');
+  assert.equal(popup.elements['retry-connection'].hidden, true);
+  assert.equal(popup.elements.status.textContent, '');
+});
+
+test('a disconnected port or revoked grant cannot keep the connected heading', async () => {
+  const closed = await mount({
+    granted: true,
+    nativeState: { state: 'ready', connected: false, handshake_verified: true },
+  });
+  assert.equal(closed.elements['connection-heading'].textContent, 'Chrome access is allowed');
+  assert.equal(closed.elements['retry-connection'].hidden, false);
+  const revoked = await mount({ granted: true, nativeState: 'browser-access-off' });
+  assert.equal(revoked.elements['connection-heading'].textContent, 'Allow Chrome access');
+  assert.equal(revoked.elements.allow.hidden, false);
+  assert.equal(
+    revoked.calls.some(([name]) => name === 'request'),
+    false,
+  );
 });
 
 test('Allow Chrome requests in the click gesture and remains in setup after a grant', async () => {
@@ -195,10 +250,21 @@ test('Allow Chrome requests in the click gesture and remains in setup after a gr
     false,
   );
   assert.equal(popup.elements.status.textContent, 'Chrome allowed. Looking for eïlo on this Mac.');
-  assert.equal(popup.elements['open-eilo'].hidden, false);
+  assert.equal(popup.elements.allow.hidden, true);
+  assert.equal(popup.elements['retry-connection'].hidden, false);
 });
 
-test('a denied Chrome grant opens nothing and Open eïlo uses Home after an existing grant', async () => {
+test('a verified connection clears the temporary grant-success message', async () => {
+  const popup = await mount({
+    nativeState: { state: 'ready', connected: true, handshake_verified: true },
+  });
+  await popup.elements.allow.fire('click');
+  await new Promise(setImmediate);
+  assert.equal(popup.elements.status.textContent, '');
+  assert.equal(popup.elements['connection-heading'].textContent, 'Chrome connected');
+});
+
+test('a denied Chrome grant opens nothing and leaves Chrome access setup available', async () => {
   const denied = await mount({ requestResult: false });
   await denied.elements.allow.fire('click');
   assert.equal(
@@ -206,14 +272,29 @@ test('a denied Chrome grant opens nothing and Open eïlo uses Home after an exis
     false,
   );
   assert.equal(denied.elements.status.textContent, 'Chrome access was not allowed.');
+  assert.equal(denied.elements.allow.hidden, false);
+  assert.equal(denied.elements['retry-connection'].hidden, true);
+});
 
-  const granted = await mount({ granted: true });
-  await granted.elements['open-eilo'].fire('click');
+test('Retry connection sends only bounded native-status checks', async () => {
+  const popup = await mount({ granted: true, nativeState: 'disconnected' });
+  await new Promise(setImmediate);
+  const before = popup.calls.length;
+  await popup.elements['retry-connection'].fire('click');
+  await new Promise(setImmediate);
+  const retryCalls = popup.calls.slice(before);
   assert.equal(
-    granted.calls.some(([name]) => name === 'request'),
+    retryCalls.some(([name]) => name === 'sendMessage'),
+    true,
+  );
+  assert.equal(
+    retryCalls.some(([name]) => name === 'contains' || name === 'request'),
     false,
   );
-  assert.deepEqual(json(granted.calls.at(-1)), ['create', { url: 'http://127.0.0.1:8765/home/' }]);
+  assert.equal(
+    retryCalls.some(([name]) => name === 'create'),
+    false,
+  );
 });
 
 test('Exclude this site stores the canonical hostname and renders text safely', async () => {

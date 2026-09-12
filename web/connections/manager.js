@@ -118,7 +118,7 @@ export function mountConnectionsManager(
 
   let snapshot = null,
     snapshotView = '',
-    tab = 'all',
+    tab = 'apps',
     query = '',
     selected = '',
     addOpen = false,
@@ -417,16 +417,16 @@ export function mountConnectionsManager(
     );
     const controls = make('div', 'connections-manager__row-actions');
     const options = button(
-      '⋯',
+      open ? 'Close details' : 'Manage',
       () => {
         selected = open ? '' : item.id;
         removeId = '';
         render(`options-${item.id}`);
       },
-      'connections-manager__options',
+      'connections-manager__details-toggle',
     );
     options.dataset.focus = `options-${item.id}`;
-    options.setAttribute('aria-label', `Options for ${item.name}`);
+    options.setAttribute('aria-label', `${open ? 'Close details for' : 'Manage'} ${item.name}`);
     options.setAttribute('aria-expanded', String(open));
     if (item.id === 'browser-activity' && !item.setup_verified) {
       const setup = button(
@@ -599,7 +599,7 @@ export function mountConnectionsManager(
       );
       back.dataset.focus = 'connection-back';
       root.append(back);
-      const heading = make('h1', '', chosen?.name || 'Add MCP');
+      const heading = make('h2', '', chosen?.name || 'Add MCP');
       heading.id = 'connections-manager-title';
       root.append(heading);
       if (message) {
@@ -626,7 +626,7 @@ export function mountConnectionsManager(
     }
     const header = make('header', 'connections-manager__header');
     header.append(make('div', 'connections-manager__title-wrap'));
-    const heading = make('h1', '', 'Connections');
+    const heading = make('h2', '', 'Connections');
     heading.id = 'connections-manager-title';
     header.firstChild.append(heading, make('p', '', 'Choose what eïlo can work with.'));
     const add = button(
@@ -638,7 +638,7 @@ export function mountConnectionsManager(
       'connections-manager__button connections-manager__button--primary',
     );
     add.dataset.focus = 'connections-add';
-    header.append(add);
+    if (tab === 'mcps') header.append(add);
     root.append(header);
     const toolbar = make('div', 'connections-manager__toolbar');
     const tabs = make('div', 'connections-manager__tabs');
@@ -646,7 +646,7 @@ export function mountConnectionsManager(
     tabs.setAttribute('aria-label', 'Filter connections');
     for (const next of TABS) {
       const control = button(
-        next === 'all' ? 'All' : next === 'apps' ? 'Apps' : 'MCPs',
+        next === 'all' ? 'All' : next === 'apps' ? 'Apps' : 'Developer tools',
         () => {
           tab = next;
           selected = '';
@@ -711,10 +711,10 @@ export function mountConnectionsManager(
   void refresh();
   return {
     refresh,
-    show({ tab: next } = {}) {
+    show({ tab: next, id } = {}) {
       if (TABS.includes(next)) {
         tab = next;
-        selected = '';
+        selected = typeof id === 'string' ? id : '';
         render(`tab-${next}`);
       }
     },

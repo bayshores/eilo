@@ -16,10 +16,7 @@ const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { createBackendSupervisor } = require('./backend-supervisor.cjs');
 const { createNotificationPolicy } = require('./notifications.cjs');
-const {
-  ID: CHROME_EXTENSION_ID,
-  registerNativeContext,
-} = require('./native-context-registration.cjs');
+const { registerNativeContext } = require('./native-context-registration.cjs');
 const {
   ORIGIN,
   localURL,
@@ -609,13 +606,9 @@ function runDesktop() {
     });
     ipcMain.handle('eilo:open-chrome-setup', async (event) => {
       if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
-      // Open the extension's own setup tab without relying on a pinned toolbar
-      // action or a web-page redirect. No renderer URL or permission crosses IPC.
-      return runFixedOpen([
-        '-b',
-        'com.google.Chrome',
-        `chrome-extension://${CHROME_EXTENSION_ID}/popup.html`,
-      ]);
+      // Open the connection guide so Chrome can detect the installed extension
+      // and its grant. No renderer URL or permission crosses IPC.
+      return runFixedOpen(['-b', 'com.google.Chrome', ORIGIN + '/activity-connect?client=desktop']);
     });
     ipcMain.handle('eilo:open-chrome-extensions', async (event) => {
       if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;

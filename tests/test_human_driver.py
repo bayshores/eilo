@@ -68,6 +68,10 @@ class ValidationTests(unittest.TestCase):
             with self.assertRaises(TaskError):
                 validate_proposal(invalid, request_id="request_human_001", revision=7)
 
+    def test_work_context_policy_requires_coverage_and_uncertainty(self):
+        self.assertIn("where did I leave off", human_driver.SYSTEM_POLICY)
+        self.assertIn("coverage explicitly supports", human_driver.SYSTEM_POLICY)
+
 
 class RuntimeConstructionTests(unittest.TestCase):
     def test_ephemeral_policy_is_passed_to_native_agent_constructor(self):

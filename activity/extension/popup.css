@@ -13,7 +13,8 @@
   font-display: swap;
 }
 body {
-  width: 344px;
+  width: 320px;
+  max-width: 100%;
   margin: 0;
   color: #f2ebe2;
   background: #191b1e;
@@ -86,10 +87,6 @@ button.primary {
   color: #28211e;
   background: #e4ad83;
 }
-button.secondary {
-  width: 100%;
-  margin-top: 9px;
-}
 button.primary:hover:not(:disabled) {
   background: #efbb96;
 }
@@ -110,6 +107,26 @@ button.primary:hover:not(:disabled) {
 }
 .transport:empty {
   display: none;
+}
+.connection-help {
+  display: inline-block;
+  margin-top: 9px;
+  color: #f3b490;
+  font-size: 13px;
+}
+
+.connection-help[hidden] {
+  display: none;
+}
+.connection-help:hover {
+  color: #ffd0b1;
+}
+.connection-help:focus-visible {
+  outline: 3px solid #f3b490;
+  outline-offset: 3px;
+}
+body[data-focus-origin='pointer'] .connection-help:focus-visible {
+  outline: none;
 }
 details {
   margin-top: 16px;

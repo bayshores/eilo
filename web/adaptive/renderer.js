@@ -219,9 +219,20 @@ function patchCard(card, component, context) {
   const pinned = card.dataset.pinned === 'true';
   pin.textContent = pinned ? 'Unpin' : 'Pin';
   pin.dataset.action = pinned ? ADAPTIVE_ACTIONS.unpin : ADAPTIVE_ACTIONS.pin;
+  renderContextWidget(card.querySelector('.widget-content'), component, context);
+}
+
+/** Context supplies content; the ordinary Home widget owns its controls and geometry. */
+export function renderContextWidget(content, component, context) {
+  content.classList.add('live-content', 'adaptive-card__content');
+  if (content.dataset.componentKind !== component.kind || !content.querySelector('h2')) {
+    const header = create('header', 'adaptive-card__header');
+    header.append(create('h2', 'adaptive-card__title'));
+    content.replaceChildren(header, create('div', 'adaptive-card__body'));
+    content.dataset.componentKind = component.kind;
+  }
   const data = resolvedData(component, context.resources, context.getBinding);
   if (['connections', 'usage'].includes(component.kind)) {
-    const content = card.querySelector('.widget-content');
     const widgetView = data?.widgetView || { connection: 'loading' };
     const onConnect = () => context.onAction({ id: ADAPTIVE_ACTIONS.openConnections });
     if (component.kind === 'connections') renderTrackingWidget(content, widgetView, onConnect);
@@ -237,8 +248,8 @@ function patchCard(card, component, context) {
     heading.textContent = component.title;
     return;
   }
-  card.querySelector('.adaptive-card__title').textContent = component.title;
-  const body = card.querySelector('.adaptive-card__body');
+  content.querySelector('h2').textContent = component.title;
+  const body = content.querySelector('.adaptive-card__body');
   if (component.kind === 'note')
     return patchNote(body, component, context.drafts, context.onAction);
   body.replaceChildren();

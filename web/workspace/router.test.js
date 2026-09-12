@@ -58,3 +58,32 @@ test('dispose unregisters history listeners and start can mount them again after
   router.start();
   assert.equal(h.listeners.size, 2);
 });
+
+test('Settings is a restorable destination and Home controls stay available', () => {
+  const h = harness('#settings');
+  const controls = new Map(
+    ['.edit-toggle', '.add-toggle', '.save-state', '.overflow-toggle', '.home-context'].map(
+      (key) => [
+        key,
+        {
+          hidden: false,
+          toggleAttribute(_name, hidden) {
+            this.hidden = hidden;
+          },
+        },
+      ],
+    ),
+  );
+  h.documentRef.querySelector = (key) => controls.get(key) || null;
+  const rendered = [];
+  const router = createWorkspaceRouter({ ...h, renderPage: (page) => rendered.push(page) });
+  router.start();
+  assert.deepEqual(rendered, ['settings']);
+  assert.equal(h.documentRef.title, 'eïlo — Settings');
+  assert.equal(controls.get('.add-toggle').hidden, true);
+  router.showPage('home');
+  assert.equal(controls.get('.add-toggle').hidden, false);
+  assert.equal(controls.get('.edit-toggle').hidden, false);
+  assert.equal(controls.get('.overflow-toggle').hidden, true);
+  assert.equal(controls.get('.home-context').hidden, false);
+});

@@ -5,7 +5,10 @@ import '/home/adaptive/dependencies.js';
 import '/home/styles/focus.js';
 
 const client = createHomeClient({ storage: null });
+const returnToDesktop = new URLSearchParams(location.search).get('client') === 'desktop';
+if (returnToDesktop) document.querySelector('.back-link').remove();
 const guide = mountChromeSetup(document.querySelector('[data-chrome-setup]'), {
+  returnToDesktop,
   onRefresh: () => refreshSetupHealth('browser', () => client.refresh()),
   onNativeControl: (action) => {
     const policy = client.view?.snapshot?.adaptive?.policy;

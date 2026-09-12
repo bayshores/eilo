@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from app.briefing import TOOL_NAMES
 from app.chat_service import LocalChat
 from app.errors import ChatError
 from app.runtime_contract import MODEL, PROVIDER
@@ -68,7 +69,11 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
                                 "reply": self.records[0]["messages"][-1]["content"],
                                 "operations": [],
                             },
-                            "audit": {"model": MODEL, "provider": PROVIDER, "tool_schema_count": 4},
+                            "audit": {
+                                "model": MODEL,
+                                "provider": PROVIDER,
+                                "tool_schema_count": len(TOOL_NAMES),
+                            },
                         }
                     ),
                     "",

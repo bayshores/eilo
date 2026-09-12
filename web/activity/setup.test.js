@@ -190,7 +190,7 @@ test('snapshot updates keep the card and controls stable and never perform new a
   assert.deepEqual(h.controls, []);
 });
 
-test('setup can open a direct extension tab without a toolbar popup or localhost handoff', async (t) => {
+test('a non-Chrome fallback preserves the connection guide instead of guessing extension state', async (t) => {
   const h = harness(t, {
     openChrome: undefined,
     bridge: {
@@ -201,8 +201,62 @@ test('setup can open a direct extension tab without a toolbar popup or localhost
     },
   });
   await h.button('Open Chrome setup').click();
-  assert.deepEqual(h.copied, ['chrome-extension://' + 'a'.repeat(32) + '/popup.html']);
+  assert.deepEqual(h.copied, ['http://127.0.0.1:8765/activity-connect?client=desktop']);
   assert.deepEqual(h.opened, []);
   h.guide.update(current({ browser_enabled: true }));
   assert.notEqual(h.heading(), 'Chrome connected');
+});
+
+test('already allowed Chrome retries without another permission page or source change', async (t) => {
+  let probes = 0;
+  const h = harness(t, {
+    bridge: {
+      available: true,
+      probe: async () => {
+        probes++;
+        return { installed: true, granted: true, setup_protocol: 2 };
+      },
+      open: async () => {
+        throw new Error('permission handoff must not run');
+      },
+    },
+  });
+  h.guide.update(current({ enabled: true, browser_enabled: true }));
+  await new Promise(setImmediate);
+  const initial = probes;
+  await h.button('Retry connection').click();
+  assert.ok(probes > initial);
+  assert.deepEqual(h.opened, []);
+  assert.deepEqual(h.controls, []);
+});
+
+test('desktop handoff completes without a browser Home or activity navigation', (t) => {
+  const h = harness(t, { returnToDesktop: true });
+  h.guide.update(current({ enabled: true, browser_enabled: true }, verified));
+  assert.equal(h.heading(), 'Chrome connected');
+  assert.equal(h.button('View activity').hidden, true);
+  assert.equal(h.button('Not now').hidden, true);
+  assert.ok(
+    h.host
+      .querySelectorAll('p')
+      .some((node) => node.textContent.includes('Return to the eïlo desktop app')),
+  );
+});
+
+test('an old extension gets a truthful reload step when Chrome settings must be opened manually', async (t) => {
+  const h = harness(t, {
+    bridge: {
+      available: true,
+      probe: async () => ({ installed: true, granted: true }),
+      open: async () => false,
+    },
+  });
+  await new Promise(setImmediate);
+  assert.equal(h.heading(), 'Reload the eïlo extension once');
+  assert.ok(h.host.querySelectorAll('p').some((node) => node.textContent === 'Update connection'));
+  await h.button('Copy extensions address').click();
+  assert.deepEqual(h.copied, ['chrome://extensions/']);
+  assert.deepEqual(h.opened, []);
+  assert.deepEqual(h.controls, []);
+  assert.equal(h.heading(), 'Reload the eïlo extension once');
 });

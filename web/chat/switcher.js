@@ -28,8 +28,10 @@ export function mountChatSwitcher(
   trigger.setAttribute('aria-label', 'Switch conversation');
   trigger.setAttribute('aria-expanded', 'false');
   trigger.setAttribute('aria-controls', 'chat-switcher-panel');
-  const name = el('span', '', 'New chat');
-  trigger.append(name, el('span', 'chat-switcher__chevron', '⌄'));
+  const name = el('span', 'chat-switcher__full-name', 'New chat');
+  const compactName = el('span', 'chat-switcher__compact-name', 'Chat');
+  compactName.setAttribute('aria-hidden', 'true');
+  trigger.append(name, compactName, el('span', 'chat-switcher__chevron', '⌄'));
   const panel = el('section', 'chat-switcher__panel');
   panel.id = 'chat-switcher-panel';
   panel.hidden = true;
@@ -155,6 +157,7 @@ export function mountChatSwitcher(
       const chat = catalog?.chats.find((c) => c.id === catalog.active_chat_id);
       name.textContent = chat?.name || 'New chat';
       trigger.title = chat?.name || 'Switch conversation';
+      compactName.textContent = chat?.name === 'Personal conversation' ? 'Personal' : 'Chat';
       const next = JSON.stringify([catalog, canManage()]);
       if (next !== fingerprint) {
         fingerprint = next;

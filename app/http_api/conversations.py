@@ -124,6 +124,7 @@ def register(app: web.Application, chat: LocalChat) -> None:
             async with chat.native_lock:
                 await chat.refresh()
                 await chat.recover_publication()
+                await chat.proactive.recover_publications()
                 chat.error, chat.blocked = None, False
                 chat.changed()
         return web.json_response(chat.snapshot())

@@ -4,11 +4,13 @@ import {
   MODES,
   createDefaultState,
   normalizeState,
+  tidyHomeLayout,
+  withUniqueSourceWidgets,
+  paginateHomeLayout,
   projectLayout,
   updateLayout,
   previewMove,
   resizeWithinHome,
-  fitWithinHome,
   layoutTransferHash,
   readLayoutTransfer,
   withConversationDock,
@@ -24,6 +26,7 @@ import {
 } from './home/storage.js';
 import { renderSampleWidget, updateSampleClock } from './home/sample-widgets.js';
 import { createWidgetGallery } from './home/gallery.js';
+import { contextWidgetId, syncContextWidgets } from './home/context-layout.js';
 import { isLiveWidget } from './home/live-widgets.js';
 // The isolated design/typography previews never load the live conversation client.
 const createLiveHome =
@@ -43,6 +46,7 @@ const TITLES = {
   notes: 'Notes',
   tracking: 'Tracking',
   usage: 'Browser usage',
+  context: 'Work context',
 };
 const DEFAULT_SIZE = {
   today: 'medium',
@@ -85,19 +89,41 @@ const homeStorage = createHomeStorage();
 const transferred =
   document.documentElement.dataset.source === 'live' ? readLayoutTransfer(location.hash) : null;
 let state = normalizeState(transferred?.layout ?? homeStorage.read(KEY, createDefaultState()));
-if (createLiveHome) state = withTrackingWidgets(withConversationDock(state));
+if (createLiveHome)
+  state = withUniqueSourceWidgets(withTrackingWidgets(withConversationDock(state)));
 const content = normalizeHomeContent(homeStorage.read(CONTENT_KEY, {}));
 const prefs = normalizeHomePreferences({
   ...homeStorage.read(PREFS_KEY, {}),
   ...transferred?.preferences,
 });
+// Migrate the old window-sized board once; future custom placement stays untouched.
+if (createLiveHome && prefs.homeLayoutVersion < 2) {
+  homeStorage.write(KEY + ':before-scroll', homeStorage.read(KEY, state));
+  state.widgets = state.widgets.map((widget) =>
+    ['today', 'goals', 'progress', 'tracking', 'usage'].includes(widget.type)
+      ? {
+          ...widget,
+          size: widget.type === 'usage' ? 'medium' : 'small',
+          footprints: {
+            wide: { w: widget.type === 'usage' ? 8 : 4, h: 2 },
+            compact: { w: widget.type === 'usage' ? 6 : 3, h: 2 },
+            stacked: { w: 1, h: 2 },
+          },
+        }
+      : widget,
+  );
+  for (const layoutMode of Object.keys(MODES)) state = tidyHomeLayout(state, layoutMode);
+  prefs.homeLayoutVersion = 2;
+  homeStorage.write(KEY, state);
+  homeStorage.write(PREFS_KEY, prefs);
+}
+
 let editing = false,
   mode = 'wide',
   rowHeight = 118,
   cellWidth = 60,
   gap = 20,
   rowBudget = 4;
-let initialFitChecked = false;
 let drag = null,
   keyboardMove = null,
   undoState = null,
@@ -111,6 +137,7 @@ let toastTimer,
   idCount = 0,
   noteTimer,
   railTransitionTimer;
+let navPointer = null;
 let railHovered = false,
   railOpen = true,
   accountOpen = false,
@@ -119,17 +146,19 @@ let adaptivePreviewMode =
   document.documentElement.dataset.source === 'sample' &&
   new URLSearchParams(location.search).get('adaptive-preview') === '1';
 let adaptiveHome = null;
-let adaptiveActive = false;
-let adaptivePlacement = [];
-let adaptivePlacementMode = null;
-let adaptiveLayoutInput = null;
+let homePage = 0;
+let contextInput = null;
+let contextRenderVersion = 0;
+const widgetTitle = (widget) => adaptiveHome?.component(widget)?.title || TITLES[widget.type];
 const icon = (name) => `<svg aria-hidden="true"><use href="#${name}"/></svg>`;
 const live =
   document.documentElement.dataset.source === 'live'
     ? createLiveHome({
         openDetail: showDetail,
+        onSettingsSection: (id) => adaptiveHome?.selectSettings(id),
         dialog: detail,
         onViewChange: () => {
+          adaptiveHome?.hideSettings();
           if (editing) setEditing(false);
           closeAccount();
           closeWidgetMenu();
@@ -163,6 +192,12 @@ function showStorageWarning() {
   $('.storage-warning').textContent = homeStorage.message;
 }
 function saveLayout() {
+  const restored = new Set(state.widgets.map((widget) => widget.componentId).filter(Boolean));
+  const dismissed = prefs.dismissedContextWidgets.filter((id) => !restored.has(id));
+  if (dismissed.length !== prefs.dismissedContextWidgets.length) {
+    prefs.dismissedContextWidgets = dismissed;
+    writeStorage(PREFS_KEY, prefs);
+  }
   const ok = writeStorage(KEY, state);
   $('.save-state').textContent = editing ? (ok ? 'Saved' : 'Not saved') : '';
 }
@@ -194,16 +229,66 @@ $('.toast-undo').addEventListener('click', () => {
   toast('Layout change undone.');
   $('.edit-toggle').focus();
 });
+function homePages(base = state, layoutMode = mode) {
+  return live ? paginateHomeLayout(base, layoutMode, rowBudget) : [projectLayout(base, layoutMode)];
+}
+function projectHomeLayout(base, layoutMode = mode) {
+  const pages = homePages(base, layoutMode);
+  return pages[Math.min(homePage, Math.max(0, pages.length - 1))] || [];
+}
+function changeHomePage(base, transform) {
+  if (!live) return transform(base);
+  const pages = homePages(base);
+  const index = Math.min(homePage, Math.max(0, pages.length - 1));
+  const page = pages[index] || [];
+  const ids = new Set(page.map((item) => item.id));
+  const local = {
+    version: 1,
+    widgets: base.widgets
+      .filter((widget) => ids.has(widget.id))
+      .map((widget) => {
+        const item = page.find((item) => item.id === widget.id);
+        return {
+          ...widget,
+          footprints: { ...widget.footprints, [mode]: { w: item.w, h: item.h } },
+        };
+      }),
+    positions: { [mode]: page.map(({ id, x, y }) => ({ id, x, y })) },
+  };
+  const changed = transform(local);
+  if (changed === local) return base;
+  const positions = pages.flatMap((items, pageIndex) =>
+    (pageIndex === index ? projectLayout(changed, mode) : items).map(({ id, x, y }) => ({
+      id,
+      x,
+      y: y + pageIndex * rowBudget,
+    })),
+  );
+  return {
+    ...base,
+    widgets: base.widgets.map((widget) => {
+      const before = local.widgets.find((item) => item.id === widget.id);
+      const after = changed.widgets.find((item) => item.id === widget.id);
+      return before && after && JSON.stringify(before) !== JSON.stringify(after)
+        ? { ...widget, ...after, footprints: { ...widget.footprints, ...after.footprints } }
+        : widget;
+    }),
+    positions: { ...base.positions, [mode]: positions },
+  };
+}
+function previewHomeMove(base, action) {
+  return changeHomePage(base, (local) => previewMove(local, action));
+}
 function commit(action, message) {
   if (action.type === 'move') {
-    const item = projectLayout(state, mode).find((item) => item.id === action.id);
+    const item = projectHomeLayout(state, mode).find((item) => item.id === action.id);
     if (item) action = { ...action, y: Math.max(0, Math.min(rowBudget - item.h, action.y)) };
   }
   const next =
     action.type === 'resizeTo'
       ? resizeToHome(state, action.id, action.w, action.h)
       : action.type === 'move'
-        ? previewMove(state, { ...action, mode, rows: rowBudget })
+        ? previewHomeMove(state, { ...action, mode, rows: rowBudget })
         : updateLayout(state, { ...action, mode });
   if (next === state) return false;
   undoState = state;
@@ -214,10 +299,12 @@ function commit(action, message) {
   return true;
 }
 function resizeToHome(base, id, w, h) {
-  return resizeWithinHome(base, { id, w, h, mode, rows: rowBudget });
+  return changeHomePage(base, (local) =>
+    resizeWithinHome(local, { id, w, h, mode, rows: rowBudget }),
+  );
 }
 function placeOnHome(base, id) {
-  const item = projectLayout(base, mode).find((item) => item.id === id);
+  const item = projectHomeLayout(base, mode).find((item) => item.id === id);
   if (!item) return base;
   const next =
     item.h > rowBudget
@@ -226,9 +313,20 @@ function placeOnHome(base, id) {
   return updateLayout(next, { type: 'move', id, x: 0, y: 0, mode });
 }
 function overflowWidgets() {
-  return projectLayout(state, mode).filter((item) => item.y + item.h > rowBudget);
+  return projectHomeLayout(state, mode).filter((item) => item.y + item.h > rowBudget);
 }
 function renderBody(widget, container, preview = false) {
+  if (widget.type === 'context') {
+    if (!adaptiveHome?.renderWidget(widget, container, preview)) {
+      const heading = document.createElement('h2');
+      heading.textContent = 'Work context';
+      const text = document.createElement('p');
+      text.className = 'live-empty';
+      text.textContent = 'Waiting for current context…';
+      container.replaceChildren(heading, text);
+    }
+    return;
+  }
   if (live?.renderBody(widget, container)) return;
   renderSampleWidget(widget, container, {
     content,
@@ -236,7 +334,7 @@ function renderBody(widget, container, preview = false) {
     onOpenGoals: () => showDetail('goals'),
     onNotesChange: (input) => {
       content.notes = input.value;
-      $$('.note-input')
+      $$('.widget[data-type="notes"] .note-input')
         .filter((other) => other !== input && !other.closest('.widget-preview'))
         .forEach((other) => {
           other.value = content.notes;
@@ -269,18 +367,18 @@ function createWidget(widget) {
   const remove = document.createElement('button');
   remove.className = 'remove-widget';
   remove.innerHTML = icon('minus');
-  remove.setAttribute('aria-label', `Remove ${TITLES[widget.type]} widget`);
-  remove.title = `Remove ${TITLES[widget.type]} widget`;
+  remove.setAttribute('aria-label', `Remove ${widgetTitle(widget)} widget`);
+  remove.title = `Remove ${widgetTitle(widget)} widget`;
   const grip = document.createElement('button');
   grip.className = 'move-widget';
   grip.innerHTML = icon('grip');
-  grip.setAttribute('aria-label', `Move ${TITLES[widget.type]} widget`);
+  grip.setAttribute('aria-label', `Move ${widgetTitle(widget)} widget`);
   grip.setAttribute('aria-describedby', 'move-help');
   grip.title = 'Drag to move, or press Space and use arrow keys';
   const options = document.createElement('button');
   options.className = 'widget-options';
   options.innerHTML = icon('more');
-  options.setAttribute('aria-label', `${TITLES[widget.type]} widget options`);
+  options.setAttribute('aria-label', `${widgetTitle(widget)} widget options`);
   options.setAttribute('aria-expanded', 'false');
   options.title = 'Size and position';
   tools.append(remove, grip, options);
@@ -291,7 +389,7 @@ function createWidget(widget) {
   resize.className = 'resize-widget';
   resize.innerHTML =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19 19 6M13 19l6-6"/></svg>';
-  resize.setAttribute('aria-label', `Resize ${TITLES[widget.type]} widget`);
+  resize.setAttribute('aria-label', `Resize ${widgetTitle(widget)} widget`);
   resize.title = 'Drag to resize, or use arrow keys';
   resize.setAttribute('aria-describedby', 'resize-help');
   element.append(resize);
@@ -323,37 +421,19 @@ function createWidget(widget) {
   return element;
 }
 function updateGeometry() {
-  // Adaptive Home hides the manual board. Measure its still-visible containing
-  // block so switching modes never computes a stacked, one-pixel layout from
-  // that hidden child. A genuinely hidden Home keeps its last valid geometry.
+  // A hidden Home keeps its last valid geometry until it is visible again.
   const containerStyle = getComputedStyle(scroller);
   const width =
     scroller.clientWidth -
     (parseFloat(containerStyle.paddingLeft) || 0) -
     (parseFloat(containerStyle.paddingRight) || 0);
   if (width <= 0 || scroller.clientHeight <= 0) return false;
-  const expandedWidth =
-    width +
-    $('.rail-zone').getBoundingClientRect().width -
-    parseFloat(getComputedStyle($('.workspace')).getPropertyValue('--rail-space'));
-  mode = expandedWidth >= 800 ? 'wide' : expandedWidth >= 640 ? 'compact' : 'stacked';
+  mode = width >= 960 ? 'wide' : width >= 640 ? 'compact' : 'stacked';
   gap = mode === 'stacked' ? 16 : 20;
-  rowBudget =
-    mode === 'stacked'
-      ? 2 * Math.max(1, Math.floor((scroller.clientHeight + gap) / (244 + 2 * gap)))
-      : scroller.clientHeight >=
-          (live
-            ? document.querySelector(
-                '.conversation-dock[data-open="true"], .conversation-dock .live-update:not([hidden])',
-              )
-              ? 300
-              : 380
-            : 500)
-        ? 4
-        : 2;
-  rowHeight = Math.max(
-    1,
-    Math.floor((scroller.clientHeight - (rowBudget - 1) * gap - 6) / rowBudget),
+  rowBudget = mode !== 'stacked' && scroller.clientHeight >= 490 ? 4 : 2;
+  rowHeight = Math.min(
+    132,
+    Math.max(1, Math.floor((scroller.clientHeight - (rowBudget - 1) * gap - 4) / rowBudget)),
   );
   cellWidth = (width - (MODES[mode] - 1) * gap) / MODES[mode];
   return true;
@@ -362,15 +442,9 @@ function renderBoard() {
   if (adaptivePreviewMode) return;
   if (scroller.hidden) return;
   if (!updateGeometry()) return;
-  if (!initialFitChecked) {
-    initialFitChecked = true;
-    const repaired = fitWithinHome(state, { mode, rows: rowBudget });
-    if (repaired !== state) {
-      state = repaired;
-      saveLayout();
-    }
-  }
-  const layout = projectLayout(
+  const pages = homePages(drag?.preview ?? resizeDrag?.preview ?? keyboardMove?.preview ?? state);
+  homePage = Math.min(homePage, Math.max(0, pages.length - 1));
+  const layout = projectHomeLayout(
       drag?.preview ?? resizeDrag?.preview ?? keyboardMove?.preview ?? state,
       mode,
     ),
@@ -387,7 +461,13 @@ function renderBoard() {
       elements.set(widget.id, element);
       board.append(element);
     }
-    const signature = [widget.type, widget.size, widget.w, widget.h].join(':');
+    const signature = [
+      widget.type,
+      widget.size,
+      widget.w,
+      widget.h,
+      widget.type === 'context' ? contextRenderVersion : '',
+    ].join(':');
     if (element.dataset.signature !== signature) {
       element.dataset.signature = signature;
       renderBody(widget, element.querySelector('.widget-content'));
@@ -403,38 +483,62 @@ function renderBoard() {
     element.dataset.y = widget.y;
     element.dataset.w = widget.w;
     element.dataset.h = widget.h;
-    element.hidden = widget.y + widget.h > rowBudget;
-    if (adaptiveActive && !prefs.widgetPins.includes(widget.id)) element.hidden = true;
+    for (const [selector, label] of [
+      ['.remove-widget', `Remove ${widgetTitle(widget)} widget`],
+      ['.move-widget', `Move ${widgetTitle(widget)} widget`],
+      ['.widget-options', `${widgetTitle(widget)} widget options`],
+      ['.resize-widget', `Resize ${widgetTitle(widget)} widget`],
+    ])
+      element.querySelector(selector).setAttribute('aria-label', label);
+    element.hidden = false;
     element.style.setProperty('--left', widget.x * (cellWidth + gap) + 'px');
     element.style.setProperty('--top', widget.y * (rowHeight + gap) + 'px');
     element.style.setProperty('--width', widget.w * cellWidth + (widget.w - 1) * gap + 'px');
     element.style.setProperty('--height', widget.h * rowHeight + (widget.h - 1) * gap + 'px');
     element.querySelector('.widget-tools').inert = !editing;
   }
-  const visible = layout.filter((item) => item.y + item.h <= rowBudget),
-    overflow = layout.length - visible.length;
-  board.style.height = rowBudget * rowHeight + (rowBudget - 1) * gap + 'px';
-  board.hidden = visible.length === 0;
-  if (adaptiveActive) board.hidden = prefs.widgetPins.length === 0;
-  $('.empty-home').hidden = visible.length !== 0;
-  $('.overflow-toggle').hidden = overflow === 0;
-  $('.overflow-toggle').textContent = `More widgets · ${overflow}`;
-  if (adaptiveActive) {
-    $('.overflow-toggle').hidden = true;
-    $('.empty-home').hidden = true;
+  const rows = Math.max(0, ...layout.map((item) => item.y + item.h));
+  board.style.height = Math.max(0, rows * rowHeight + (rows - 1) * gap) + 'px';
+  if (live) {
+    pageLabel.textContent = `Page ${homePage + 1} of ${pages.length}`;
+    pager.hidden = pages.length <= 1;
+    if (pageDots.children.length !== pages.length) {
+      pageDots.replaceChildren();
+      for (let index = 0; index < pages.length; index++) {
+        const dot = document.createElement('button');
+        dot.type = 'button';
+        dot.className = 'home-page-dot';
+        dot.setAttribute('aria-label', `Page ${index + 1}`);
+        dot.addEventListener('click', () => turnWidgetPage(index - homePage));
+        pageDots.append(dot);
+      }
+    }
+    for (const [index, dot] of [...pageDots.children].entries())
+      dot.setAttribute('aria-current', index === homePage ? 'page' : 'false');
+    previousPage.disabled = homePage === 0;
+    nextPage.disabled = homePage >= pages.length - 1;
   }
+  board.hidden = layout.length === 0;
+  $('.empty-home').hidden = layout.length !== 0;
+  $('.overflow-toggle').hidden = true;
+  $('.add-toggle').hidden = false;
   $('.app-window').classList.toggle('editing', editing);
   if (menuId && !ids.has(menuId)) closeWidgetMenu();
-  if (adaptiveActive && adaptiveLayoutInput) placeAdaptive(adaptiveLayoutInput, true);
 }
 function removeWidget(id) {
   const widget = state.widgets.find((item) => item.id === id);
   if (!widget) return;
   closeWidgetMenu();
-  commit(
+  const removed = commit(
     { type: 'remove', id },
-    `${TITLES[widget.type]} removed from Home. Its contents are kept.`,
+    `${widgetTitle(widget)} removed from Home. Its contents are kept.`,
   );
+  if (removed && widget.componentId) {
+    prefs.dismissedContextWidgets = [
+      ...new Set([...prefs.dismissedContextWidgets, widget.componentId]),
+    ].slice(-128);
+    writeStorage(PREFS_KEY, prefs);
+  }
   $('.edit-toggle').focus();
 }
 function setEditing(value) {
@@ -444,8 +548,10 @@ function setEditing(value) {
   if (keyboardMove) finishKeyboardMove(false);
   finishLandings();
   editing = value;
+  if (!editing) queueMicrotask(() => adaptiveHome?.flush());
   closeWidgetMenu();
-  $('.add-toggle').hidden = !editing;
+  $('.add-toggle').hidden = false;
+  document.querySelector('.tidy-home')?.toggleAttribute('hidden', !editing);
   $('.edit-toggle').innerHTML = editing ? 'Done' : icon('pencil') + '<span>Edit home</span>';
   if (!editing && gallery.open) gallery.close();
   saveLayout();
@@ -478,31 +584,67 @@ $('.app-window').addEventListener('pointerdown', (event) => {
     setEditing(false);
   }
 });
+const widgetCatalog = Object.fromEntries(
+  Object.entries(CATALOG).filter(
+    ([type]) => type !== 'context' && (!live || type !== 'conversation'),
+  ),
+);
 const galleryController = createWidgetGallery({
   dialog: gallery,
   appWindow: $('.app-window'),
-  catalog: Object.fromEntries(
-    Object.entries(CATALOG).filter(([type]) => !live || type !== 'conversation'),
-  ),
+  catalog: widgetCatalog,
   titles: TITLES,
   defaultSizes: DEFAULT_SIZE,
-  renderPreview: (widget, container) => renderBody(widget, container, true),
+  renderPreview: (widget, container) => {
+    const component = adaptiveHome
+      ?.components()
+      .find((item) => contextWidgetId(item.id) === widget.type);
+    renderBody(
+      component ? { ...widget, type: 'context', componentId: component.id } : widget,
+      container,
+      true,
+    );
+  },
   getWidgetCount: () => state.widgets.length,
   onOpening: () => {
     if (!editing) setEditing(true);
     closeWidgetMenu();
     closeAccount();
+    updateContextGallery();
     return document.activeElement;
   },
   onAdd: (type, size) => {
-    const id = `${type}-${crypto.randomUUID()}`;
+    if (
+      live &&
+      ['today', 'goals', 'progress', 'tracking', 'usage'].includes(type) &&
+      state.widgets.some((widget) => widget.type === type)
+    ) {
+      toast(`${TITLES[type]} is already on Home.`);
+      return null;
+    }
+    const component = adaptiveHome?.components().find((item) => contextWidgetId(item.id) === type);
+    const id = component ? contextWidgetId(component.id) : `${type}-${crypto.randomUUID()}`;
     const before = state;
-    if (!commit({ type: 'add', widgetType: type, size, id })) return null;
+    if (
+      !commit({
+        type: 'add',
+        widgetType: component ? 'context' : type,
+        size,
+        id,
+        ...(component ? { componentId: component.id } : {}),
+      })
+    )
+      return null;
     if (elements.get(id)?.hidden) {
       state = placeOnHome(state, id);
       saveLayout();
       renderBoard();
     }
+    homePage = Math.max(
+      0,
+      homePages(state).findIndex((page) => page.some((item) => item.id === id)),
+    );
+    renderBoard();
     undoState = before;
     toast(`${TITLES[type]} added to Home.`, true);
     const element = elements.get(id);
@@ -515,6 +657,50 @@ $('.empty-add').addEventListener('click', () => {
   setEditing(true);
   galleryController.open();
 });
+const pager = document.createElement('nav');
+pager.className = 'home-pagination';
+pager.setAttribute('aria-label', 'Home widget pages');
+pager.hidden = !live;
+const pageLabel = document.createElement('span');
+pageLabel.className = 'sr-only';
+pageLabel.setAttribute('role', 'status');
+const pageActions = document.createElement('div');
+pageActions.className = 'home-page-actions';
+const pageDots = document.createElement('div');
+pageDots.className = 'home-page-dots';
+const previousPage = document.createElement('button');
+previousPage.className = 'home-page-arrow';
+previousPage.innerHTML = icon('arrow-left');
+previousPage.setAttribute('aria-label', 'Previous widgets');
+const nextPage = document.createElement('button');
+nextPage.className = 'home-page-arrow';
+nextPage.innerHTML = icon('arrow-right');
+nextPage.setAttribute('aria-label', 'Next widgets');
+function turnWidgetPage(step) {
+  cancelHeldPress();
+  if (keyboardMove) finishKeyboardMove(false);
+  closeWidgetMenu();
+  finishLandings();
+  homePage = Math.max(0, homePage + step);
+  renderBoard();
+}
+previousPage.addEventListener('click', () => turnWidgetPage(-1));
+nextPage.addEventListener('click', () => turnWidgetPage(1));
+pageActions.append(previousPage, pageDots, nextPage);
+pager.append(pageLabel, pageActions);
+scroller.after(pager);
+const tidyButton = document.createElement('button');
+tidyButton.className = 'button tidy-home';
+tidyButton.textContent = 'Tidy layout';
+tidyButton.hidden = true;
+tidyButton.addEventListener('click', () => {
+  undoState = state;
+  state = tidyHomeLayout(state, mode);
+  saveLayout();
+  renderBoard();
+  toast('Widgets aligned. Sizes and contents kept.', true);
+});
+$('.edit-toggle').before(tidyButton);
 $('.overflow-toggle').addEventListener('click', () => showDetail('overflow'));
 
 function closeWidgetMenu() {
@@ -543,18 +729,14 @@ function toggleWidgetMenu(id, trigger) {
     announce('Use arrow keys to resize this widget.');
   });
   menu.append(resizeAction);
-  if (live) {
+  if (widget.componentId) {
     const pinAction = document.createElement('button');
-    pinAction.textContent = prefs.widgetPins.includes(id)
-      ? 'Unpin from Adaptive Home'
-      : 'Keep in Adaptive Home';
-    pinAction.addEventListener('click', () => {
-      prefs.widgetPins = prefs.widgetPins.includes(id)
-        ? prefs.widgetPins.filter((item) => item !== id)
-        : [...prefs.widgetPins, id];
-      writeStorage(PREFS_KEY, prefs);
+    const pinned = contextInput?.pins.includes(widget.componentId);
+    pinAction.textContent = pinned ? 'Let eïlo replace this widget' : 'Keep on Home';
+    pinAction.addEventListener('click', async () => {
+      pinAction.disabled = true;
+      await adaptiveHome.setPinned(widget.componentId, !pinned);
       closeWidgetMenu();
-      renderBoard();
     });
     menu.append(pinAction);
   }
@@ -571,13 +753,13 @@ function toggleWidgetMenu(id, trigger) {
   ]) {
     const button = document.createElement('button');
     button.innerHTML = icon('arrow-' + name);
-    button.setAttribute('aria-label', `Move ${TITLES[widget.type]} ${name}`);
+    button.setAttribute('aria-label', `Move ${widgetTitle(widget)} ${name}`);
     button.addEventListener('click', () => {
-      const item = projectLayout(state, mode).find((item) => item.id === id);
+      const item = projectHomeLayout(state, mode).find((item) => item.id === id);
       closeWidgetMenu();
       commit(
         { type: 'move', id, x: item.x + dx, y: item.y + dy },
-        `${TITLES[widget.type]} moved ${name}.`,
+        `${widgetTitle(widget)} moved ${name}.`,
       );
       elements.get(id)?.querySelector('.widget-options').focus();
     });
@@ -630,7 +812,7 @@ function handleMoveKeys(event, id) {
     closeWidgetMenu();
     finishLandings();
     const before = structuredClone(state),
-      item = projectLayout(before, mode).find((widget) => widget.id === id);
+      item = projectHomeLayout(before, mode).find((widget) => widget.id === id);
     keyboardMove = { id, before, preview: before, target: { x: item.x, y: item.y }, item };
     elements.get(id).classList.add('keyboard-moving');
     event.currentTarget.setAttribute('aria-pressed', 'true');
@@ -660,9 +842,9 @@ function handleMoveKeys(event, id) {
       ),
     );
     moving.target = { x, y };
-    moving.preview = previewMove(moving.before, { id, x, y, mode, rows: rowBudget });
+    moving.preview = previewHomeMove(moving.before, { id, x, y, mode, rows: rowBudget });
     renderBoard();
-    const placed = projectLayout(moving.preview, mode).find((widget) => widget.id === id);
+    const placed = projectHomeLayout(moving.preview, mode).find((widget) => widget.id === id);
     announce(`Column ${placed.x + 1}, row ${placed.y + 1}.`);
   }
 }
@@ -691,7 +873,7 @@ function startPointerMove(event, id) {
   const element = elements.get(id),
     rect = element.getBoundingClientRect();
   const before = structuredClone(state),
-    item = projectLayout(before, mode).find((item) => item.id === id);
+    item = projectHomeLayout(before, mode).find((item) => item.id === id);
   drag = {
     id,
     handle: event.currentTarget,
@@ -798,7 +980,7 @@ function startResize(event, id) {
   if (keyboardMove) finishKeyboardMove(true);
   finishLandings();
   clearTimeout(railTimer);
-  const item = projectLayout(state, mode).find((widget) => widget.id === id);
+  const item = projectHomeLayout(state, mode).find((widget) => widget.id === id);
   const before = structuredClone(state);
   resizeDrag = {
     id,
@@ -823,7 +1005,7 @@ function startResize(event, id) {
 function resizeWithKeys(event, id) {
   if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
   event.preventDefault();
-  const item = projectLayout(state, mode).find((widget) => widget.id === id);
+  const item = projectHomeLayout(state, mode).find((widget) => widget.id === id);
   const w = item.w + (event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0);
   const h = item.h + (event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0);
   if (!commit({ type: 'resizeTo', id, w, h }, 'Widget resized.'))
@@ -845,7 +1027,7 @@ function resizePosition() {
   if (r.target.w === w && r.target.h === h) return;
   r.target = { w, h };
   r.preview = w === r.item.w && h === r.item.h ? r.before : resizeToHome(r.before, r.id, w, h);
-  const actual = projectLayout(r.preview, r.mode).find((item) => item.id === r.id);
+  const actual = projectHomeLayout(r.preview, r.mode).find((item) => item.id === r.id);
   const limited = actual.w !== w || actual.h !== h;
   elements.get(r.id).querySelector('.resize-limit-note').hidden = !limited;
   if (limited && !r.limited) announce('Size limit reached. The other widgets remain on Home.');
@@ -896,7 +1078,7 @@ function dragPosition() {
   d.target = { x, y };
   const key = `${x},${y}`;
   if (!d.previews.has(key))
-    d.previews.set(key, previewMove(d.before, { id: d.id, x, y, mode: d.mode, rows: d.rows }));
+    d.previews.set(key, previewHomeMove(d.before, { id: d.id, x, y, mode: d.mode, rows: d.rows }));
   // Always preview from the pickup snapshot; moving back restores the old arrangement.
   const next = d.previews.get(key);
   if (next === d.preview) return;
@@ -929,7 +1111,7 @@ function landWidget(finished) {
   const element = elements.get(finished.id),
     ghost = finished.ghost;
   if (!ghost) return;
-  const item = projectLayout(state, mode).find((item) => item.id === finished.id);
+  const item = projectHomeLayout(state, mode).find((item) => item.id === finished.id);
   let animation = null,
     done = false;
   const cleanup = () => {
@@ -1063,6 +1245,18 @@ function setRail(open, restore = false) {
     if (restore) $('.nav-hint').focus();
   }
 }
+function pointerNearRail() {
+  if (!navPointer) return false;
+  const bounds = rail.getBoundingClientRect();
+  return (
+    navPointer.x <= 24 ||
+    (railOpen &&
+      navPointer.x >= bounds.left - 20 &&
+      navPointer.x <= bounds.right + 20 &&
+      navPointer.y >= bounds.top - 24 &&
+      navPointer.y <= bounds.bottom + 24)
+  );
+}
 function scheduleRailHide() {
   clearTimeout(railTimer);
   if (prefs.pin || drag || resizeDrag) return;
@@ -1071,11 +1265,12 @@ function scheduleRailHide() {
       !drag &&
       !resizeDrag &&
       !railHovered &&
-      !rail.contains(document.activeElement) &&
+      !pointerNearRail() &&
+      (!rail.contains(document.activeElement) || document.body.dataset.focusOrigin === 'pointer') &&
       !accountOpen
     )
       setRail(false);
-  }, 500);
+  }, 1400);
 }
 $('.rail-zone').addEventListener('pointerenter', (event) => {
   if (event.pointerType === 'mouse') {
@@ -1088,6 +1283,27 @@ $('.rail-zone').addEventListener('pointerleave', (event) => {
     railHovered = false;
     scheduleRailHide();
   }
+});
+document.addEventListener(
+  'pointermove',
+  (event) => {
+    if (event.pointerType !== 'mouse' || drag || resizeDrag) return;
+    navPointer = { x: event.clientX, y: event.clientY };
+    if (pointerNearRail()) {
+      railHovered = true;
+      clearTimeout(railTimer);
+      if (!railOpen) setRail(true);
+    } else if (railHovered) {
+      railHovered = false;
+      scheduleRailHide();
+    }
+  },
+  { passive: true },
+);
+document.addEventListener('pointerleave', () => {
+  navPointer = null;
+  railHovered = false;
+  scheduleRailHide();
 });
 rail.addEventListener('focusin', () => clearTimeout(railTimer));
 rail.addEventListener('focusout', () => setTimeout(scheduleRailHide, 0));
@@ -1141,15 +1357,31 @@ $$('[data-account-action]').forEach((button) =>
   }),
 );
 function showDetail(type) {
+  if (live && type === 'browser-setup') {
+    live.showPage('connections', { connectionId: 'activity' });
+    return;
+  }
+  if (live && ['settings', 'profile', 'help'].includes(type)) {
+    live.showPage('settings', { settingsSection: 'general' });
+    return;
+  }
   if (live && type === 'conversation') {
     live.focusConversation();
     return;
   }
   if (
     live &&
-    ['home', 'goals', 'today', 'progress', 'activity', 'connections', 'chats', 'projects'].includes(
-      type,
-    )
+    [
+      'home',
+      'goals',
+      'today',
+      'progress',
+      'activity',
+      'connections',
+      'settings',
+      'chats',
+      'projects',
+    ].includes(type)
   ) {
     live.showPage(type === 'today' || type === 'progress' ? 'goals' : type, {
       goalFilter:
@@ -1177,18 +1409,18 @@ function showDetail(type) {
       const row = document.createElement('div');
       row.className = 'overflow-item';
       const name = document.createElement('strong');
-      name.textContent = TITLES[item.type];
+      name.textContent = widgetTitle(item);
       const button = document.createElement('button');
       button.className = 'button';
       button.textContent = 'Show on Home';
-      button.setAttribute('aria-label', `Show ${TITLES[item.type]} on Home`);
+      button.setAttribute('aria-label', `Show ${widgetTitle(item)} on Home`);
       button.addEventListener('click', () => {
         undoState = state;
         state = placeOnHome(state, item.id);
         saveLayout();
         renderBoard();
         detail.close();
-        toast(`${TITLES[item.type]} is on Home.`, true);
+        toast(`${widgetTitle(item)} is on Home.`, true);
       });
       row.append(name, button);
       body.querySelector('.overflow-list').append(row);
@@ -1224,7 +1456,7 @@ function showDetail(type) {
   } else if (type === 'settings') {
     title.textContent = 'Settings';
     body.innerHTML =
-      '<label class="check-option"><input type="checkbox" class="pin-setting">Keep navigation open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><h3>Home layout</h3><button class="button restore-defaults">Restore starter layout</button><p class="muted">Your note and saved contents are kept.</p>';
+      '<label class="check-option"><input type="checkbox" class="pin-setting">Keep navigation open</label><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><h3>Home layout</h3><button class="button restore-defaults">Restore starter layout</button><p class="muted">Your note and saved contents are kept.</p>';
     body.querySelector('.pin-setting').checked = prefs.pin;
     body.querySelector('.motion-setting').checked = prefs.reducedMotion;
     body.querySelector('.pin-setting').addEventListener('change', (event) => {
@@ -1346,70 +1578,108 @@ if (transferred) {
   history.replaceState(null, '', location.pathname + location.search);
 }
 live?.start();
-let compositionGeometry;
-function placeAdaptive(input, geometryReady = false) {
-  if (!compositionGeometry) return;
-  adaptiveLayoutInput = input;
-  if ($('.workspace').dataset.page === 'home')
-    $('.home-header h1').textContent = input.composition.title;
-  if (!geometryReady && !updateGeometry()) return;
-  if (adaptivePlacementMode !== mode) adaptivePlacement = [];
-  adaptivePlacementMode = mode;
-  const manual = projectLayout(state, mode);
-  const reserved = manual.filter((item) => prefs.widgetPins.includes(item.id));
-  const geometry = compositionGeometry(input.composition.components, {
-    columns: MODES[mode],
-    rows: rowBudget,
-    reserved,
-    seeds: adaptivePlacement.length
-      ? []
-      : manual.filter((item) => !prefs.widgetPins.includes(item.id)),
-    previous: adaptivePlacement,
-    pins: input.pins,
+function createGeneralSettings() {
+  const section = document.createElement('section');
+  section.className = 'general-settings';
+  section.innerHTML = `<h2>General</h2><form class="profile-form"><label class="field">Display name<input type="text" maxlength="40" autocomplete="off" required></label><button class="button">Save name</button><p class="settings-feedback" role="status"></p></form><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><label class="field speech-preference">Microphone mode</label><h3>Check-ins & alerts</h3><p class="muted">Choose when eïlo can check in and whether to show desktop alerts.</p><button class="button settings-checkins">Manage check-ins</button><details><summary>Keyboard controls</summary><p>In Edit home, focus a move handle and press Space. Use arrow keys to move, Enter to place, or Escape to cancel. Use arrow keys on a resize handle to change its size.</p></details>`;
+  const speechMode = document.querySelector('.speech-method select');
+  if (speechMode) {
+    section.querySelector('.speech-preference').append(speechMode);
+    document.querySelector('.speech-mode-caret')?.remove();
+  }
+  section.querySelector('.profile-form input').value = prefs.name;
+  section.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = section.querySelector('.profile-form input').value.trim();
+    if (!value) return;
+    prefs.name = value;
+    const saved = writeStorage(PREFS_KEY, prefs);
+    renderProfile();
+    section.querySelector('.settings-feedback').textContent = saved
+      ? 'Name saved.'
+      : 'Could not save the name in this browser.';
   });
-  adaptivePlacement = geometry.placed;
-  const grid = input.host.querySelector('.adaptive-surface__grid');
-  grid.style.height = `${geometry.rows * rowHeight + (geometry.rows - 1) * gap}px`;
-  for (const card of grid.children) {
-    const box = geometry.placed.find((item) => item.id === card.dataset.componentId);
-    card.hidden = !box;
-    if (!box) continue;
-    card.style.left = `${box.x * (cellWidth + gap)}px`;
-    card.style.top = `${box.y * (rowHeight + gap)}px`;
-    card.style.width = `${box.w * cellWidth + (box.w - 1) * gap}px`;
-    card.style.height = `${box.h * rowHeight + (box.h - 1) * gap}px`;
+  section.querySelector('.pin-setting').checked = prefs.pin;
+  section.querySelector('.pin-setting').addEventListener('change', (event) => {
+    prefs.pin = event.target.checked;
+    writeStorage(PREFS_KEY, prefs);
+    if (prefs.pin) setRail(true);
+    else scheduleRailHide();
+  });
+  section.querySelector('.motion-setting').checked = prefs.reducedMotion;
+  section.querySelector('.motion-setting').addEventListener('change', (event) => {
+    prefs.reducedMotion = event.target.checked;
+    document.body.classList.toggle('reduce-motion', prefs.reducedMotion);
+    finishLandings();
+    writeStorage(PREFS_KEY, prefs);
+  });
+  section
+    .querySelector('.settings-checkins')
+    .addEventListener('click', () => live.showPage('activity', { activityTab: 'overview' }));
+  return section;
+}
+function updateContextGallery() {
+  if (live)
+    for (const type of ['today', 'goals', 'progress', 'tracking', 'usage']) {
+      if (state.widgets.some((widget) => widget.type === type)) delete widgetCatalog[type];
+      else widgetCatalog[type] = CATALOG[type];
+    }
+  for (const key of Object.keys(widgetCatalog))
+    if (key.startsWith('context-')) delete widgetCatalog[key];
+  for (const component of adaptiveHome?.components() || []) {
+    const id = contextWidgetId(component.id);
+    if (state.widgets.some((widget) => widget.id === id)) continue;
+    widgetCatalog[id] = CATALOG.context;
+    TITLES[id] = component.title;
+    DEFAULT_SIZE[id] = component.emphasis === 'primary' ? 'medium' : 'small';
   }
 }
-if (live) {
-  const [{ mountAdaptiveHome }, { composeLayout }] = await Promise.all([
-    import('./adaptive/controller.js'),
-    import('./adaptive/layout.js'),
-  ]);
-  compositionGeometry = composeLayout;
-  const host = document.createElement('div');
-  host.className = 'adaptive-production-host';
-  scroller.prepend(host);
-  adaptiveHome = mountAdaptiveHome({
-    host,
-    client: live.client,
-    isBusy: () => Boolean(editing || drag || resizeDrag || keyboardMove || menuId || heldPress),
-    getManualPins: () => prefs.widgetPins,
-    onRendered: placeAdaptive,
-    onOpenConnections: (source) =>
-      source === 'browser' ? showDetail('browser-setup') : live.showPage('connections'),
-    onOpenActivity: () => live.showPage('activity'),
-    onTalk: () => $('#live-message-input')?.focus(),
-    onModeChange: (next, hasComposition) => {
-      adaptiveActive = next === 'adaptive' && hasComposition;
-      document.body.classList.toggle('adaptive-active', adaptiveActive);
-      document.body.classList.toggle('adaptive-enabled', next === 'adaptive');
-      $('.edit-toggle').hidden = adaptiveActive;
-      if (!adaptiveActive && $('.workspace').dataset.page === 'home')
-        $('.home-header h1').textContent = 'Home';
-      renderBoard();
-    },
+function syncAutomaticWidgets(input) {
+  contextInput = input;
+  if (!adaptiveHome) return;
+  const next = syncContextWidgets(state, {
+    ...input,
+    dismissed: prefs.dismissedContextWidgets,
   });
-  $('.header-actions').prepend(adaptiveHome.trigger);
+  if (next !== state) {
+    state = next;
+    saveLayout();
+  }
+  contextRenderVersion++;
+  updateContextGallery();
+  renderBoard();
+}
+if (live) {
+  const { mountAdaptiveHome } = await import('./adaptive/controller.js');
+  adaptiveHome = mountAdaptiveHome({
+    client: live.client,
+    settingsHost: live.settingsHost,
+    onRestoreHome: () => {
+      undoState = state;
+      state = withTrackingWidgets(withConversationDock(createDefaultState()));
+      saveLayout();
+      live.showPage('home');
+      renderBoard();
+      toast('Starter layout restored. Notes and saved contents are kept.', true);
+    },
+    settingsSections: [
+      { id: 'general', label: 'General', element: createGeneralSettings() },
+      ...live.settingsSections,
+    ],
+    onSettingsSection: (id) => live.settingsSectionSelected(id),
+    onOpenSettings: (id) => live.showPage('settings', { settingsSection: id }),
+    isBusy: () => Boolean(editing || drag || resizeDrag || keyboardMove || menuId || heldPress),
+    onComposition: syncAutomaticWidgets,
+    onError: (message) => toast(message),
+    onOpenConnections: (source) =>
+      live.showPage('connections', { connectionId: source === 'browser' ? 'activity' : undefined }),
+    onOpenActivity: () => live.showPage('activity'),
+    onTalk: () => live.focusConversation(),
+  });
+  // Context settings have one visible destination in the navigation.
+  if (contextInput) syncAutomaticWidgets(contextInput);
+  if (!live.settingsHost.hidden)
+    adaptiveHome.selectSettings(location.hash === '#connections' ? 'connections' : 'general');
   window.addEventListener('pagehide', () => adaptiveHome?.destroy(), { once: true });
 }
 if (adaptivePreviewMode) {

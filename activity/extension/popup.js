@@ -2,7 +2,10 @@
 
 const core = globalThis.EiloActivityExtensionCore;
 const allow = document.querySelector('#allow');
-const openEiloButton = document.querySelector('#open-eilo');
+const retryConnection = document.querySelector('#retry-connection');
+const connectionHelp = document.querySelector('#connection-help');
+const permissionConsequence = document.querySelector('#permission-consequence');
+const connectionHeading = document.querySelector('#connection-heading');
 const exclude = document.querySelector('#exclude');
 const removeAccess = document.querySelector('#remove-access');
 const excludedHosts = document.querySelector('#excluded-hosts');
@@ -72,32 +75,57 @@ function renderExcludedHosts(hosts) {
 async function refreshAccessState() {
   const granted = await chrome.permissions.contains({ origins: core.BROWSER_ORIGINS });
   browserAccess = granted;
-  allow.hidden = granted;
-  openEiloButton.hidden = !granted;
   return granted;
 }
-function openEilo() {
-  return chrome.tabs.create({ url: `${core.PAGE_ORIGIN}/home/` });
+function isVerified(status) {
+  return status?.handshake_verified === true && status?.connected === true;
 }
 function nativeStatusText(status) {
   const state = status?.state;
-  if (state === 'shared' || status?.activity_shared) return 'Recent activity sent to eïlo.';
-  if (state === 'ready' && status?.handshake_verified) return 'Connected to eïlo.';
-  if (state === 'connected') return 'Desktop transport is connecting.';
-  if (state === 'disabled') return 'eïlo activity is paused.';
-  if (state === 'disconnected') return 'Open eïlo to finish connecting.';
-  if (state === 'browser-access-off') return 'Desktop transport waits for browser access.';
-  if (state === 'error' || state === 'unavailable') return 'Open eïlo to finish setup.';
+  if (state === 'shared' && isVerified(status)) return 'Recent activity was sent to eïlo.';
+  if (isVerified(status)) return state === 'unshared' ? 'This page is not being shared.' : '';
+  if (state === 'browser-access-off') return 'Chrome access is no longer available.';
+  if (browserAccess && (state === 'error' || state === 'unavailable'))
+    return 'The local connection is unavailable. Connection help can check what’s missing.';
   return '';
+}
+function renderConnectionState(status) {
+  const pending = browserAccess && !isVerified(status);
+  allow.hidden = browserAccess;
+  retryConnection.hidden = !pending;
+  connectionHelp.hidden = !pending;
+  if (!browserAccess) {
+    connectionHeading.textContent = 'Allow Chrome access';
+    permissionConsequence.textContent =
+      'Allow Chrome so eïlo can notice the site names and titles you choose to share.';
+    return;
+  }
+  if (isVerified(status)) {
+    connectionHeading.textContent =
+      status?.state === 'disabled' ? 'Chrome is ready' : 'Chrome connected';
+    permissionConsequence.textContent =
+      status?.state === 'disabled'
+        ? 'Activity is paused in eïlo.'
+        : 'Return to the eïlo desktop app to continue.';
+    statusElement.textContent = '';
+    return;
+  }
+  connectionHeading.textContent = 'Chrome access is allowed';
+  permissionConsequence.textContent = 'Keep the eïlo desktop app open, then retry the connection.';
 }
 async function refreshNativeStatus() {
   if (!nativeStatusElement || typeof chrome.runtime?.sendMessage !== 'function') return null;
   try {
     const status = await chrome.runtime.sendMessage({ type: 'eilo-native-status' });
+    if (status?.state === 'browser-access-off') browserAccess = false;
     nativeStatusElement.textContent = nativeStatusText(status);
+    renderConnectionState(status);
     return status;
   } catch {
-    nativeStatusElement.textContent = 'Open eïlo to finish setup.';
+    nativeStatusElement.textContent = browserAccess
+      ? 'Chrome access is allowed. Connection to eïlo on this Mac is pending.'
+      : '';
+    renderConnectionState({ state: 'error' });
     return { state: 'error' };
   }
 }
@@ -107,10 +135,7 @@ function stopStatusRefresh() {
   refreshTimer = null;
 }
 function keepRefreshing(status) {
-  return (
-    status?.handshake_verified !== true &&
-    !['browser-access-off', 'error', 'unavailable'].includes(status?.state)
-  );
+  return browserAccess && !isVerified(status);
 }
 function scheduleStatusRefresh() {
   stopStatusRefresh();
@@ -124,8 +149,6 @@ function scheduleStatusRefresh() {
     )
       return;
     refreshAttempts++;
-    await refreshAccessState();
-    if (generation !== refreshGeneration || !browserAccess) return;
     const status = await refreshNativeStatus();
     if (
       generation === refreshGeneration &&
@@ -142,7 +165,6 @@ allow.addEventListener('click', async () => {
   allow.disabled = true;
   try {
     if (browserAccess) {
-      await openEilo();
       return;
     }
     const changed = await chrome.permissions.request({ origins: core.BROWSER_ORIGINS });
@@ -153,6 +175,7 @@ allow.addEventListener('click', async () => {
     browserAccess = true;
     await refreshAccessState();
     statusElement.textContent = 'Chrome allowed. Looking for eïlo on this Mac.';
+    renderConnectionState({ state: 'connecting' });
     scheduleStatusRefresh();
   } catch {
     statusElement.textContent = 'Chrome could not change browser access.';
@@ -160,14 +183,14 @@ allow.addEventListener('click', async () => {
     allow.disabled = false;
   }
 });
-openEiloButton.addEventListener('click', async () => {
-  openEiloButton.disabled = true;
+retryConnection.addEventListener('click', async () => {
+  retryConnection.disabled = true;
   try {
-    await openEilo();
+    scheduleStatusRefresh();
   } catch {
-    statusElement.textContent = 'Chrome could not open eïlo.';
+    statusElement.textContent = 'Chrome could not check the eïlo connection.';
   } finally {
-    openEiloButton.disabled = false;
+    retryConnection.disabled = false;
   }
 });
 exclude.addEventListener('click', async () => {
@@ -208,6 +231,8 @@ globalThis.addEventListener?.('pagehide', stopStatusRefresh);
 Promise.all([refreshAccessState(), readExcludedHosts(), refreshNativeStatus()])
   .then(([granted, hosts, status]) => {
     renderExcludedHosts(hosts);
+    nativeStatusElement.textContent = nativeStatusText(status);
+    renderConnectionState(status);
     if (granted && keepRefreshing(status)) scheduleStatusRefresh();
   })
   .catch(() => {

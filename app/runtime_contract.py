@@ -56,7 +56,8 @@ def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
                 metadata.get("request_id") if metadata.get("lane") == "eilo_human" else None
             )
         if message.get("role") == "assistant" and (
-            current_human or message.get("display_kind") == "eilo_human_proposal"
+            (current_human and message.get("display_kind") != "eilo_decision")
+            or message.get("display_kind") == "eilo_human_proposal"
         ):
             if (
                 message.get("display_kind") == "eilo_human_proposal"
@@ -82,8 +83,15 @@ def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
                 else current_event
             )
             delivery = (events or {}).get(event_id, {})
-            if delivery.get("status") == "delivered" and str(message.get("id")) == delivery.get(
-                "assistant_id"
+            # Hermes may clone a retained row during compaction. The exact accepted
+            # event metadata survives; a mutable native row ID is only a locator.
+            accepted_identity = (
+                metadata.get("publication_version") == 2
+                and metadata.get("task_revision") == delivery.get("task_revision")
+                and metadata.get("human_epoch") == delivery.get("human_epoch")
+            )
+            if delivery.get("status") == "delivered" and (
+                accepted_identity or str(message.get("id")) == delivery.get("assistant_id")
             ):
                 try:
                     decision = validate_decision(json.loads(message.get("content", "")), event_id)

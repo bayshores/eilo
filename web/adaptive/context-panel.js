@@ -90,18 +90,31 @@ export function createContextPanel({
   onConnections,
   onRefreshSources,
   onClose,
+  host = null,
+  extraSections = [],
+  onSelectSection,
+  onRestoreHome,
 } = {}) {
-  const dialog = node('dialog', 'context-panel');
-  dialog.setAttribute('aria-labelledby', 'context-panel-title');
+  const dialog = node(
+    host ? 'section' : 'dialog',
+    `context-panel${host ? ' context-panel--embedded' : ''}`,
+  );
+  const isOpen = () => (host ? !host.hidden : dialog.open);
+  if (host) dialog.setAttribute('aria-label', 'Settings');
+  else dialog.setAttribute('aria-labelledby', 'context-panel-title');
   const header = node('header', 'context-panel__header');
   const heading = node('div');
-  heading.append(node('h2', '', 'Home context'), node('p', '', 'Help Home follow your work.'));
+  heading.append(
+    node('h2', '', 'Context & privacy'),
+    node('p', '', 'What eïlo knows and can use.'),
+  );
   heading.querySelector('h2').id = 'context-panel-title';
-  const close = iconButton('x', 'Close Home context');
+  const close = iconButton('x', 'Close context settings');
+  header.hidden = Boolean(host);
   header.append(heading, close);
   const tabs = node('div', 'context-panel__tabs');
   tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Home context settings');
+  tabs.setAttribute('aria-label', host ? 'Settings sections' : 'Context settings');
   const body = node('div', 'context-panel__body');
   const error = node('p', 'context-panel__error');
   error.setAttribute('role', 'alert');
@@ -132,11 +145,19 @@ export function createContextPanel({
     if (id !== 'sources') desktopGuide?.pause();
     if (focus) tabButtons.get(id).focus();
     body.scrollTop = 0;
+    onSelectSection?.(id);
   }
   for (const [id, label] of [
-    ['overview', 'Overview'],
-    ['sources', 'Sources'],
+    ...extraSections.filter((item) => item.id === 'general').map(({ id, label }) => [id, label]),
+    ['overview', host ? 'Home & context' : 'Overview'],
+    ['sources', 'Activity & AI'],
+    ...extraSections
+      .filter((item) => item.id === 'connections')
+      .map(({ id, label }) => [id, label]),
     ['memory', 'Memory'],
+    ...extraSections
+      .filter((item) => !['general', 'connections'].includes(item.id))
+      .map(({ id, label }) => [id, label]),
   ]) {
     const tab = button(label, 'context-panel__tab');
     tab.id = `context-tab-${id}`;
@@ -146,6 +167,8 @@ export function createContextPanel({
     panel.id = `context-view-${id}`;
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', tab.id);
+    const extra = extraSections.find((item) => item.id === id);
+    if (extra?.element) panel.append(extra.element);
     tab.addEventListener('click', () => selectTab(id));
     tab.addEventListener('keydown', (event) => {
       const ids = [...tabButtons.keys()];
@@ -264,18 +287,30 @@ export function createContextPanel({
   });
   workActions.append(talk, correct);
   work.append(workTitle, provenance, returnPoint, workActions, correction);
-  const layout = section('Home arrangement');
+  const layout = section('Widgets on Home');
   layout.append(
     switchRow(
       'arrange',
-      'Arrange Home for me',
-      'Let unpinned widgets follow your work.',
+      'Add relevant widgets',
+      'Let eïlo add widgets as your work changes. You can move, resize, or remove any widget.',
       (checked) => run('home', 'set_mode', { mode: checked ? 'adaptive' : 'manual' }),
     ),
   );
   const layoutHint = node('p', 'context-caption');
-  const undo = action('Undo last arrangement', 'home', 'undo');
+  const undo = action('Undo last suggestions', 'home', 'undo');
   layout.append(layoutHint, undo);
+  if (onRestoreHome) {
+    const restore = button('Restore starter layout', 'button');
+    restore.addEventListener('click', onRestoreHome);
+    layout.append(
+      restore,
+      node(
+        'p',
+        'context-caption',
+        'Your notes and saved contents are kept. You can undo the layout change.',
+      ),
+    );
+  }
   const chooseSources = button('Choose context sources', 'context-navigation-row');
   chooseSources.innerHTML =
     '<span>Context sources<small>Choose what eïlo can use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
@@ -342,8 +377,7 @@ export function createContextPanel({
   const browserSetup = button('Connect the Chrome extension', 'context-navigation-row');
   browserSetup.addEventListener('click', () => closeThen(() => onConnections?.('browser')));
   capture.append(pause, permission, browserSetup, desktopHost);
-  const rich = node('details', 'context-disclosure context-rich');
-  rich.append(node('summary', '', 'More context detail'));
+  const rich = section('Collected detail');
   rich.append(
     switchRow(
       'text_enabled',
@@ -367,8 +401,7 @@ export function createContextPanel({
     (checked) => run('context', 'configure', { visuals_enabled: checked }),
   );
   rich.append(visual);
-  const exclusions = node('details', 'context-disclosure');
-  exclusions.append(node('summary', '', 'Excluded websites'));
+  const exclusions = section('Excluded websites');
   const excludedList = node('div', 'context-exclusions');
   const excludeForm = node('form', 'context-exclude-form');
   const website = field('Website to exclude', 'example.com', 253);
@@ -459,11 +492,13 @@ export function createContextPanel({
   memory.append(retention, preferences, forget);
 
   dialog.append(header, tabs, error, body);
-  document.body.append(dialog);
-  selectTab('overview');
-  close.addEventListener('click', () => dialog.close());
+  (host || document.body).append(dialog);
+  selectTab(host ? 'general' : 'overview');
+  close.addEventListener('click', () => {
+    if (!host) dialog.close();
+  });
   dialog.addEventListener('click', (event) => {
-    if (event.target !== dialog) return;
+    if (host || event.target !== dialog) return;
     const bounds = dialog.getBoundingClientRect();
     if (
       event.clientX < bounds.left ||
@@ -473,7 +508,7 @@ export function createContextPanel({
     )
       dialog.close();
   });
-  dialog.addEventListener('close', () => {
+  function resetTransientControls() {
     desktopGuide.pause();
     correction.hidden = true;
     workActions.hidden = false;
@@ -487,19 +522,24 @@ export function createContextPanel({
     const action = afterClose;
     afterClose = null;
     action?.();
-  });
+  }
+  if (!host) dialog.addEventListener('close', resetTransientControls);
   function closeThen(action) {
+    if (host) {
+      action?.();
+      return;
+    }
     afterClose = action;
     dialog.close();
   }
   function showError(message) {
-    if (!dialog.open) return;
+    if (!isOpen()) return;
     error.textContent = message;
     error.hidden = false;
   }
   function update(next) {
     current = next;
-    if (!dialog.open) return;
+    if (!isOpen()) return;
     const nextKey = JSON.stringify([
       current?.current_work_context,
       current?.mode,
@@ -532,8 +572,8 @@ export function createContextPanel({
     correct.hidden = !context;
     layoutHint.textContent =
       current?.mode === 'adaptive'
-        ? 'Pinned widgets stay where you put them.'
-        : 'Your layout stays fixed. Use Edit home to arrange it.';
+        ? 'Your existing widgets and placement choices stay. Use Edit home to arrange any widget.'
+        : 'Automatic additions are off. Your existing widgets stay editable.';
     undo.hidden = !current?.can_undo;
     const policy = current?.policy || {};
     visual.hidden = !current?.visual_available;
@@ -624,18 +664,26 @@ export function createContextPanel({
     update,
     showError,
     get isOpen() {
-      return dialog.open;
+      return isOpen();
+    },
+    selectSection(id) {
+      selectTab(tabButtons.has(id) ? id : 'general');
+      renderedKey = '';
+      update(current);
+    },
+    hide() {
+      desktopGuide.pause();
     },
     open(opener) {
       trigger = opener;
       trigger?.setAttribute('aria-expanded', 'true');
-      dialog.showModal();
+      if (!host) dialog.showModal();
       renderedKey = '';
       update(current);
       tabButtons.get(selected).focus({ preventScroll: true });
     },
     close() {
-      dialog.close();
+      if (!host) dialog.close();
     },
     destroy() {
       desktopGuide.destroy();

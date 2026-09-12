@@ -13,6 +13,7 @@ from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from app.accountability import validate_context_observation
 from app.adaptive_driver import ID, KINDS, validate_input, validate_proposal
 from app.context_contract import ContextValidationError, validate_event, validate_settings
 from app.context_keys import ContextKeyError, load_context_key
@@ -281,6 +282,109 @@ class ContextService:
     def _context(self):
         record = self._record("context", self.state["current_context_id"])
         return deepcopy(record["payload"]) if record else None
+
+    def _shared_context(self):
+        context = self._context()
+        if (
+            not context
+            or not self.state["ai_enabled"]
+            or context.get("policy_epoch") != self.state["policy_epoch"]
+            or not all(self._scope_allowed(scope) for scope in context.get("scopes", []))
+        ):
+            return None
+        return {
+            key: deepcopy(context[key])
+            for key in (
+                "id",
+                "title",
+                "summary",
+                "return_point",
+                "confidence",
+                "evidence_ids",
+                "task_ids",
+                "updated_at",
+            )
+            if key in context
+        }
+
+    def conversation_context(self):
+        """Read a bounded, currently shareable projection; never unlock or collect here."""
+        if not self.store or not self.state["ai_enabled"] or self._closed:
+            return None
+        recent = []
+        for record in self.store.list("episode", limit=30):
+            observations = [self._record("observation", id) for id in record["source_ids"]]
+            if not observations or any(
+                not item or not self._scope_allowed(item["payload"]) for item in observations
+            ):
+                continue
+            payload = record["payload"]
+            recent.append(
+                {
+                    key: deepcopy(payload[key])
+                    for key in (
+                        "id",
+                        "source_id",
+                        "title",
+                        "app_name",
+                        "origin",
+                        "started_at",
+                        "ended_at",
+                        "duration_seconds",
+                    )
+                    if key in payload
+                }
+            )
+            if len(recent) == 8:
+                break
+        context = self._shared_context()
+        if not context and not recent:
+            return None
+        return {
+            "current_work_context": context,
+            "recent_activity": recent,
+            "observed_at": self.clock(),
+            "coverage": "At most eight recent recorded episodes under current source permissions. Recorded time is not attention, progress, completion, or a complete daily total.",
+        }
+
+    def check_in_context(self):
+        """Fresh admitted context for a decision, independent of Home's display mode."""
+        if not self.store or not self.state["ai_enabled"] or self._closed:
+            return None
+        context = self._shared_context()
+        for source, last in sorted(
+            self._last.items(), key=lambda item: item[1]["at"], reverse=True
+        ):
+            if (
+                self._health[source]["status"] != "sampling"
+                or not 0 <= self.clock() - last["at"] <= 20
+            ):
+                continue
+            record = self._record("observation", last["observation_id"])
+            if not record or not self._scope_allowed(record["payload"]):
+                continue
+            payload = record["payload"]
+            related = context if context and record["id"] in context.get("evidence_ids", []) else {}
+
+            def clean(value, limit):
+                return " ".join(str(value or "").split())[:limit]
+
+            return validate_context_observation(
+                {
+                    "kind": "work_context",
+                    "source_id": source,
+                    "policy_epoch": self.state["policy_epoch"],
+                    "observation_id": record["id"],
+                    "episode_id": last["episode_id"],
+                    "captured_at": last["at"],
+                    "app_name": clean(payload.get("app_name"), 120),
+                    "origin": payload.get("origin"),
+                    "title": clean(payload.get("title"), 180),
+                    "summary": clean(related.get("summary"), 800),
+                    "return_point": clean(related.get("return_point"), 280),
+                }
+            )
+        return None
 
     def _archive_context(self, context):
         record = self._record("context", context["id"])

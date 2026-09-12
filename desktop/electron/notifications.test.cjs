@@ -10,6 +10,12 @@ function message(id, eventId, text = 'How is the task going?') {
 function snapshot(conversationId, messages) {
   return { conversation_id: conversationId, messages };
 }
+function notificationSnapshot(conversationId, messages, eventIds) {
+  return {
+    ...snapshot(conversationId, messages),
+    accountability: { check_ins: { notification_event_ids: eventIds } },
+  };
+}
 function memoryStore(initial = null) {
   let value = initial;
   return {
@@ -56,6 +62,57 @@ test('deduplicates by conversation and event and emits only the latest new check
   policy.inspect(snapshot('c1', [message('m1b', 'e1'), message('m2', 'e2')]), {
     foreground: false,
   });
+  assert.deepEqual(shown, [
+    { conversationId: 'c1', eventId: 'e2', messageId: 'm2', body: GENERIC_BODY },
+  ]);
+});
+
+test('an explicit empty eligibility list suppresses a check-in and never replays it later', () => {
+  const shown = [];
+  const policy = createNotificationPolicy({ show: (record) => shown.push(record) });
+  policy.setEnabled(true);
+  policy.inspect(notificationSnapshot('c1', [], []), { foreground: false });
+  const suppressed = notificationSnapshot('c1', [message('m1', 'e1')], []);
+  policy.inspect(suppressed, { foreground: false });
+  policy.inspect(notificationSnapshot('c1', [message('m1', 'e1')], ['e1']), {
+    foreground: false,
+  });
+  assert.equal(shown.length, 0);
+});
+
+test('selects the newest fresh check-in that remains eligible while recording all fresh IDs', () => {
+  const shown = [];
+  const policy = createNotificationPolicy({ show: (record) => shown.push(record) });
+  policy.setEnabled(true);
+  policy.inspect(notificationSnapshot('c1', [], []), { foreground: false });
+  const messages = [message('m1', 'e1'), message('m2', 'e2'), message('m3', 'e3')];
+  policy.inspect(notificationSnapshot('c1', messages, ['e1', 'e3']), { foreground: false });
+  policy.inspect(notificationSnapshot('c1', messages, ['e2']), { foreground: false });
+  assert.deepEqual(shown, [
+    { conversationId: 'c1', eventId: 'e3', messageId: 'm3', body: GENERIC_BODY },
+  ]);
+});
+
+test('a malformed eligibility field fails closed without clearing the baseline', () => {
+  const shown = [];
+  const policy = createNotificationPolicy({ show: (record) => shown.push(record) });
+  policy.setEnabled(true);
+  policy.inspect(notificationSnapshot('c1', [message('m1', 'e1')], ['bad event id']), {
+    foreground: false,
+  });
+  assert.equal(policy.status().needsBaseline, true);
+  policy.inspect(notificationSnapshot('c1', [message('m1', 'e1')], ['e1']), {
+    foreground: false,
+  });
+  assert.equal(shown.length, 0);
+});
+
+test('snapshots without notification eligibility preserve the legacy latest-check-in behavior', () => {
+  const shown = [];
+  const policy = createNotificationPolicy({ show: (record) => shown.push(record) });
+  policy.setEnabled(true);
+  policy.inspect(snapshot('c1', []), { foreground: false });
+  policy.inspect(snapshot('c1', [message('m1', 'e1'), message('m2', 'e2')]), { foreground: false });
   assert.deepEqual(shown, [
     { conversationId: 'c1', eventId: 'e2', messageId: 'm2', body: GENERIC_BODY },
   ]);

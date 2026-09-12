@@ -32,7 +32,13 @@ const action = (label, handler, className = 'text-button') => {
   return button;
 };
 
-export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChange = () => {} }) {
+export function createLiveHome({
+  openDetail,
+  refreshWidgets,
+  dialog,
+  onViewChange = () => {},
+  onSettingsSection = () => {},
+}) {
   let storage = null;
   try {
     storage = sessionStorage;
@@ -81,8 +87,19 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   board.after(pages);
   const header = document.querySelector('.home-header h1');
   const accountHost = node('div', 'account-host');
-  document.querySelector('.home-header').after(accountHost);
   mountAccount(accountHost, { client });
+  const accountShortcut = action(
+    'Connect ChatGPT',
+    () => showPage('settings', { settingsSection: 'account' }),
+    'button primary account-shortcut',
+  );
+  accountShortcut.hidden = true;
+  document.querySelector('.header-actions').prepend(accountShortcut);
+  client.subscribe((next) => {
+    const state = next.snapshot?.account?.state;
+    accountShortcut.hidden = !state || ['connected', 'unknown'].includes(state);
+  });
+
   header.tabIndex = -1;
   let currentPage = 'home';
   let connectionsPanel = null,
@@ -94,10 +111,10 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   function mountBrowserGuide(host) {
     const guide = mountChromeSetup(host, {
       onRefresh: () => refreshSetupHealth('browser', () => client.refresh()),
-      onDone: () => showPage('activity'),
+      onDone: () => showPage('connections'),
       onDismiss: () => {
         if (dialog.open) dialog.close();
-        else showPage('home');
+        else showPage('connections');
       },
       onNativeControl: (action) =>
         client.contextCommand('configure', {
@@ -135,11 +152,24 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     onActivitySetup: () => openDetail('browser-setup'),
     onContextCommand: (action, fields) => client.contextCommand(action, fields),
   });
+  const settingsHost = node('div', 'settings-page');
+  settingsHost.hidden = true;
+  const accountSection = node('section', 'settings-account');
+  const accountStatus = node('p', 'settings-account-status');
+  accountSection.append(node('h2', '', 'ChatGPT account'), accountStatus, accountHost);
+  client.subscribe((next) => {
+    accountStatus.textContent =
+      next.snapshot?.account?.state === 'connected'
+        ? 'Connected. eïlo uses your ChatGPT account for conversations.'
+        : next.snapshot?.account?.state === 'unknown'
+          ? 'Account status is unavailable. Reconnect to the local service to check it.'
+          : 'Connect your account to talk with eïlo.';
+  });
   const connectionsHost = node('div', 'connections-page'),
     libraryHost = node('div', 'library-page');
-  connectionsHost.hidden = true;
+  connectionsHost.hidden = false;
   libraryHost.hidden = true;
-  pages.append(connectionsHost, libraryHost);
+  pages.append(settingsHost, libraryHost);
   function ensureConnections() {
     if (!connectionsPanel)
       connectionsPanel = mountConnectionsManager(connectionsHost, {
@@ -186,25 +216,30 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   const router = createWorkspaceRouter({
     onPageChange: (page) => {
       onViewChange(page);
+      if (['settings', 'connections'].includes(page)) speech?.cancel();
       if (dialog.open) dialog.close();
       setThreadOpen(false);
       currentPage = page;
     },
-    renderPage: (page, { goalFilter, connectionsTab, activityTab } = {}) => {
+    renderPage: (
+      page,
+      { goalFilter, connectionsTab, activityTab, settingsSection, connectionId } = {},
+    ) => {
       workspace.dataset.page = page;
       board.hidden = page !== 'home';
       pages.hidden = page === 'home';
       views.show(page, { goalFilter, activityTab });
-      connectionsHost.hidden = page !== 'connections';
+      settingsHost.hidden = !['settings', 'connections'].includes(page);
       libraryHost.hidden = !['chats', 'projects'].includes(page);
-      if (page === 'connections') {
-        ensureConnections();
-        connectionsPanel.show({ tab: connectionsTab || 'all' });
+      if (page === 'connections' || page === 'settings') {
+        onSettingsSection(settingsSection || (page === 'connections' ? 'connections' : 'general'));
+        if (connectionsTab || connectionId) {
+          ensureConnections();
+          connectionsPanel.show({ tab: connectionsTab || 'apps', id: connectionId });
+        }
       }
       if (['chats', 'projects'].includes(page)) ensureLibrary();
-      document.querySelector('.home-header').hidden = ['connections', 'chats', 'projects'].includes(
-        page,
-      );
+      document.querySelector('.home-header').hidden = ['chats', 'projects'].includes(page);
     },
   });
   function showPage(page, options) {
@@ -266,7 +301,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     if (thread) thread.hidden = !open;
     if (toggle) {
       toggle.setAttribute('aria-expanded', String(open));
-      toggle.querySelector('span').textContent = open ? 'Hide replies' : 'Show replies';
+      toggle.querySelector('span').textContent = open ? 'Hide replies' : 'Replies';
       toggle.setAttribute('aria-label', open ? 'Hide replies' : 'Show replies');
       toggle.title = open ? 'Hide replies' : 'Show replies';
     }
@@ -451,7 +486,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       toggle.setAttribute('aria-controls', thread.id);
       toggle.setAttribute('aria-expanded', String(threadOpen));
       toggle.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10h8M8 14h5M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-1l-5 2 2-5a9 9 0 1 1 16-5Z"/></svg><span class="sr-only">Show replies</span>';
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10h8M8 14h5M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-1l-5 2 2-5a9 9 0 1 1 16-5Z"/></svg><span>Replies</span>';
       toggle.setAttribute('aria-label', 'Show replies');
       toggle.title = 'Show replies';
       form.querySelector('.speech-actions').prepend(toggle);
@@ -724,12 +759,12 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
     }
     for (const [page, label, icon] of [
       ['chats', 'Chats', 'chat'],
-      ['connections', 'Connect', 'sliders'],
+      ['settings', 'Settings', 'sliders'],
     ]) {
       const item = action('', () => showPage(page), 'nav-item');
       item.dataset.detail = page;
-      item.setAttribute('aria-label', page === 'chats' ? 'Chats and projects' : 'Connections');
-      item.title = page === 'chats' ? 'Chats and projects' : 'Connections';
+      item.setAttribute('aria-label', page === 'chats' ? 'Chats and projects' : 'Settings');
+      item.title = page === 'chats' ? 'Chats and projects' : 'Settings';
       item.innerHTML = `<svg aria-hidden="true"><use href="#${icon}"/></svg>`;
       item.append(node('span', 'nav-label', label));
       document.querySelector('.nav-items').append(item);
@@ -763,7 +798,7 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
       views.update(next);
       libraryPanel?.update(next.snapshot);
       if (
-        currentPage === 'connections' &&
+        ['settings', 'connections'].includes(currentPage) &&
         next.snapshot?.connections_revision !== connectionsRevision
       ) {
         connectionsRevision = next.snapshot?.connections_revision;
@@ -854,6 +889,17 @@ export function createLiveHome({ openDetail, refreshWidgets, dialog, onViewChang
   }
   return {
     client,
+    settingsHost,
+    settingsSections: [
+      { id: 'connections', label: 'Connections', element: connectionsHost },
+      { id: 'account', label: 'Account', element: accountSection },
+    ],
+    settingsSectionSelected(id) {
+      if (id === 'connections') {
+        ensureConnections();
+        connectionsPanel.show({ tab: 'apps' });
+      }
+    },
     renderBody,
     renderDetail,
     start,

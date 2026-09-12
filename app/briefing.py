@@ -18,7 +18,15 @@ from app.gmail_source import read_thread, search_threads
 from app.google_calendar import CalendarError
 from app.google_mail import GoogleMail, stamp
 
-TOOL_NAMES = frozenset({"eilo_sources", "eilo_search_mail", "eilo_read_mail", "eilo_read_calendar"})
+TOOL_NAMES = frozenset(
+    {
+        "eilo_sources",
+        "eilo_search_mail",
+        "eilo_read_mail",
+        "eilo_read_calendar",
+        "eilo_read_work_context",
+    }
+)
 MAX_CALLS = 26
 MAX_THREADS = 18
 MAX_CONTEXT = 65000
@@ -74,13 +82,16 @@ class Briefing:
 class SourceTurn:
     def __init__(self, owner, request_id):
         self.owner, self.mail, self.chat = owner, owner.mail, owner.chat
+        self.context = getattr(self.chat, "context", None)
         self.id = request_id
         self.token = secrets.token_urlsafe(32)
         self.started = time.monotonic()
         self.permission = self.mail.permission_stamp()
+        self.context_policy_epoch = self._context_policy_epoch()
         self.runner = None
         self.host = None
         self.touched = False
+        self.work_context_touched = False
         self.source_reads = 0
         self.invalidated = self.cancelled = False
         self.lock = asyncio.Lock()
@@ -101,10 +112,42 @@ class SourceTurn:
             "summary": "",
         }
 
+    def _context_policy_epoch(self):
+        state = getattr(self.context, "state", None)
+        epoch = state.get("policy_epoch") if isinstance(state, dict) else None
+        return epoch if isinstance(epoch, int) and not isinstance(epoch, bool) else None
+
+    def _work_context_status(self):
+        state = getattr(self.context, "state", None)
+        if not isinstance(state, dict):
+            return {"enabled": False, "available": False}
+        enabled = bool(state.get("ai_enabled"))
+        return {
+            "enabled": enabled,
+            # This checks only the current permission state and record reference;
+            # it never opens the encrypted context store to inspect its contents.
+            "available": enabled
+            and (
+                state.get("current_context_id") is not None
+                or (
+                    bool(state.get("enabled"))
+                    and any(state.get(f"{source}_enabled") for source in ("browser", "desktop"))
+                )
+            ),
+        }
+
     def valid(self):
         return (
             not (self.invalidated or self.cancelled)
             and self.permission == self.mail.permission_stamp()
+            and (
+                not self.work_context_touched
+                or (
+                    self.context_policy_epoch == self._context_policy_epoch()
+                    and self._work_context_status()["enabled"]
+                    and not getattr(self.context, "_closed", False)
+                )
+            )
         )
 
     def check(self):
@@ -210,11 +253,13 @@ class SourceTurn:
                 },
                 "mail_default_window_days": 30,
                 "mail_max_read_threads_per_turn": MAX_THREADS,
+                "work_context": self._work_context_status(),
                 "limitations": "Only connected, enabled sources can be checked. These tools cannot send messages, edit Calendar, or create tasks.",
             }
             if (
                 not any(a["enabled"] and a["state"] == "connected" for a in available["accounts"])
                 and not available["calendar"]["enabled"]
+                and not self._work_context_status()["enabled"]
             ):
                 self.had_gaps = True
                 self.run["needs_connection"] = True
@@ -225,6 +270,45 @@ class SourceTurn:
                 f"Available inboxes: {sum(a['enabled'] and a['state'] == 'connected' for a in available['accounts'])}",
             )
             return self.pack(data, "Source access checked")
+        if name == "eilo_read_work_context":
+            if args:
+                raise CalendarError("Invalid work-context request.", "invalid_request", 400)
+            status = self._work_context_status()
+            if not status["enabled"]:
+                return self.gap(
+                    "work_context",
+                    "Read work context",
+                    "Work context is not enabled for answers.",
+                    skipped=True,
+                )
+            self.work_context_touched = True
+            # Once this read begins, every guard also includes the context policy
+            # revision captured when the turn opened.
+            self.check()
+            self.step("work_context", "Read work context", "running")
+            try:
+                read_context = getattr(self.context, "conversation_context", None)
+                data = read_context() if callable(read_context) else None
+                self.check()
+                if data is None:
+                    return self.gap(
+                        "work_context",
+                        "Read work context",
+                        "No current work context is available for this answer.",
+                        skipped=True,
+                    )
+                self.source_reads += 1
+                self.source_ids.add("work_context")
+                self.step("work_context", "Read work context", "completed")
+                return self.pack(data, "Work context read")
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                return self.gap(
+                    "work_context",
+                    "Read work context",
+                    "Work context could not be read. Coverage is incomplete.",
+                )
         if name == "eilo_search_mail":
             if set(args) - {"account_id", "query", "days"} or not {"account_id"} <= set(args):
                 raise CalendarError("Invalid mail search.", "invalid_request", 400)

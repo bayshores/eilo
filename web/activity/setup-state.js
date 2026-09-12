@@ -68,29 +68,51 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
       label: 'Check connection',
       stage: 2,
     };
+  if (extension?.installed && extension.setup_protocol !== 2)
+    return {
+      id: 'update',
+      title: 'Reload the eïlo extension once',
+      copy: 'eïlo is already installed. In Chrome’s extensions, find eïlo and click Reload to use the updated connection flow.',
+      action: 'reload',
+      label: 'Open Chrome extensions',
+      stage: 1,
+    };
   if (extension?.installed && !extension.granted)
     return {
       id: 'grant',
       title: 'Allow Chrome access',
       copy: 'Share the active website and page title with eïlo.',
       action: 'grant',
-      label: 'Open Chrome setup',
+      label: 'Open permission step',
       stage: 2,
     };
-  if (extension?.installed || health.connected)
+  if (extension?.installed && extension.granted)
     return {
       id: 'pair',
-      title: 'Connect Chrome to eïlo',
-      copy: 'The extension is installed. Keep eïlo open while we check the connection.',
-      action: 'grant',
-      label: 'Open Chrome setup',
+      title: 'Finish the desktop connection',
+      copy: 'Chrome access is already allowed. Keep the eïlo desktop app open while we reconnect.',
+      action: !policy.browser_enabled ? 'connect' : !policy.enabled ? 'resume' : 'retry',
+      label: !policy.browser_enabled
+        ? 'Connect Chrome'
+        : !policy.enabled
+          ? 'Resume capture'
+          : 'Retry connection',
       stage: 2,
     };
-  if (!inChrome && step === 0)
+  if (health.connected)
+    return {
+      id: 'pair',
+      title: 'Checking the Chrome connection',
+      copy: 'The extension has reached eïlo. Waiting for Chrome access to be verified.',
+      action: 'retry',
+      label: 'Check connection',
+      stage: 2,
+    };
+  if (!inChrome)
     return {
       id: 'handoff',
       title: 'Connect Chrome',
-      copy: 'Connect Chrome to see your websites and work sessions in eïlo.',
+      copy: 'Continue in Chrome to check your existing extension and finish any missing step.',
       action: 'open',
       label: 'Open Chrome setup',
       stage: 0,

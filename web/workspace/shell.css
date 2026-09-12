@@ -1,0 +1,559 @@
+/* Keep the original floating rail; settings and whole-card pages share its canvas. */
+:root[data-source='live'] .account-trigger,
+:root[data-source='live'] .account-menu {
+  display: none;
+}
+:root[data-source='live'] .workspace .nav-rail {
+  height: min(465px, calc(100dvh - 42px));
+  max-height: 465px;
+}
+:root[data-source='live'] .workspace {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+:root[data-source='live'] .conversation-dock {
+  grid-row: 4;
+}
+.home-pagination {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding-top: 4px;
+}
+.home-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.home-page-arrow,
+.home-page-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.home-page-arrow {
+  flex: 0 0 32px;
+  width: 32px;
+}
+.home-page-arrow svg {
+  width: 17px;
+  height: 17px;
+}
+.home-page-arrow:hover:not(:disabled),
+.home-page-dot:hover {
+  background: #ffffff08;
+}
+.home-page-arrow:disabled {
+  opacity: 0.25;
+}
+.home-page-dots {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.home-page-dot {
+  width: 24px;
+  min-width: 8px;
+  flex: 0 1 24px;
+}
+.home-page-dot::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 6px;
+  background: #686b75;
+  transition:
+    width 140ms ease,
+    background 140ms ease;
+}
+.home-page-dot[aria-current='page']::after {
+  width: 16px;
+  background: var(--ink);
+}
+:root[data-source='live'] .workspace:not([data-page='home']) .home-pagination {
+  display: none;
+}
+:root[data-source='live'] .board-scroll {
+  overflow: hidden;
+}
+:root[data-source='live'] .home-header {
+  flex-wrap: wrap;
+}
+
+:root[data-source='live'] .home-header {
+  min-width: 0;
+  padding: 28px 0 24px;
+  align-items: flex-start;
+}
+:root[data-source='live'] .header-actions {
+  gap: 8px;
+}
+:root[data-source='live'] .header-actions .button {
+  border-radius: 12px;
+  font-size: 14px;
+  min-height: 40px;
+  padding: 9px 13px;
+}
+:root[data-source='live'] .board-scroll {
+  overflow: hidden;
+  padding: 0 0 6px;
+  scrollbar-gutter: stable;
+}
+:root[data-source='live'] .home-widget {
+  border-radius: 18px;
+}
+:root[data-source='live']
+  .app-window:not(.editing)
+  .home-widget
+  .widget-content:not(.tracking-widget) {
+  padding: 24px;
+}
+:root[data-source='live'] .app-window:not(.editing) .hold-cue {
+  opacity: 0;
+}
+:root[data-source='live'] .home-widget:hover .hold-cue {
+  opacity: 1;
+}
+:root[data-source='live'] .conversation-dock {
+  width: min(900px, 100%);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .workspace-page {
+  grid-row: 2;
+  padding: 0;
+  overflow: hidden;
+}
+:root[data-source='live'] .workspace[data-page='connections'] .home-header {
+  display: flex;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .conversation-dock {
+  display: none;
+}
+.settings-page {
+  height: 100%;
+  min-height: 0;
+}
+.context-panel--embedded {
+  position: static;
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  animation: none;
+}
+.context-panel--embedded .context-panel__tabs {
+  grid-row: 1 / -1;
+  flex-direction: column;
+  align-self: start;
+  gap: 5px;
+  margin: 0 18px 0 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.context-panel--embedded .context-panel__tab {
+  text-align: left;
+  padding: 12px;
+  min-height: 43px;
+  flex: none;
+}
+.context-panel--embedded .context-panel__body {
+  grid-column: 2;
+  grid-row: 2;
+  padding: 0 12px 28px 12px;
+}
+.context-panel--embedded .context-panel__error {
+  grid-column: 2;
+  margin: 0 12px 16px;
+}
+.context-panel--embedded .context-panel__view {
+  max-width: 820px;
+  gap: 18px;
+}
+.context-panel--embedded .context-section {
+  padding: 22px;
+  border-radius: 14px;
+}
+.context-panel--embedded .context-setting__detail {
+  font-size: 14px;
+}
+.general-settings,
+.settings-account {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  background: var(--panel);
+  border-radius: 14px;
+}
+.general-settings h2,
+.settings-account h2 {
+  font-size: 24px;
+  font-weight: 500;
+}
+.general-settings h3 {
+  font-size: 17px;
+  font-weight: 500;
+  margin-top: 12px;
+}
+.general-settings p,
+.settings-account p {
+  line-height: 1.5;
+  color: var(--muted);
+  font-size: 14px;
+}
+.general-settings .button {
+  justify-self: start;
+}
+.general-settings .profile-form {
+  display: grid;
+  gap: 12px;
+}
+.general-settings .field input {
+  width: 100%;
+  max-width: 360px;
+}
+.general-settings .check-option {
+  margin: 8px 0;
+}
+.settings-feedback:empty {
+  display: none;
+}
+.context-panel--embedded .connections-page {
+  height: auto;
+}
+.context-panel--embedded .connections-manager {
+  padding: 0;
+}
+.context-panel--embedded .connections-manager h1 {
+  font-size: 26px;
+}
+.general-settings .field {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.general-settings .field input {
+  border: 1px solid #ffffff18;
+  border-radius: 9px;
+  padding: 10px 12px;
+  min-height: 42px;
+  background: var(--canvas);
+  color: var(--ink);
+}
+.general-settings .check-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+.general-settings input[type='checkbox'] {
+  accent-color: var(--peach);
+  width: 18px;
+  height: 18px;
+}
+.context-panel--embedded .context-panel__tabs {
+  min-width: 0;
+}
+.context-panel--embedded .context-panel__tab {
+  overflow-wrap: anywhere;
+}
+.context-panel--embedded .connections-manager h2 {
+  font-size: 25px;
+  font-weight: 500;
+}
+@media (max-width: 480px) {
+  .conversation-dock .live-composer-footer {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .conversation-dock .speech-controls {
+    flex: 1;
+    min-width: 0;
+  }
+  .conversation-dock .speech-actions {
+    flex-wrap: wrap;
+  }
+  .dock-history span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: 12px;
+  }
+}
+
+.toast {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+.toast-message {
+  min-width: 0;
+  line-height: 1.4;
+}
+.checkin-hero {
+  padding: 20px 24px;
+  border-radius: 18px;
+}
+.checkin-heading h2 {
+  font-size: 25px;
+}
+.checkin-description {
+  font-size: 14px;
+}
+.checkin-columns {
+  margin-top: 18px;
+}
+@media (max-width: 600px) {
+  .toast {
+    width: calc(100vw - 32px);
+    bottom: 18px;
+    gap: 12px;
+  }
+  .toast-message {
+    flex: 1;
+  }
+  .checkin-hero {
+    padding: 18px;
+  }
+  .activity-toolbar {
+    align-items: flex-start;
+  }
+  .activity-toolbar .goal-filters {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 700px) {
+  .context-panel--embedded {
+    display: flex;
+    flex-direction: column;
+  }
+  .context-panel--embedded .context-panel__tabs {
+    flex-direction: row;
+    width: 100%;
+    flex-wrap: wrap;
+    margin: 0 0 16px;
+    gap: 4px;
+  }
+  .context-panel--embedded .context-panel__tab {
+    padding: 9px 10px;
+    min-height: 38px;
+    font-size: 13px;
+  }
+  .context-panel--embedded .context-panel__body {
+    width: 100%;
+    padding: 0 0 20px;
+  }
+  .general-settings,
+  .settings-account,
+  .context-panel--embedded .context-section {
+    padding: 18px;
+  }
+}
+
+/* Keep the composer on one baseline; preferences live in Settings. */
+.conversation-dock {
+  container-type: inline-size;
+  container-name: composer;
+}
+.chat-switcher__compact-name {
+  display: none;
+}
+.conversation-dock .speech-actions {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.conversation-dock .chat-switcher {
+  min-width: 0;
+  flex: 1;
+}
+.conversation-dock .speech-method,
+.conversation-dock .dock-history,
+.conversation-dock .live-send {
+  flex: 0 0 auto;
+}
+.speech-preference select {
+  width: min(100%, 360px);
+  padding: 10px 12px;
+  min-height: 42px;
+  border: 1px solid #ffffff18;
+  border-radius: 9px;
+  background: var(--canvas);
+  color: var(--ink);
+}
+@container composer (max-width: 540px) {
+  .chat-switcher__full-name {
+    display: none;
+  }
+  .chat-switcher__compact-name {
+    display: inline;
+  }
+  .conversation-dock .live-composer {
+    padding: 12px;
+    border-radius: 18px;
+  }
+  .conversation-dock .speech-actions {
+    gap: 4px;
+  }
+  .conversation-dock .speech-mic,
+  .conversation-dock .dock-history,
+  .conversation-dock .chat-switcher__trigger {
+    padding: 6px;
+    min-height: 40px;
+    font-size: 13px;
+    gap: 5px;
+  }
+  .conversation-dock .dock-history span {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+    overflow: visible;
+    font-size: 13px;
+  }
+  .conversation-dock .speech-mic svg,
+  .conversation-dock .dock-history svg {
+    width: 16px;
+    height: 16px;
+  }
+  .conversation-dock .live-send {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 12px;
+  }
+  .conversation-dock .speech-wave {
+    display: none !important;
+  }
+  .speech-controls:is(
+      [data-state='recording'],
+      [data-state='requesting'],
+      [data-state='stopping'],
+      [data-state='transcribing']
+    )
+    :is(.chat-switcher, .dock-history) {
+    display: none;
+  }
+}
+@container composer (max-width: 330px) {
+  .conversation-dock .speech-actions {
+    gap: 2px;
+  }
+  .conversation-dock .speech-mic,
+  .conversation-dock .dock-history,
+  .conversation-dock .chat-switcher__trigger {
+    padding-inline: 3px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .conversation-dock .dock-history span {
+    font-size: 12px;
+  }
+  .conversation-dock .live-send {
+    padding-inline: 9px;
+    font-size: 12px;
+  }
+}
+
+/* Scrolling detail pages keep a complete outer surface, rather than sliced cards. */
+.context-panel--embedded .context-panel__body {
+  padding: 22px;
+  border-radius: 18px;
+  background: var(--panel);
+}
+.context-panel--embedded .context-section,
+.context-panel--embedded .general-settings,
+.context-panel--embedded .settings-account {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.context-panel--embedded .context-section + .context-section {
+  border-top: 1px solid #ffffff0b;
+  padding-top: 20px;
+}
+.activity-overview {
+  padding: 22px;
+  border-radius: 18px;
+  background: var(--panel);
+}
+.activity-overview .checkin-hero,
+.activity-overview .activity-day-map,
+.activity-overview .activity-usage-card {
+  border-radius: 0;
+  background: transparent;
+}
+.activity-overview .checkin-hero,
+.activity-overview .activity-day-map {
+  padding: 0;
+}
+.activity-overview .activity-usage-card .widget-content {
+  padding-inline: 0;
+}
+@media (max-width: 700px) {
+  .context-panel--embedded .context-panel__body,
+  .activity-overview {
+    padding: 16px;
+  }
+}
+
+/* Compact summaries end at complete lines; task metadata never gets sliced. */
+@container widget (max-height: 300px) {
+  .widget[data-type='today'] .live-agenda .live-task:nth-child(n + 2) {
+    display: none;
+  }
+  .widget[data-type='today'] .live-task {
+    flex-shrink: 0;
+  }
+  .widget[data-type='today'] .live-task strong {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .widget[data-type='today'] .live-task-meta {
+    white-space: nowrap;
+  }
+}
+@container widget (max-height: 240px) {
+  :root[data-source='live'] .app-window:not(.editing) .home-widget .widget-content.live-content {
+    padding: 16px;
+  }
+  .widget[data-type='today'] .widget-subtitle {
+    display: none;
+  }
+  .widget[data-type='today'] .live-agenda {
+    margin: 10px 0 6px;
+  }
+  .widget[data-type='today'] .live-task {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  .widget[data-type='today'] .live-task-meta {
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .widget[data-type='today'] .live-bottom {
+    min-height: 32px;
+    padding-block: 4px;
+  }
+}

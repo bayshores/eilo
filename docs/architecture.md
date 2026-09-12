@@ -24,9 +24,9 @@ flowchart LR
   conversation turn, task transaction, publication recovery, and state snapshot.
 - `app/runtime_contract.py` validates the allowed Hermes model/provider/tool
   contract and projects audited native history into public messages.
-- `app/tasks/`, `app/proactive/`, and `app/integrations/` own their respective
-  domain logic. Keep features in the smallest domain that can enforce their
-  invariants.
+- `app/tasks.py`, `app/proactive.py`, and the source connection modules own their
+  respective domain logic. Keep features in the smallest domain that can enforce
+  their invariants.
 - `app/persistence.py` owns private JSON writes. Its atomic replace plus file
   and directory sync establishes the durable commit point.
 - `app/errors.py` contains user-safe errors. Do not expose provider diagnostics,
@@ -81,7 +81,41 @@ The foreground sampler, `app/accountability.py` origin sanitizer, activity ledge
 
 The additive `/api/state` fields are `adaptive`, `capture_status`, `current_work_context`, `home_composition`, and `account`. `/api/home/commands` and `/api/context/commands` use independent revisions and request IDs. Capture has no HTTP ingestion route. `/api/account/commands` manages user-started authorization without sending tokens to browser state.
 
-`web/adaptive/` owns the component catalog, stable renderer, geometry, locally served GSAP motion and interaction deferral. `web/adaptive/context-panel.js` owns the modal Home context controls independently of canvas geometry. The controller keeps command state current while deferring unsafe presentation changes. Live binding updates patch only bound/source widgets; unchanged composition bodies and closed settings are not rebuilt. Both modes use the `home-widget` visual shell, `widget-content` typography and existing Home content primitives. Tracking and usage render through `web/home/context-widgets.js` in both modes, using the same validated selectors; Adaptive has no separate status or chart implementation. Manual placement stays on `.widget`, while Adaptive owns its geometry and motion separately. Manual Home is restorable and navigation/dock remain stable. See [the private build and remaining gates](design/adaptive-workspace-build.md).
+`web/adaptive/` owns the bounded component catalog and shared content renderer. Its controller keeps the embedded Settings context sections current and defers content updates during typing, selections, dialogs, and widget gestures. Production Home uses one board: `web/home/context-layout.js` reconciles component references into the existing `web/home/layout.js` widget state, preserving manual widgets and saved geometry. No source text is copied into layout storage. Dismissed component references prevent automatic re-addition; Add widgets can restore currently available components. `web/adaptive/renderer.js` renders those contents inside the ordinary widget controls, including independently persisted note drafts. Tracking and usage reuse `web/home/context-widgets.js`. The separate adaptive renderer/geometry/motion remain for the isolated design preview only. The shared router owns Settings and preserves the legacy Connections route. Settings embeds the existing context, account, and connection controls; opening it cancels speech before hiding the composer. Home projects whole cards into bounded pages rather than slicing them at the composer. Page-local gestures merge back into layout metadata without changing other responsive modes. A one-time presentation migration backs up the old layout, deduplicates identical source cards, and aligns them. The original floating navigation uses pointer bounds and an exit delay to avoid reveal flicker.
+
+## Context and accountability
+
+Admitted native browser and desktop events notify `LocalChat.context_changed`.
+`ContextService.check_in_context` projects a fresh, minimized observation under
+the current source and AI-sharing policy; `ProactiveLoop` applies task, break,
+human-grace, stability and budget gates. This path is independent of Home's
+display mode and the legacy page lease. Resident check-ins require the existing
+Check-ins control to be explicitly enabled; old page-lease state does not grant
+this new capability. Source collection, AI sharing and desktop notification
+permission remain separate.
+
+`event_driver` reads the exact native conversation and runs detached inference
+without writing its observation or draft to native history. The coordinator
+keeps draft text private until the message is committed. It
+revalidates the result, durably accepts a publication under the native lock, then
+asks the driver to append one validated assistant row. Event identity makes the
+append idempotent. Human work preempts inference. Validation and the short local
+native append do not yield to other commands, so a permission change cannot
+interleave with the commit. A changed intention or permission suppresses obsolete delivery. An
+uncertain append is reconciled by exact native identity on restart, with no
+automatic model or append retry. Recovered native messages remain in conversation
+history and cannot generate a fresh desktop notification.
+
+The notification host consumes the service's current eligible event IDs, records
+fresh messages as seen before posting, and never replays suppressed messages when
+permissions resume. A saved check-in is distinct from an OS notification or a
+person reading it.
+
+Requested chat can call `eilo_read_work_context` through the existing ephemeral
+source bridge. It reads a current work summary and at most eight allowed recent
+episodes, without raw document text, images, a new collection request or an
+implicit task mutation. Policy changes invalidate an answer that used this data;
+unrelated mail-only turns retain their existing scope.
 
 ## Where to make a change
 
@@ -89,12 +123,13 @@ The additive `/api/state` fields are `adaptive`, `capture_status`, `current_work
 | --------------------------------- | ----------------------------------------------------------------- |
 | Start/stop or service composition | `app/server.py`, `app/http_api/application.py`                    |
 | New endpoint                      | The relevant `app/http_api/` route module, then its owning domain |
-| Goal lifecycle or validation      | `app/tasks/`                                                      |
+| Goal lifecycle or validation      | `app/tasks.py`                                                    |
 | Native model/runtime constraint   | `app/runtime_contract.py` and driver boundary                     |
 | Durable record format             | Owning domain plus `app/persistence.py`                           |
 | Home interaction                  | Matching `web/<feature>/` module and focused Node test            |
 | Desktop lifecycle                 | `desktop/electron/`                                               |
-| Consent-gated activity source     | `app/proactive/`, `app/integrations/`, and `activity/`            |
+| Consent-gated activity source     | `app/context_service.py`, `app/context_capture.py`, `activity/`   |
+| Check-in decisions and recovery   | `app/proactive.py`, `app/event_driver.py`                         |
 
 Keep dependencies directed inward: browser code calls HTTP, routes call domains,
 and domains own state. Do not let a browser feature reach local files, credentials,

@@ -66,7 +66,7 @@ export function renderSampleWidget(
     updateSampleClock(container);
   } else if (widget.type === 'notes') {
     container.innerHTML =
-      '<h2>Notes</h2><textarea class="note-input" placeholder="A thought for later…" aria-label="Personal note for this prototype" maxlength="10000"></textarea>';
+      '<h2>Notes</h2><textarea class="note-input" placeholder="A thought for later…" aria-label="Personal note" maxlength="10000"></textarea>';
     const input = container.querySelector('textarea');
     input.value = content.notes;
     if (!preview) input.addEventListener('input', () => onNotesChange?.(input));

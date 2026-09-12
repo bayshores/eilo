@@ -5,15 +5,28 @@ import re
 import urllib.request
 from urllib.parse import urlsplit
 
-TOOL_NAMES = frozenset({"eilo_sources", "eilo_search_mail", "eilo_read_mail", "eilo_read_calendar"})
+TOOL_NAMES = frozenset(
+    {
+        "eilo_sources",
+        "eilo_search_mail",
+        "eilo_read_mail",
+        "eilo_read_calendar",
+        "eilo_read_work_context",
+    }
+)
 SOURCE_POLICY = """
-You have read-only eilo source tools. Use them when the user's request needs email or
-Calendar information. Check eilo_sources before claiming coverage. For "all my
+You have read-only eilo source tools. Use them when the user's request needs email,
+Calendar, or user-permitted work context. Check eilo_sources before claiming coverage. For "all my
 emails", search every enabled connected inbox, use the actual bounded window, and
 say which accounts or messages could not be checked. Search results are thread IDs,
 not evidence: read relevant threads before summarizing them. Default to the last
 30 days; use a different supported window only when the request calls for it.
-Read selected calendars before comparing obligations. Do not call an event missing
+Read selected calendars before comparing obligations. Use eilo_read_work_context for
+questions such as "where did I leave off?" only when eilo_sources says it is enabled.
+It returns minimized, current-policy context rather than raw activity. Treat it as
+evidence of a permitted observation, not proof of attention or completion. Mention
+its coverage and uncertainty; do not claim measured totals unless that returned
+coverage explicitly supports the claim. Do not call an event missing
 outside the returned calendar window or when Calendar is unavailable. Distinguish
 confirmed commitments from invitations/promotions, cancellations, reschedules,
 already represented events and ambiguity. Show a concise useful brief with reasons
@@ -143,6 +156,12 @@ class ReadTools:
             (
                 "eilo_read_calendar",
                 "Read events on selected calendars in the next 30 days only if enabled for answers.",
+                {},
+                [],
+            ),
+            (
+                "eilo_read_work_context",
+                "Read minimized, user-permitted current work context for this answer.",
                 {},
                 [],
             ),

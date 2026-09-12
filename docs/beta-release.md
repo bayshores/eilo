@@ -14,7 +14,7 @@ The local fresh-profile service smoke test passed using the actual bundled runti
 
 ## Account and Chrome setup
 
-The app's account banner starts a new Codex device flow only after **Connect ChatGPT**. Its code is transient and the browser opens only on **Continue in browser**. The account driver uses pinned Hermes OAuth primitives. Tokens remain in that app's private Hermes profile; progress exposes only the official device URL, code and derived status. A runtime boundary disables recovery/import from another Codex application's credentials.
+The Home header's **Connect ChatGPT** button opens a centered sign-in panel and starts a new Codex device flow only after that explicit click. Its code is transient and the browser opens only on **Continue in browser**. The account driver uses pinned Hermes OAuth primitives. Tokens remain in that app's private Hermes profile; progress exposes only the official device URL, code and derived status. A runtime boundary disables recovery/import from another Codex application's credentials.
 
 Both development and standalone Electron startup register the app's Chrome Native Messaging host using the fixed extension ID derived from the bundled public extension key. Native transport availability is separate from capture consent. The **Connect Chrome** action enables the browser source, while text and AI remain separately controlled. The development host uses the checkout's project Python and state directory; the standalone host uses its bundled runtime and Application Support state. The page bridge remains available for compatibility with older installations.
 

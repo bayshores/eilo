@@ -19,7 +19,8 @@ export function mountCheckinCenter(
 ) {
   let current = null,
     signature = '',
-    pending = false;
+    pending = false,
+    pendingTarget = null;
   host.classList.add('checkin-center');
   const hero = el('section', 'checkin-hero');
   hero.setAttribute('aria-label', 'Check-in status');
@@ -34,7 +35,7 @@ export function mountCheckinCenter(
   const toggle = el('input');
   toggle.type = 'checkbox';
   toggle.setAttribute('role', 'switch');
-  toggle.setAttribute('aria-label', 'Allow automatic check-ins');
+  toggle.setAttribute('aria-label', 'Turn on check-ins');
   const knob = el('span', 'checkin-switch');
   knob.setAttribute('aria-hidden', 'true');
   control.append(controlText, toggle, knob);
@@ -132,11 +133,21 @@ export function mountCheckinCenter(
     renderDelivery();
   }
   renderDelivery();
+  const renderToggle = (enabled) => {
+    const action = enabled ? 'Turn off check-ins' : 'Turn on check-ins';
+    const loading = pendingTarget !== null;
+    const loadingAction = pendingTarget ? 'Turning on check-ins…' : 'Turning off check-ins…';
+    controlText.textContent = loading ? loadingAction : action;
+    toggle.setAttribute('aria-label', loading ? loadingAction : action);
+    toggle.setAttribute('aria-checked', String(enabled));
+  };
   toggle.addEventListener('change', async () => {
     if (pending) return;
     const enabled = toggle.checked;
     pending = true;
+    pendingTarget = enabled;
     toggle.disabled = true;
+    renderToggle(enabled);
     feedback.hidden = false;
     feedback.textContent = 'Saving…';
     try {
@@ -148,6 +159,7 @@ export function mountCheckinCenter(
       feedback.textContent = error.message || 'Could not confirm the change. Try again.';
     } finally {
       pending = false;
+      pendingTarget = null;
       signature = '';
       update(current);
     }
@@ -171,8 +183,9 @@ export function mountCheckinCenter(
     host.dataset.tone = value.tone;
     title.textContent = value.title;
     description.textContent = value.description;
-    toggle.checked = value.enabled;
+    toggle.checked = pendingTarget ?? value.enabled;
     toggle.disabled = pending || !value.supported;
+    renderToggle(toggle.checked);
     next.hidden = false;
     cta.hidden = false;
     cta.textContent = 'Connect activity';
@@ -182,7 +195,7 @@ export function mountCheckinCenter(
       nextText.textContent = 'Reconnect your workspace.';
       cta.hidden = true;
     } else if (value.phase === 'off') {
-      nextText.textContent = 'Turn on Allow check-ins to resume.';
+      next.hidden = true;
       cta.hidden = true;
     } else if (['activity_off', 'activity_paused', 'awaiting_observation'].includes(value.phase)) {
       nextText.textContent =

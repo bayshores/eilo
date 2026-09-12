@@ -5,10 +5,13 @@ import {
   MODES,
   createDefaultState,
   normalizeState,
+  paginateHomeLayout,
   previewMove,
   projectLayout,
+  tidyHomeLayout,
   updateLayout,
   withConversationDock,
+  withUniqueSourceWidgets,
   withTrackingWidgets,
 } from './layout.js';
 
@@ -22,6 +25,17 @@ const assertUsable = (state, mode) => {
   }
   for (let i = 0; i < layout.length; i++)
     for (let j = i + 1; j < layout.length; j++) assert.equal(overlaps(layout[i], layout[j]), false);
+};
+const assertPagesUsable = (pages, mode, rows) => {
+  for (const page of pages) {
+    for (const item of page) {
+      assert.ok(item.x >= 0 && item.y >= 0);
+      assert.ok(item.x + item.w <= MODES[mode]);
+      assert.ok(item.y + item.h <= rows);
+    }
+    for (let i = 0; i < page.length; i++)
+      for (let j = i + 1; j < page.length; j++) assert.equal(overlaps(page[i], page[j]), false);
+  }
 };
 
 test('catalog and defaults are stable and match the intended wide arrangement', () => {
@@ -70,6 +84,124 @@ test('tracking widgets fit an untouched live Home and never reset a custom arran
   assert.deepEqual(withTrackingWidgets(custom), custom);
   const empty = { version: 1, widgets: [], positions: {} };
   assert.deepEqual(withTrackingWidgets(empty), empty);
+});
+
+test('tidyHomeLayout packs an explicitly selected mode without changing widget geometry', () => {
+  let state = createDefaultState();
+  state = updateLayout(state, { type: 'move', id: 'today-1', x: 8, y: 10 });
+  state = updateLayout(state, { type: 'move', id: 'goals-1', x: 0, y: 8 });
+  state = updateLayout(state, { type: 'resizeTo', id: 'progress-1', w: 5, h: 3 });
+  state = updateLayout(state, { type: 'move', id: 'progress-1', x: 7, y: 6 });
+  const beforeCompact = structuredClone(state.positions.compact);
+  const beforeFootprints = structuredClone(
+    state.widgets.find((widget) => widget.id === 'progress-1').footprints,
+  );
+  const beforeOrder = projectLayout(state)
+    .map((widget) => widget.id)
+    .sort((left, right) => {
+      const layout = projectLayout(state);
+      const byId = new Map(layout.map((widget) => [widget.id, widget]));
+      const a = byId.get(left),
+        b = byId.get(right);
+      return a.y - b.y || a.x - b.x;
+    });
+
+  const tidied = tidyHomeLayout(state);
+  const layout = projectLayout(tidied);
+  assert.deepEqual(
+    layout.map((widget) => widget.id),
+    state.widgets.map((widget) => widget.id),
+  );
+  assert.deepEqual(
+    [...layout]
+      .sort((left, right) => left.y - right.y || left.x - right.x)
+      .map((widget) => widget.id),
+    beforeOrder,
+  );
+  assert.deepEqual(tidied.positions.compact, beforeCompact);
+  assert.deepEqual(
+    tidied.widgets.find((widget) => widget.id === 'progress-1').footprints,
+    beforeFootprints,
+  );
+  assertUsable(tidied, 'wide');
+  assert.equal(tidyHomeLayout(tidied), tidied);
+});
+
+test('paginateHomeLayout keeps projected order and contains each card on a visible page', () => {
+  let state = createDefaultState();
+  state = updateLayout(state, { type: 'move', id: 'today-1', x: 8, y: 12 });
+  state = updateLayout(state, { type: 'move', id: 'goals-1', x: 0, y: 8 });
+  state = updateLayout(state, { type: 'resizeTo', id: 'progress-1', w: 5, h: 7 });
+  state = updateLayout(state, { type: 'move', id: 'progress-1', x: 7, y: 5 });
+  state = updateLayout(state, {
+    type: 'add',
+    id: 'notes-page',
+    widgetType: 'notes',
+    size: 'large',
+  });
+  const before = structuredClone(state);
+  const projectedOrder = projectLayout(state)
+    .sort((left, right) => left.y - right.y || left.x - right.x)
+    .map((item) => item.id);
+  const pages = paginateHomeLayout(state, 'wide', 4);
+
+  assert.deepEqual(
+    pages.flat().map((item) => item.id),
+    projectedOrder,
+  );
+  assert.equal(new Set(pages.flat().map((item) => item.id)).size, state.widgets.length);
+  assert.equal(pages.flat().find((item) => item.id === 'progress-1').h, 4);
+  assertPagesUsable(pages, 'wide', 4);
+  assert.deepEqual(state, before);
+});
+
+test('paginateHomeLayout fits short pages and a stacked Home without dropping cards', () => {
+  let state = createDefaultState();
+  state = updateLayout(state, { type: 'resizeTo', id: 'today-1', w: 4, h: 8 });
+  const compact = paginateHomeLayout(state, 'compact', 2);
+  const stacked = paginateHomeLayout(state, 'stacked', 2);
+
+  for (const [mode, pages] of [
+    ['compact', compact],
+    ['stacked', stacked],
+  ]) {
+    assert.deepEqual(
+      pages.flat().map((item) => item.id),
+      projectLayout(state, mode)
+        .sort((left, right) => left.y - right.y || left.x - right.x)
+        .map((item) => item.id),
+    );
+    assertPagesUsable(pages, mode, 2);
+  }
+});
+
+test('paginateHomeLayout retains an available custom page-local slot', () => {
+  const state = {
+    version: 1,
+    widgets: [
+      { id: 'today', type: 'today', size: 'small' },
+      { id: 'goals', type: 'goals', size: 'small' },
+      { id: 'progress', type: 'progress', size: 'small' },
+      { id: 'conversation', type: 'conversation', size: 'small' },
+    ],
+    positions: {
+      wide: [
+        { id: 'today', x: 8, y: 0 },
+        { id: 'goals', x: 0, y: 0 },
+        { id: 'progress', x: 4, y: 2 },
+        { id: 'conversation', x: 0, y: 2 },
+      ],
+    },
+  };
+  const page = paginateHomeLayout(state, 'wide', 4)[0];
+  assert.deepEqual(
+    page.find((item) => item.id === 'today'),
+    { id: 'today', type: 'today', size: 'small', x: 8, y: 0, w: 3, h: 2 },
+  );
+  assert.deepEqual(
+    page.find((item) => item.id === 'progress'),
+    { id: 'progress', type: 'progress', size: 'small', x: 4, y: 2, w: 3, h: 2 },
+  );
 });
 
 test('withConversationDock removes only Conversation metadata and fills the untouched default slot', () => {
@@ -144,6 +276,50 @@ test('withConversationDock is idempotent and standalone defaults remain unchange
       ],
     },
   });
+});
+
+test('withUniqueSourceWidgets keeps the first live source card and personal duplicates', () => {
+  const state = {
+    version: 1,
+    widgets: [
+      { id: 'today-first', type: 'today', size: 'small' },
+      { id: 'note-first', type: 'notes', size: 'small' },
+      { id: 'today-copy', type: 'today', size: 'large' },
+      { id: 'usage-first', type: 'usage', size: 'medium' },
+      { id: 'usage-copy', type: 'usage', size: 'small' },
+      { id: 'note-copy', type: 'notes', size: 'medium' },
+      { id: 'clock-first', type: 'clock', size: 'small' },
+      { id: 'clock-copy', type: 'clock', size: 'small' },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-first', x: 8, y: 7 },
+        { id: 'note-first', x: 0, y: 0 },
+        { id: 'today-copy', x: 0, y: 4 },
+        { id: 'usage-first', x: 4, y: 4 },
+        { id: 'usage-copy', x: 8, y: 4 },
+        { id: 'note-copy', x: 0, y: 6 },
+        { id: 'clock-first', x: 4, y: 6 },
+        { id: 'clock-copy', x: 8, y: 6 },
+      ],
+    },
+  };
+  const deduplicated = withUniqueSourceWidgets(state);
+  assert.deepEqual(
+    deduplicated.widgets.map((widget) => widget.id),
+    ['today-first', 'note-first', 'usage-first', 'note-copy', 'clock-first', 'clock-copy'],
+  );
+  assert.deepEqual(
+    deduplicated.positions.wide.find((position) => position.id === 'today-first'),
+    { id: 'today-first', x: 8, y: 7 },
+  );
+  assert.deepEqual(
+    deduplicated.positions.wide.find((position) => position.id === 'usage-first'),
+    { id: 'usage-first', x: 4, y: 4 },
+  );
+  assert.equal(deduplicated.widgets.filter((widget) => widget.type === 'notes').length, 2);
+  assert.equal(deduplicated.widgets.filter((widget) => widget.type === 'clock').length, 2);
+  assert.equal(withUniqueSourceWidgets(deduplicated), deduplicated);
 });
 
 test('add, move, and resize always produce bounded non-overlapping layouts', () => {

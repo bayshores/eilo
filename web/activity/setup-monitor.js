@@ -65,6 +65,7 @@ export function createSetupMonitor({
   return {
     start({ restart = false } = {}) {
       if (destroyed) return;
+      if (restart) clear();
       const currentlyVisible = isVisible();
       if (!active || restart || (currentlyVisible && !wasVisible)) {
         active = true;

@@ -8,12 +8,21 @@
   </head>
   <body>
     <main>
-      <h1>Set up eïlo in Chrome</h1>
-      <p class="consequence">Let eïlo notice the sites you use while you choose to share.</p>
+      <h1 id="connection-heading">Allow Chrome access</h1>
+      <p id="permission-consequence" class="consequence"
+        >Allow Chrome so eïlo can notice the site names and titles you choose to share.</p
+      >
       <button id="allow" class="primary" type="button">Allow Chrome</button>
-      <button id="open-eilo" class="secondary" type="button" hidden>Open eïlo</button>
+      <button id="retry-connection" class="primary" type="button" hidden>Retry connection</button>
       <p id="status" role="status"></p>
       <p id="native-status" class="transport" role="status"></p>
+      <a
+        id="connection-help"
+        class="connection-help"
+        href="http://127.0.0.1:8765/activity-connect?client=desktop"
+        hidden
+        >Connection help</a
+      >
       <details>
         <summary>Site exclusions &amp; privacy</summary>
         <p>Browser metadata stays local. Page text and AI sharing have separate controls.</p>

@@ -58,6 +58,19 @@ test('bridge rejects arbitrary or incomplete callback payloads', async () => {
   assert.equal(await open.open(), false);
 });
 
+test('setup capability is recognized only from the supported numeric protocol', async () => {
+  for (const protocol of [2, '2', 999, null]) {
+    const bridge = extensionSetupBridge({
+      extensionId,
+      runtime: {
+        sendMessage: (_id, _message, callback) =>
+          callback({ installed: true, granted: true, setup_protocol: protocol }),
+      },
+    });
+    assert.equal((await bridge.probe()).setup_protocol, protocol === 2 ? 2 : undefined);
+  }
+});
+
 test('bridge returns null or false for unavailable ids, runtime errors, thrown errors, and timeouts', async () => {
   const invalid = extensionSetupBridge({
     extensionId: 'not-an-extension-id',

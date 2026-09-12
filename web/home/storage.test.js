@@ -63,15 +63,19 @@ test('normalizers accept only bounded profile and note fields', () => {
     {
       name: ' A '.repeat(30).slice(0, 40),
       pin: false,
+      homeLayoutVersion: 1,
       reducedMotion: true,
       widgetPins: [],
+      dismissedContextWidgets: [],
     },
   );
   assert.deepEqual(normalizeHomePreferences(null), {
     name: 'You',
     pin: false,
+    homeLayoutVersion: 1,
     reducedMotion: false,
     widgetPins: [],
+    dismissedContextWidgets: [],
   });
   assert.equal(normalizeHomeContent({ notes: 'n'.repeat(10001) }).notes.length, 10000);
   assert.deepEqual(normalizeHomeContent(['not a record']), { notes: '' });
@@ -87,4 +91,9 @@ test('personal profile names are restored only from local preferences', () => {
     'Morgan',
   );
   assert.equal(normalizeHomePreferences({}).name, 'You');
+});
+
+test('scrolling Home migration version is explicit and survives normalization', () => {
+  assert.equal(normalizeHomePreferences({ homeLayoutVersion: 2 }).homeLayoutVersion, 2);
+  assert.equal(normalizeHomePreferences({ homeLayoutVersion: '2' }).homeLayoutVersion, 1);
 });

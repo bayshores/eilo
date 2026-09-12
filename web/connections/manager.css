@@ -198,18 +198,20 @@
   color: #fff0eb;
   background: #78493f;
 }
-.connections-manager__options {
-  min-width: 44px;
+.connections-manager__details-toggle {
   min-height: 44px;
-  padding: 8px;
+  padding: 8px 10px;
   border: 0;
   border-radius: 10px;
   color: var(--muted, #c5c5ce);
   background: transparent;
-  font-size: 21px;
-  line-height: 1;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
 }
-.connections-manager__options:hover {
+.connections-manager__details-toggle:hover,
+.connections-manager__details-toggle[aria-expanded='true'] {
   color: var(--ink, #f2ebe2);
   background: #41434a;
 }

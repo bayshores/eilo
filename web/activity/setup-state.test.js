@@ -8,8 +8,38 @@ const browser = (overrides = {}) => ({
     policy: { enabled: true, browser_enabled: true },
     capture_status: { browser: { connected: true } },
   },
-  extension: { installed: true, granted: true },
+  extension: { installed: true, granted: true, setup_protocol: 2 },
   ...overrides,
+});
+
+test('an installed and allowed extension retries the connection instead of requesting access again', () => {
+  const state = browserSetupState(browser({ inChrome: true }));
+  assert.equal(state.id, 'pair');
+  assert.equal(state.action, 'retry');
+  assert.equal(state.label, 'Retry connection');
+  assert.ok(state.copy.toLowerCase().includes('already allowed'));
+});
+
+test('an old loaded extension needs one reload, not another install or permission grant', () => {
+  const state = browserSetupState(
+    browser({ inChrome: true, extension: { installed: true, granted: true } }),
+  );
+  assert.equal(state.id, 'update');
+  assert.equal(state.action, 'reload');
+  assert.ok(state.copy.toLowerCase().includes('reload'));
+});
+
+test('the desktop cannot infer missing permission from a saved setup step', () => {
+  const state = browserSetupState(
+    browser({
+      extension: null,
+      step: 2,
+      current: { capture_status: { browser: { registration: 'ready' } } },
+    }),
+  );
+  assert.equal(state.id, 'handoff');
+  assert.equal(state.action, 'open');
+  assert.equal(state.copy.includes('Choose Allow'), false);
 });
 
 test('Chrome is connected only after transport, setup, and grant have all been verified', () => {

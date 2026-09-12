@@ -57,11 +57,15 @@ class Chat:
     async def refresh(self):
         self.refresh_count += 1
 
+    def publish_check_in(self, publication, *, lookup=False):
+        return {"event_id": publication["event_id"], "assistant_id": None if lookup else 4}
+
     async def command(self, args, **kwargs):
         callback = kwargs.get("on_preview")
-        if callback and self.emit_preview:
+        if args[0] == "--input" and callback and self.emit_preview:
             callback("Writing")
-        event_id = Path(args[args.index("--input") + 1]).stem.removeprefix("event-")
+        path = Path(args[1])
+        event_id = path.stem.removeprefix("event-")
         return (
             0,
             json.dumps(
@@ -70,8 +74,9 @@ class Chat:
                         "model": "gpt-5.6-luna",
                         "provider": "openai-codex",
                         "tool_schema_count": 0,
+                        "persisted": False,
                     },
-                    "assistant_id": 4,
+                    "assistant_id": None,
                     "decision": self.reply
                     or {"event_id": event_id, "decision": "quiet", "message": ""},
                 }
@@ -153,7 +158,7 @@ class AutonomyIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event["status"], "quiet")
         self.assertNotIn("related_task_ids", session)
 
-    async def test_real_preview_callback_writes_then_completes_only_for_current_event(self):
+    async def test_background_message_becomes_visible_only_after_committed_publication(self):
         event, payload = self.begin_event()
         self.chat.emit_preview = True
         self.chat.reply = {
@@ -174,9 +179,9 @@ class AutonomyIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 "message_id": "4",
             },
         )
-        self.assertGreaterEqual(len(self.chat.changed_states), 2)
+        self.assertEqual(len(self.chat.changed_states), 1)
 
-    async def test_pause_source_or_task_change_interrupts_preview_and_prevents_delivery(self):
+    async def test_pause_source_or_task_change_discards_draft_before_delivery(self):
         for change in ("pause", "source", "task"):
             event, payload = self.begin_event(change)
             self.chat.emit_preview = True
@@ -190,20 +195,21 @@ class AutonomyIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
             async def command(args, *, _change=change, _original=original, **kwargs):
                 callback = kwargs.get("on_preview")
-                if callback:
+                if args[0] == "--input" and callback:
                     callback("Writing")
-                if _change == "pause":
-                    self.loop.stop("paused", "test")
-                elif _change == "source":
-                    self.loop.update_context(OTHER, self.clock[0])
-                else:
-                    self.chat.meta["tasks"]["revision"] += 1
+                if args[0] == "--input":
+                    if _change == "pause":
+                        self.loop.stop("paused", "test")
+                    elif _change == "source":
+                        self.loop.update_context(OTHER, self.clock[0])
+                    else:
+                        self.chat.meta["tasks"]["revision"] += 1
                 return await _original(args, **kwargs)
 
             self.chat.command = command
             await self.loop.decide(payload)
             self.assertEqual(event["status"], "stale")
-            self.assertEqual(self.loop.stream["status"], "interrupted")
+            self.assertIsNone(self.loop.stream)
             self.chat.command = original
             self.loop.mode, self.loop.client_id, self.loop.lease_until = "active", "client", 2000
 

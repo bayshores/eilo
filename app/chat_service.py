@@ -117,7 +117,7 @@ class LocalChat:
         self.context = ContextService(
             self.meta_path.parent / "context",
             get_tasks=lambda: public_state(self.meta["tasks"])["tasks"],
-            changed=self.changed,
+            changed=self.context_changed,
             analyze=analyze_context,
             is_human_busy=lambda: self.busy,
         )
@@ -172,6 +172,22 @@ class LocalChat:
         self.revision_number += 1
         self.change_event.set()
         self.change_event = asyncio.Event()
+
+    def context_changed(self) -> None:
+        self.proactive.context_changed()
+        self.briefing.sources_changed()
+
+    def publish_check_in(self, publication, *, lookup=False):
+        """Keep the short native commit in the same turn as authority validation."""
+        expected = (self.meta_path.parent / "hermes").resolve()
+        if Path(os.environ.get("HERMES_HOME", "")).resolve() != expected:
+            raise ChatError("The native publication store is outside this eïlo profile.")
+        from app.event_driver import find_publication, publish, validate_publication
+
+        # ponytail: this local append briefly blocks the loop so a permission change
+        # cannot interleave; move to a shared transaction owner if native writes grow.
+        operation = find_publication if lookup else publish
+        return operation(validate_publication(publication))
 
     async def wait_for_state(self, after: str | None) -> dict:
         if after == self.revision:
@@ -426,6 +442,7 @@ class LocalChat:
                     raise ChatError("The local conversation store could not be initialized.")
             await self.refresh()
             await self.recover_publication()
+            await self.proactive.recover_publications()
             if self.meta_path == META and self.meta.get("workspace_import_version", 0) < 2:
                 code, out, _ = await self.command(["--list-eilo-sessions"], launcher="hermes-human")
                 if code:

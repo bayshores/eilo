@@ -1,4 +1,4 @@
-"""Open-page consent lease and one serialized, cancellable native event lane."""
+"""Consented context decisions and durable publication; legacy page leases remain separate."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from app.accountability import (
     validate_decision,
 )
 from app.activity_ledger import ActivityLedger
+from app.persistence import write_private
 from app.tasks import has_open_work, public_state
 
 
@@ -38,6 +39,8 @@ class ProactiveLoop:
         # Old local state predates this independent delivery choice. Keep its
         # established behavior until the person explicitly pauses check-ins.
         self.state.setdefault("check_ins_enabled", True)
+        # A historical page lease never granted resident-context check-ins.
+        self.state.setdefault("context_check_ins_enabled", False)
         for event in self.state.get("events", {}).values():
             # A task cannot survive a restart, so persisted "running" never
             # describes a current evaluation.
@@ -60,6 +63,41 @@ class ProactiveLoop:
         self.collector = None
         self.event_task = None
         self.event_id = None
+        self.context_generation = None
+        self.publishing = False
+
+    def check_ins_enabled(self):
+        if getattr(self.chat, "context", None) is not None and not self.active():
+            return bool(self.state["context_check_ins_enabled"] and self.state["check_ins_enabled"])
+        return bool(self.state["check_ins_enabled"])
+
+    def context_changed(self):
+        context = getattr(self.chat, "context", None)
+        if context is None:
+            return
+        generation = (context.state["policy_epoch"], context._generation)
+        if generation != self.context_generation:
+            self.context_generation = generation
+            self.invalidate()
+            if self.latest and self.latest.get("kind") == "work_context":
+                self.latest = None
+        observation = context.check_in_context()
+        if observation is not None:
+            self.update_context(observation, self.now())
+        elif self.latest and self.latest.get("kind") == "work_context":
+            self.latest = None
+            self.invalidate()
+
+    def decision_active(self):
+        if self.latest and self.latest.get("kind") == "work_context":
+            context = getattr(self.chat, "context", None)
+            current = context.check_in_context() if context else None
+            return bool(
+                self.state["context_check_ins_enabled"]
+                and current
+                and fingerprint(current) == fingerprint(self.latest)
+            )
+        return self.active()
 
     def active(self):
         return (
@@ -158,7 +196,7 @@ class ProactiveLoop:
 
     def check_in_status(self):
         now = self.now()
-        enabled = bool(self.state.get("check_ins_enabled", True))
+        enabled = self.check_ins_enabled()
         tasks = self.chat.meta["tasks"]
         if not enabled:
             phase = "off"
@@ -170,9 +208,11 @@ class ProactiveLoop:
             phase = "on_break"
         elif not has_open_work(tasks):
             phase = "no_goals"
-        elif self.mode == "off":
+        elif any(event.get("status") == "publishing" for event in self.state["events"].values()):
+            phase = "unavailable"
+        elif self.mode == "off" and not self.decision_active():
             phase = "activity_off"
-        elif not self.active():
+        elif not self.decision_active():
             phase = "activity_paused"
         elif self.event_task and not self.event_task.done():
             phase = "deciding"
@@ -187,7 +227,7 @@ class ProactiveLoop:
                 self.latest,
                 now=now,
                 stable_since=self.stable_since,
-                lease_active=self.active(),
+                lease_active=self.decision_active(),
                 human_busy=self.chat.busy,
                 has_open_work=True,
             )
@@ -211,7 +251,30 @@ class ProactiveLoop:
                 "max_per_day": MAX_CALLS_DAY,
             },
             "history": self._recent_events(),
+            "notification_event_ids": self.notification_events(),
         }
+
+    def notification_events(self):
+        if (
+            not self.check_ins_enabled()
+            or not self.decision_active()
+            or self.chat.busy
+            or not has_open_work(self.chat.meta["tasks"])
+            or not self.latest
+        ):
+            return []
+        return [
+            identity
+            for identity, event in self.state["events"].items()
+            if event.get("status") == "delivered"
+            and not event.get("recovered")
+            and 0 <= self.now() - event.get("created_at", 0) <= 120
+            and event.get("task_revision") == self.chat.meta["tasks"]["revision"]
+            and event.get("human_epoch") == self.state["human_epoch"]
+            and event.get("session_id", self.chat.meta.get("session_id"))
+            == self.chat.meta.get("session_id")
+            and event.get("fingerprint") == fingerprint(self.latest)
+        ][-30:]
 
     def persist(self):
         self.chat.save_meta()
@@ -219,21 +282,34 @@ class ProactiveLoop:
     def invalidate(self):
         if self.stream and self.stream.get("status") == "writing":
             self.stream = {**self.stream, "status": "interrupted"}
-        if self.event_task and not self.event_task.done():
+        if self.event_task and not self.event_task.done() and not self.publishing:
             if self.event_id:
                 self.state["events"][self.event_id]["status"] = "stale"
             self.event_task.cancel()
 
     def on_human(self, text, request_id):
+        # Link a response to the latest check-in without retaining another transcript.
+        for event in reversed(list(self.state["events"].values())) if text else []:
+            if (
+                event.get("status") == "delivered"
+                and not event.get("response_request_id")
+                and event.get("session_id", self.chat.meta.get("session_id"))
+                == self.chat.meta.get("session_id")
+            ):
+                event["response_request_id"] = request_id
+                event["responded_at"] = self.now()
+                break
         record_human(self.state, text, request_id, self.now())
         self.invalidate()
 
     def control(self, action, client_id):
         if action == "enable_check_ins":
             self.state["check_ins_enabled"] = True
+            self.state["context_check_ins_enabled"] = True
             self.persist()
         elif action == "pause_check_ins":
             self.state["check_ins_enabled"] = False
+            self.state["context_check_ins_enabled"] = False
             self.invalidate()
             self.persist()
         elif action == "enable":
@@ -411,7 +487,7 @@ class ProactiveLoop:
 
     def update_context(self, observation, now):
         self.last_observation_at = now
-        if self.active():
+        if self.active() and observation.get("kind") != "work_context":
             self.ledger.observe(observation, now)
             self.persist()
         if observation.get("kind") == "activity_invalid":
@@ -438,7 +514,7 @@ class ProactiveLoop:
     def maybe_decide(self, now=None):
         now = self.now() if now is None else now
         if (
-            not self.state.get("check_ins_enabled", True)
+            not self.check_ins_enabled()
             or not self.latest
             or not self.chat.meta.get("session_id")
             or self.chat.blocked
@@ -446,12 +522,14 @@ class ProactiveLoop:
             return
         if self.event_task and not self.event_task.done():
             return
+        if any(event.get("status") == "publishing" for event in self.state["events"].values()):
+            return
         allowed, _ = admit(
             self.state,
             self.latest,
             now=now,
             stable_since=self.stable_since,
-            lease_active=self.active(),
+            lease_active=self.decision_active(),
             human_busy=self.chat.busy,
             has_open_work=has_open_work(self.chat.meta["tasks"]),
         )
@@ -465,11 +543,19 @@ class ProactiveLoop:
             "fingerprint": fingerprint(self.latest),
             "created_at": now,
             "assistant_id": None,
+            "session_id": self.chat.meta["session_id"],
             "observed_session_id": (self.ledger.snapshot(now).get("active_session") or {}).get(
                 "id"
             ),
         }
         self.state["events"][event_id] = event
+        # Bound discarded attempts while retaining native conversation/publication links.
+        keep = list(self.state["events"])[-100:]
+        self.state["events"] = {
+            key: value
+            for key, value in self.state["events"].items()
+            if key in keep or value.get("status") in {"publishing", "delivered"}
+        }
         self.state["call_times"] = [
             stamp for stamp in self.state["call_times"] if now - stamp < 86400
         ] + [now]
@@ -490,12 +576,14 @@ class ProactiveLoop:
 
     def current(self, event):
         return (
-            self.state.get("check_ins_enabled", True)
-            and self.active()
+            self.check_ins_enabled()
+            and self.decision_active()
             and not self.chat.busy
             and has_open_work(self.chat.meta["tasks"])
             and event["task_revision"] == self.chat.meta["tasks"]["revision"]
             and event["human_epoch"] == self.state["human_epoch"]
+            and event.get("session_id", self.chat.meta.get("session_id"))
+            == self.chat.meta.get("session_id")
             and self.latest is not None
             and event["fingerprint"] == fingerprint(self.latest)
         )
@@ -505,28 +593,16 @@ class ProactiveLoop:
         event = self.state["events"][event_id]
         path = self.chat.meta_path.parent / (f"event-{event_id}.json")
         try:
-            path.write_text(json.dumps(payload))
-            path.chmod(0o600)
+            write_private(path, payload)
             async with self.chat.native_lock:
                 if not self.current(event):
                     event["status"] = "stale"
                     return
 
-                def preview(text):
-                    if self.current(event):
-                        self.stream = {
-                            "id": event_id,
-                            "event_id": event_id,
-                            "text": text[:400],
-                            "status": "writing",
-                        }
-                        self.chat.changed()
-
                 code, out, _ = await self.chat.command(
                     ["--input", str(path), "--stream"],
                     launcher="hermes-event",
                     timeout=120,
-                    on_preview=preview,
                 )
                 value = json.loads(out) if code == 0 else {}
                 audit = value.get("audit", {})
@@ -534,6 +610,7 @@ class ProactiveLoop:
                     audit.get("model") != "gpt-5.6-luna"
                     or audit.get("provider") != "openai-codex"
                     or audit.get("tool_schema_count") != 0
+                    or audit.get("persisted") is not False
                 ):
                     raise ValueError("Native event construction could not be verified.")
                 decision = validate_decision(value.get("decision"), event_id)
@@ -548,11 +625,33 @@ class ProactiveLoop:
                         for identity in decision.get("related_task_ids", [])
                     ):
                         decision = None
-                event["assistant_id"] = str(value.get("assistant_id"))
                 if not self.current(event):
                     event["status"] = "stale"
                 elif decision and decision["decision"] != "quiet":
+                    publication = {
+                        "session_id": self.chat.meta["session_id"],
+                        "event_id": event_id,
+                        "task_revision": event["task_revision"],
+                        "human_epoch": event["human_epoch"],
+                        "decision": decision,
+                    }
+                    # This durable acceptance is the linearization point. Human work
+                    # waits for the accepted append; inference itself stays preemptible.
+                    event.update(status="publishing", publication=publication)
+                    self.persist()
+                    self.publishing = True
+                    # No await between authority validation and the native append.
+                    # Consent and user commands are serialized on this event loop.
+                    receipt = self.chat.publish_check_in(publication)
+                    if (
+                        receipt.get("event_id") != event_id
+                        or type(receipt.get("assistant_id")) is not int
+                    ):
+                        raise ValueError("Check-in publication could not be verified.")
+                    event["assistant_id"] = str(receipt["assistant_id"])
                     event["status"] = "delivered"
+                    event.pop("publication", None)
+                    self.persist()
                 else:
                     event["status"] = "quiet"
                 if decision and self.current(event) and event.get("observed_session_id"):
@@ -562,18 +661,21 @@ class ProactiveLoop:
                         event["task_revision"],
                     )
                 await self.chat.refresh()
-                if self.stream and self.stream.get("id") == event_id:
+                if event["status"] == "delivered":
                     self.stream = {
-                        **self.stream,
-                        "text": decision["message"] if decision else self.stream["text"],
-                        "status": "complete" if event["status"] == "delivered" else "interrupted",
+                        "id": event_id,
+                        "event_id": event_id,
+                        "text": decision["message"],
+                        "status": "complete",
                         "message_id": event["assistant_id"],
                     }
         except asyncio.CancelledError:
-            event["status"] = "stale"
+            if event["status"] != "publishing":
+                event["status"] = "stale"
             raise
         except Exception:
-            event["status"] = "failed_quiet"
+            if event["status"] != "publishing":
+                event["status"] = "failed_quiet"
             self.reason = "A background check could not finish safely. No check-in was delivered."
         finally:
             event["finished_at"] = self.now()
@@ -585,7 +687,40 @@ class ProactiveLoop:
             ):
                 self.stream = {**self.stream, "status": "interrupted"}
             self.event_id = None
+            self.publishing = False
             self.persist()
+            self.chat.changed()
+
+    async def recover_publications(self):
+        """Reconcile exact native receipts once; never rerun a model or retry an append."""
+        recovered = False
+        for event_id, event in self.state["events"].items():
+            if event.get("status") != "publishing" or not event.get("publication"):
+                continue
+            path = self.chat.meta_path.parent / f"event-{event_id}.json"
+            try:
+                receipt = self.chat.publish_check_in(event["publication"], lookup=True)
+                if receipt.get("event_id") != event_id:
+                    continue
+                identity = receipt.get("assistant_id")
+                if identity is not None and type(identity) is not int:
+                    continue
+                event["assistant_id"] = str(identity) if identity is not None else None
+                # An exact native append remains conversation history; recovery is
+                # never a fresh notification or authorization to repeat inference.
+                event["status"] = "delivered" if identity is not None else "stale"
+                event["recovered"] = True
+                event["recovery_outcome"] = "native_found" if identity is not None else "not_found"
+                event.pop("publication", None)
+                self.persist()
+                recovered = True
+            except Exception:
+                # Keep the exact pending receipt for a later explicit recovery.
+                continue
+            finally:
+                path.unlink(missing_ok=True)
+        if recovered:
+            await self.chat.refresh()
             self.chat.changed()
 
     async def wait_for_preempted_event(self):

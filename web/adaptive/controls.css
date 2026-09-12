@@ -1,43 +1,4 @@
-/* Home settings never take space away from the widget canvas. */
-.adaptive-production-host {
-  position: absolute;
-  inset: 1px 3px 5px 0;
-  pointer-events: none;
-}
-.board-scroll:has(.adaptive-production-host) {
-  position: relative;
-}
-.adaptive-production-host .adaptive-surface__title {
-  display: none;
-}
-.adaptive-production-host .adaptive-surface__grid {
-  display: block;
-  position: relative;
-}
-.adaptive-production-host .adaptive-card {
-  position: absolute;
-  min-height: 0;
-  pointer-events: auto;
-}
-.adaptive-active .board {
-  pointer-events: none;
-  z-index: 1;
-}
-.adaptive-active .board > .widget:not([hidden]) {
-  pointer-events: auto;
-}
-.adaptive-home__status {
-  position: absolute;
-  bottom: 0;
-  right: 8px;
-  z-index: 3;
-  max-width: min(400px, 90%);
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--muted);
-  font-size: 13px;
-}
+/* Context settings are available across the workspace; Home owns every widget. */
 .home-context-trigger {
   gap: 9px;
 }
@@ -62,9 +23,6 @@
   width: 15px;
   height: 15px;
   color: var(--muted);
-}
-.workspace:not([data-page='home']) .home-context-trigger {
-  display: none;
 }
 .context-panel {
   position: fixed;

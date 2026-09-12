@@ -79,7 +79,7 @@ export function createItemControls({
   function menu(label, items) {
     const wrap = el('div', 'item-options');
     const trigger = button(
-      '•••',
+      label.startsWith('More actions for') ? 'More actions' : 'More',
       () => {
         const wasOpen = trigger.getAttribute('aria-expanded') === 'true';
         closeMenu();
@@ -353,18 +353,29 @@ export function createItemControls({
   }
   function goalOptions(task) {
     if (task.status === 'deleted') return el('span');
-    const items = [{ label: 'Edit details', run: () => beginEdit(task) }];
+    const items = [];
     if (task.status === 'open')
-      items.push(
-        {
-          label:
-            snapshot().tasks.focus_id === task.id ? 'Clear current focus' : 'Make current focus',
-          run: () => runGoal(task, 'focus'),
-        },
-        { label: 'Cancel goal', run: () => runGoal(task, 'cancel') },
-      );
+      items.push({ label: 'Cancel goal', run: () => runGoal(task, 'cancel') });
     items.push({ label: 'Move to Trash', danger: true, run: () => runGoal(task, 'delete') });
-    return menu('Goal options', items);
+    return menu(`More actions for ${task.title}`, items);
+  }
+  function goalEdit(task) {
+    const control = managed(button('Edit goal', () => beginEdit(task), 'button goal-secondary'));
+    control.dataset.goalAction = 'edit';
+    return control;
+  }
+  function goalFocus(task) {
+    if (task.status !== 'open') return null;
+    const focused = snapshot().tasks.focus_id === task.id;
+    const control = managed(
+      button(
+        focused ? 'Clear focus' : 'Set focus',
+        () => runGoal(task, 'focus'),
+        'button goal-secondary',
+      ),
+    );
+    control.dataset.goalAction = 'focus';
+    return control;
   }
   function goalPrimary(task) {
     const action =
@@ -423,6 +434,8 @@ export function createItemControls({
     beginEdit,
     renderEditor,
     goalOptions,
+    goalEdit,
+    goalFocus,
     goalPrimary,
     recordOptions,
     sync,

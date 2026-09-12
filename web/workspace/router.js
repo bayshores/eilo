@@ -5,7 +5,7 @@
 export function createWorkspaceRouter({
   windowRef = window,
   documentRef = document,
-  pages = ['home', 'goals', 'activity', 'connections', 'chats', 'projects'],
+  pages = ['home', 'goals', 'activity', 'connections', 'settings', 'chats', 'projects'],
   routedPages = pages.filter((page) => page !== 'home'),
   renderPage,
   onPageChange = () => {},
@@ -29,7 +29,8 @@ export function createWorkspaceRouter({
       home: 'Home',
       goals: 'Goals',
       activity: 'Activity',
-      connections: 'Connections',
+      connections: 'Settings',
+      settings: 'Settings',
       chats: 'Chats',
       projects: 'Projects',
     }[page];
@@ -40,8 +41,11 @@ export function createWorkspaceRouter({
     document.title = `eïlo — ${pageName}`;
     document.querySelector('.app-window')?.setAttribute('aria-label', `eïlo ${pageName}`);
     document.querySelector('.home-header p')?.toggleAttribute('hidden', page !== 'home');
+    document.querySelector('.home-context')?.toggleAttribute('hidden', page !== 'home');
     for (const item of document.querySelectorAll('.nav-item')) {
-      const active = item.dataset.detail === (page === 'projects' ? 'chats' : page);
+      const active =
+        item.dataset.detail ===
+        (page === 'projects' ? 'chats' : page === 'connections' ? 'settings' : page);
       item.classList.toggle('active', active);
       item.toggleAttribute('aria-current', active);
       if (active) item.setAttribute('aria-current', 'page');
@@ -49,7 +53,7 @@ export function createWorkspaceRouter({
     for (const selector of ['.edit-toggle', '.add-toggle', '.save-state', '.overflow-toggle']) {
       const item = document.querySelector(selector);
       if (!item) continue;
-      item.hidden = page !== 'home' || (page === 'home' && selector !== '.edit-toggle');
+      item.hidden = page !== 'home' || selector === '.overflow-toggle';
     }
     return heading;
   }
@@ -65,7 +69,7 @@ export function createWorkspaceRouter({
       if (currentRoute !== nextRoute) windowRef.history.pushState(null, '', nextRoute);
     }
     if (focus) {
-      const pageHeading = ['connections', 'chats', 'projects'].includes(nextPage)
+      const pageHeading = ['connections', 'settings', 'chats', 'projects'].includes(nextPage)
         ? documentRef.querySelector(
             nextPage === 'connections' ? '.connections-manager h1' : '.chat-library h1',
           )

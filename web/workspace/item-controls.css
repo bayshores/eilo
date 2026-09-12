@@ -21,35 +21,23 @@
   font-weight: 500;
 }
 .goal-add {
-  width: 40px;
-  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 0;
   border-radius: 12px;
   color: var(--ink);
   background: #373940;
   font: inherit;
-  font-size: 25px;
+  font-size: 14px;
+  font-weight: 500;
 }
 .goal-add:hover {
   background: #464850;
 }
 .goal-trash-toggle {
   flex: none;
-  min-height: 42px;
-  margin-top: auto;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--muted);
-  text-align: left;
-  font: inherit;
-  font-size: 14px;
-}
-.goal-trash-toggle:hover,
-.goal-trash-toggle[aria-pressed='true'] {
-  background: #373940;
-  color: var(--ink);
 }
 .goals-list {
   flex: 1;
@@ -63,17 +51,14 @@
   flex: none;
 }
 .item-menu-trigger {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
+  min-height: 40px;
+  padding: 8px 10px;
   border: 0;
   border-radius: 12px;
   background: transparent;
   color: var(--muted);
   font: inherit;
   font-size: 13px;
-  letter-spacing: 2px;
 }
 .item-menu-trigger:hover,
 .item-menu-trigger[aria-expanded='true'] {
@@ -125,6 +110,13 @@
 .goal-detail-actions > .button:not(.goal-primary) {
   background: transparent;
   color: var(--muted);
+}
+.goal-detail-actions > .goal-secondary {
+  color: var(--ink);
+  background: #373940;
+}
+.goal-detail-actions > .goal-secondary:hover {
+  background: #464850;
 }
 .goal-edit-form {
   display: flex;
@@ -222,8 +214,7 @@
     font-size: 16px;
   }
   .goal-add {
-    width: 36px;
-    height: 36px;
+    min-height: 36px;
   }
   .goal-editor-body {
     gap: 12px;

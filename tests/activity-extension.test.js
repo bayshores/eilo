@@ -342,10 +342,19 @@ async function externalSetupChecks() {
   let externalListener;
   const created = [];
   let tabReads = 0;
+  let nativeAttempts = 0;
   const context = {
     URL,
     Set,
     console,
+    EiloNativeContext: {
+      createNativeContext: () => ({
+        connect() {
+          nativeAttempts++;
+        },
+        status: () => ({ state: 'disconnected' }),
+      }),
+    },
     importScripts() {
       vm.runInNewContext(fs.readFileSync(path.join(extension, 'core.js'), 'utf8'), context);
     },
@@ -390,6 +399,7 @@ async function externalSetupChecks() {
   assert.equal(tabReads, 0, 'opening setup never reads browser activity');
 
   let status;
+  const attemptsBeforeStatus = nativeAttempts;
   assert.equal(
     externalListener({ type: 'eilo-setup-status' }, sender, (response) => (status = response)),
     true,
@@ -398,8 +408,14 @@ async function externalSetupChecks() {
   assert.deepEqual(JSON.parse(JSON.stringify(status)), {
     installed: true,
     granted: true,
-    native: { state: 'unavailable', connected: false, handshake_verified: false, enabled: false },
+    setup_protocol: 2,
+    native: { state: 'disconnected', connected: false, handshake_verified: false, enabled: false },
   });
+  assert.equal(
+    nativeAttempts,
+    attemptsBeforeStatus + 1,
+    'the status check retries an allowed native connection',
+  );
   assert.equal(tabReads, 0, 'status detection never reads browser activity');
   assert.equal(
     externalListener({ type: 'eilo-open-setup', extra: true }, sender, () => {}),

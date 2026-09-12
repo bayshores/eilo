@@ -72,8 +72,7 @@ export function createWorkspaceViews({
   goals.hidden = true;
   const index = el('div', 'goals-index');
   const indexHeader = el('div', 'goals-index-header');
-  indexHeader.append(button('+', () => controls.beginEdit(), 'goal-add'));
-  indexHeader.querySelector('button').setAttribute('aria-label', 'Add a goal');
+  indexHeader.append(button('Add goal', () => controls.beginEdit(), 'goal-add'));
   const searchLabel = el('label', 'goal-search');
   const searchText = el('span', 'sr-only', 'Find a goal');
   const search = el('input');
@@ -113,7 +112,7 @@ export function createWorkspaceViews({
   const detail = el('article', 'goal-detail');
   detail.setAttribute('aria-label', 'Selected goal');
   const trash = button(
-    'Trash',
+    '',
     () => {
       controls.select();
       filter = 'deleted';
@@ -122,11 +121,13 @@ export function createWorkspaceViews({
       list.scrollTop = 0;
       renderGoals();
     },
-    'goal-trash-toggle',
+    'goal-filter goal-trash-toggle',
   );
+  trash.append(el('span', '', 'Recently deleted'), el('span', 'goal-filter-count'));
   trash.setAttribute('aria-pressed', 'false');
   indexHeader.prepend(searchLabel);
-  index.append(indexHeader, filters, list, trash);
+  filters.append(trash);
+  index.append(indexHeader, filters, list);
   goals.append(index, detail);
   container.append(goals);
   controls = createItemControls({
@@ -178,7 +179,7 @@ export function createWorkspaceViews({
     const snapshot = current?.snapshot;
     const result = selectGoals(snapshot, { filter, query, selectedId });
     selectedId = result.selected?.id || null;
-    trash.textContent = `Trash${result.counts.deleted ? ' · ' + result.counts.deleted : ''}`;
+    trash.querySelector('.goal-filter-count').textContent = result.counts.deleted;
     trash.setAttribute('aria-pressed', String(filter === 'deleted'));
     controls.sync();
     for (const [key, item] of filterButtons) {
@@ -381,6 +382,9 @@ export function createWorkspaceViews({
     );
     discuss.dataset.goalAction = 'discuss';
     footer.append(controls.goalPrimary(task));
+    if (task.status !== 'deleted') footer.append(controls.goalEdit(task));
+    const focus = controls.goalFocus(task);
+    if (focus) footer.append(focus);
     if (task.status !== 'deleted') footer.append(discuss);
     if (sessions.length) {
       const inspect = button('See activity', onActivity);
@@ -403,10 +407,10 @@ export function createWorkspaceViews({
   const activityButtons = new Map();
   for (const [key, title] of [
     ['overview', 'Overview'],
-    ['agent', 'Agent log'],
-    ['observed', 'Observed'],
     ['checkins', 'Check-ins'],
-    ['trash', 'Trash'],
+    ['observed', 'Recorded activity'],
+    ['agent', 'Assistant log'],
+    ['trash', 'Recently deleted'],
   ]) {
     const item = button(
       title,
@@ -420,7 +424,7 @@ export function createWorkspaceViews({
     choices.append(item);
     activityButtons.set(key, item);
   }
-  toolbar.append(choices, button('Connections', onConnections, 'button'));
+  toolbar.append(choices, button('Manage sources', onConnections, 'button'));
   const feed = el('div', 'activity-feed');
   feed.setAttribute('role', 'region');
   feed.setAttribute('aria-label', 'Activity records');
@@ -455,14 +459,12 @@ export function createWorkspaceViews({
     onCheckIns: () => showActivityFilter('checkins'),
     onObserved: () => showActivityFilter('observed'),
   });
-  overview.insertBefore(adaptiveTimeline, overview.firstChild);
+  overview.insertBefore(adaptiveTimeline, overview.querySelector('.checkin-columns'));
   activity.append(toolbar, overview, feed);
   container.append(activity);
   function renderAdaptiveTimeline(snapshot) {
     const active = Array.isArray(snapshot?.adaptive?.episodes);
     adaptiveTimeline.hidden = !active;
-    for (const child of [...overview.children])
-      if (child !== adaptiveTimeline) child.hidden = active;
     if (!active) return false;
     renderUsageWidget(
       usageContent,
@@ -487,7 +489,7 @@ export function createWorkspaceViews({
     overview.hidden = activityFilter !== 'overview';
     feed.hidden = activityFilter === 'overview';
     if (activityFilter === 'overview') {
-      if (renderAdaptiveTimeline(snapshot)) return;
+      renderAdaptiveTimeline(snapshot);
       checkinCenter.update(current);
       return;
     }

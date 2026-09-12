@@ -57,8 +57,12 @@ class StatusChat:
     async def refresh(self):
         pass
 
+    def publish_check_in(self, publication, *, lookup=False):
+        return {"event_id": publication["event_id"], "assistant_id": None if lookup else 7}
+
     async def command(self, args, **kwargs):
-        event_id = Path(args[args.index("--input") + 1]).stem.removeprefix("event-")
+        path = Path(args[1])
+        event_id = path.stem.removeprefix("event-")
         return (
             0,
             json.dumps(
@@ -67,8 +71,9 @@ class StatusChat:
                         "model": "gpt-5.6-luna",
                         "provider": "openai-codex",
                         "tool_schema_count": 0,
+                        "persisted": False,
                     },
-                    "assistant_id": 7,
+                    "assistant_id": None,
                     "decision": {"event_id": event_id, "decision": "quiet", "message": ""},
                 }
             ),

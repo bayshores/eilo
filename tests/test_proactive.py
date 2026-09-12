@@ -478,22 +478,31 @@ class FakeChat:
     async def refresh(self):
         self.refresh_count += 1
 
+    def publish_check_in(self, publication, *, lookup=False):
+        return {"event_id": publication["event_id"], "assistant_id": None if lookup else 42}
+
     async def command(self, args, **kwargs):
         self.commands.append(args)
         if args == ["--sample"]:
             return 1, "", ""
-        event_id = Path(args[args.index("--input") + 1]).stem.removeprefix("event-")
+        path = Path(args[1])
+        event_id = path.stem.removeprefix("event-")
         return (
             0,
             json.dumps(
                 {
-                    "audit": {"model": MODEL, "provider": PROVIDER, "tool_schema_count": 0},
+                    "audit": {
+                        "model": MODEL,
+                        "provider": PROVIDER,
+                        "tool_schema_count": 0,
+                        "persisted": False,
+                    },
                     "decision": {
                         "event_id": event_id,
                         "decision": "check_in",
                         "message": "How is the notes review going?",
                     },
-                    "assistant_id": 42,
+                    "assistant_id": None,
                 }
             ),
             "",
@@ -667,7 +676,7 @@ class ProactiveLoopTests(unittest.IsolatedAsyncioTestCase):
         original_command = self.chat.command
 
         async def human_arrives(args, **kwargs):
-            if args != ["--sample"]:
+            if args and args[0] == "--input":
                 self.loop.on_human("Change my goal to organize notes", "human-during-event")
             return await original_command(args, **kwargs)
 

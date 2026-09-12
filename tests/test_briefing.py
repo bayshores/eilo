@@ -87,6 +87,24 @@ class FakeOwner:
         self.current = None
 
 
+class FakeContext:
+    def __init__(self, data=None):
+        self.state = {
+            "enabled": True,
+            "ai_enabled": True,
+            "browser_enabled": True,
+            "desktop_enabled": False,
+            "current_context_id": "context-current",
+            "policy_epoch": 4,
+        }
+        self.data = data
+        self.calls = 0
+
+    def conversation_context(self):
+        self.calls += 1
+        return self.data
+
+
 class _SocketDouble:
     def getsockname(self):
         return ("127.0.0.1", 49153)
@@ -241,6 +259,63 @@ class BriefingTests(unittest.TestCase):
         self.assertTrue(self.turn.invalidated)
         self.assertIsNone(self.owner.chat.reply_stream)
 
+    def test_work_context_read_is_bounded_and_marks_the_turn_source_backed(self):
+        raw_summary = "Drafted the parser and was reviewing its edge cases."
+        self.owner.chat.context = FakeContext(
+            {
+                "current_work_context": {"summary": raw_summary},
+                "recent_activity": [{"label": "Parser", "observed_at": "2026-09-11T09:00:00Z"}],
+                "coverage": "Permitted browser observations from the current policy.",
+                "observed_at": "2026-09-11T09:00:00Z",
+            }
+        )
+        turn = SourceTurn(self.owner, "request-context")
+        self.owner.chat.meta["pending_turn"] = {"request_id": "request-context"}
+
+        availability = self.run_async(turn.read("eilo_sources", {}))
+        self.assertEqual(availability["data"]["work_context"], {"enabled": True, "available": True})
+        self.assertEqual(self.owner.chat.context.calls, 0)
+
+        result = self.run_async(turn.read("eilo_read_work_context", {}))
+        self.assertEqual(result["receipt"]["status"], "ok")
+        self.assertEqual(result["data"]["current_work_context"]["summary"], raw_summary)
+        self.assertTrue(turn.work_context_touched)
+        self.assertTrue(self.owner.chat.meta["pending_turn"]["source_used"])
+        self.assertNotIn(raw_summary, json.dumps(self.owner.chat.meta["workflow_run"]))
+        self.run_async(turn.close())
+
+    def test_work_context_permission_change_returns_a_gap_and_only_invalidates_touched_turns(self):
+        self.owner.chat.context = FakeContext({"coverage": "current", "observed_at": "now"})
+        self.owner.chat.context.state["ai_enabled"] = False
+        disabled = SourceTurn(self.owner, "request-context-disabled")
+        unavailable = self.run_async(disabled.read("eilo_read_work_context", {}))
+        self.assertEqual(unavailable["receipt"]["status"], "unavailable")
+        self.assertEqual(self.owner.chat.context.calls, 0)
+
+        self.owner.chat.context.state["ai_enabled"] = True
+        mail_only = SourceTurn(self.owner, "request-mail")
+        mail_only.touched = True
+        self.owner.current = mail_only
+        self.owner.chat.context.state["policy_epoch"] += 1
+        Briefing.sources_changed(self.owner)
+        self.assertFalse(mail_only.invalidated)
+
+        def revoke_after_read():
+            self.owner.chat.context.state["policy_epoch"] += 1
+            return {"coverage": "private", "observed_at": "now"}
+
+        self.owner.chat.context.conversation_context = revoke_after_read
+        turn = SourceTurn(self.owner, "request-context-revoked")
+        self.owner.current = turn
+        result = self.run_async(turn.read("eilo_read_work_context", {}))
+        self.assertEqual(result["receipt"]["status"], "unavailable")
+        self.assertIsNone(result["data"])
+        self.assertTrue(turn.work_context_touched)
+        self.assertFalse(turn.valid())
+        Briefing.sources_changed(self.owner)
+        self.assertTrue(turn.invalidated)
+        self.run_async(turn.close())
+
     def test_workflow_reports_real_failure_and_never_persists_raw_mail(self):
         raw = "PRIVATE EMAIL BODY " * 100
         self.turn.discovered[self.account] = {"t"}
@@ -290,7 +365,7 @@ class ContextToolsTests(unittest.TestCase):
 
         capability = {"url": "http://127.0.0.1:8123/read", "token": "a" * 43}
         tools = ReadTools(capability, "Base policy. ")
-        raw_excerpt = "secret excerpt from an email"
+        raw_excerpt = "private current work-context summary"
 
         class Response:
             def read(self, limit):
@@ -299,7 +374,7 @@ class ContextToolsTests(unittest.TestCase):
                         "receipt": {
                             "status": "ok",
                             "source_id": "S1",
-                            "detail": "Email thread read",
+                            "detail": "Work context read",
                         },
                         "data": {"excerpt": raw_excerpt},
                     }
@@ -323,11 +398,9 @@ class ContextToolsTests(unittest.TestCase):
         agent, other = Agent(), Agent()
         with mock.patch("app.context_tools.urllib.request.build_opener", return_value=Opener()):
             tools.attach(agent)
-            receipt = json.loads(
-                tools.handler("eilo_read_mail", {"account_id": "x", "thread_id": "y"})
-            )
+            receipt = json.loads(tools.handler("eilo_read_work_context", {}))
         self.assertEqual(
-            receipt, {"status": "ok", "source_id": "S1", "detail": "Email thread read"}
+            receipt, {"status": "ok", "source_id": "S1", "detail": "Work context read"}
         )
         self.assertNotIn(raw_excerpt, json.dumps(receipt))
         self.assertIn(raw_excerpt, agent.ephemeral_system_prompt)
