@@ -13,6 +13,31 @@ npm run dev
 
 `dev` starts the full interactive test app at **http://127.0.0.1:8774/home/** with synthetic activity and temporary state. It never logs into an account, invokes a model, reads personal activity, or connects the Chrome extension. **Ctrl+C** stops it and discards its temporary fixture state. The older Home-only static preview is available explicitly as `npm run dev:static`.
 
+## First-setup fixture
+
+To exercise conversational onboarding without a provider or personal profile:
+
+```sh
+uv run --no-sync python scripts/preview-context.py --port 8797 --onboarding
+```
+
+Open **http://127.0.0.1:8797/home/**. The visible sample banner identifies synthetic
+replies; goal staging, validation, approval, Home layout and support UI use the
+real implementation with temporary state. Try a goal, refine the proposal, reload,
+and approve it. **Ctrl+C** discards that fixture's backend state. No account,
+source capture or OS grant is enabled. Real provider and native permission checks
+remain separate. The normal `npm run dev` keeps its ordinary sample Home.
+
+For Activity QC, `--checkin-phase` accepts `off`, `no_conversation`, `no_goals`,
+`awaiting_observation`, `eligible` and `unavailable`. These override presentation
+only; use ordinary `--onboarding` when testing successful setting transitions.
+`--fail-checkin-toggle` rejects just the two check-in toggle commands.
+`--sample-records` supplies snapshot-only recorded sessions, a trashed observation,
+a delivered check-in and assistant history; it can run alone or with
+`--sample-activity` for usage graphs and episode details. These generated record
+IDs are for rendering, not backend deletion/restoration tests. Use a goal created
+in an ordinary onboarding fixture to verify durable goal recovery.
+
 ## Real Mac app
 
 The current native target is Apple Silicon, macOS 14 or later. Install Xcode Command Line Tools if `xcrun` is unavailable (`xcode-select --install`). Then:

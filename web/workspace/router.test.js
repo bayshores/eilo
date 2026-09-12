@@ -62,17 +62,23 @@ test('dispose unregisters history listeners and start can mount them again after
 test('Settings is a restorable destination and Home controls stay available', () => {
   const h = harness('#settings');
   const controls = new Map(
-    ['.edit-toggle', '.add-toggle', '.save-state', '.overflow-toggle', '.home-context'].map(
-      (key) => [
-        key,
-        {
-          hidden: false,
-          toggleAttribute(_name, hidden) {
-            this.hidden = hidden;
-          },
+    [
+      '.edit-toggle',
+      '.add-toggle',
+      '.save-state',
+      '.overflow-toggle',
+      '.home-context',
+      '.home-header p',
+    ].map((key) => [
+      key,
+      {
+        hidden: false,
+        textContent: key === '.home-header p' ? 'Connected' : '',
+        toggleAttribute(_name, hidden) {
+          this.hidden = hidden;
         },
-      ],
-    ),
+      },
+    ]),
   );
   h.documentRef.querySelector = (key) => controls.get(key) || null;
   const rendered = [];
@@ -86,4 +92,62 @@ test('Settings is a restorable destination and Home controls stay available', ()
   assert.equal(controls.get('.edit-toggle').hidden, false);
   assert.equal(controls.get('.overflow-toggle').hidden, true);
   assert.equal(controls.get('.home-context').hidden, false);
+});
+
+test('Home hides empty status chrome and shows a current status only on Home', () => {
+  const h = harness();
+  const elements = new Map(
+    ['.home-header p', '.home-context'].map((key) => [
+      key,
+      {
+        hidden: false,
+        textContent: '',
+        toggleAttribute(_name, hidden) {
+          this.hidden = hidden;
+        },
+      },
+    ]),
+  );
+  h.documentRef.querySelector = (key) => elements.get(key) || null;
+  const router = createWorkspaceRouter({ ...h });
+
+  router.showPage('home', { focus: false });
+  assert.equal(elements.get('.home-header p').hidden, true);
+  assert.equal(elements.get('.home-context').hidden, true);
+
+  elements.get('.home-header p').textContent = 'Reconnecting…';
+  router.showPage('home', { focus: false });
+  assert.equal(elements.get('.home-header p').hidden, false);
+  assert.equal(elements.get('.home-context').hidden, false);
+
+  router.showPage('goals', { focus: false });
+  assert.equal(elements.get('.home-header p').hidden, true);
+  assert.equal(elements.get('.home-context').hidden, true);
+});
+
+test('Settings focuses the shared heading while Connections uses its manager heading', () => {
+  const h = harness();
+  const headings = new Map(
+    ['.home-header h1', '.connections-manager h2'].map((key) => [
+      key,
+      {
+        focusCalls: 0,
+        focusOptions: null,
+        focus(options) {
+          this.focusCalls += 1;
+          this.focusOptions = options;
+        },
+      },
+    ]),
+  );
+  h.documentRef.querySelector = (key) => headings.get(key) || null;
+  const router = createWorkspaceRouter({ ...h });
+
+  router.showPage('settings');
+  assert.equal(headings.get('.home-header h1').textContent, 'Settings');
+  assert.equal(headings.get('.home-header h1').focusCalls, 1);
+
+  router.showPage('connections');
+  assert.equal(headings.get('.connections-manager h2').focusCalls, 1);
+  assert.deepEqual(headings.get('.connections-manager h2').focusOptions, { preventScroll: true });
 });

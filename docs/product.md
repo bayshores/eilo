@@ -14,14 +14,19 @@ priorities, breaks, and external actions.
 
 ## Current experience
 
+- **First setup** starts with a goal conversation beside a proposed arrangement
+  of up to three existing widgets. Approval saves the goal and reveals that Home;
+  optional source setup follows with separate collection, AI-sharing, check-in
+  and alert choices. Existing profiles retain their current workspace.
 - **Home** combines a persistent conversation composer with configurable,
   content-specific widgets. Tracking shows current browser, Calendar, and Gmail
   access; Browser usage shows retained recorded time by site and day.
 - **Goals** provides an optional direct view of active, completed, cancelled,
   and recoverable deleted goals.
-- **Activity** separates explicitly permitted observations from delivered
-  check-ins. Observed time is evidence of an admitted signal, never proof of
-  attention, progress, or completion.
+- **Activity** starts with a useful source setup action and the explicit check-in
+  control. Recorded usage, check-in filters, audit history and recoverable deleted
+  items appear when they contain data. Observed time is evidence of an admitted
+  signal, never proof of attention, progress, or completion.
 - **Connections** makes each source and its scope visible. Calendar entries are
   separate from goals; source access does not automatically authorize sharing
   that data with the model.
@@ -47,13 +52,13 @@ input.
 
 Every card on Home is a normal widget with the same move, resize, remove, and keyboard controls. Permitted context can add relevant widgets and update their contents; it must not hide existing widgets or replace the board with a separate fixed layout. Preserve saved positions and sizes through content updates. Removed automatic widgets stay removed until explicitly added again; whole-card pages use a compact arrow-and-dot control when all widgets cannot fit. A chosen note remains editable and separate from the layout.
 
-**Settings** is available in the floating navigation, organized into General, Widgets & layout, Activity & AI, Connections, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Setup and settings never take space away from the widget canvas. Keep Check-ins and its explicit on/off action visible at the top of Activity Overview, including when modern activity records are available.
+**Settings** is available in the floating navigation, organized into General, Widgets & layout, Activity & AI, Connections, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Guided first setup replaces the empty Home before approval. After approval, its optional support invitation sits beside the conversation, and connection steps open in a dialog. Settings stays outside the widget canvas. Keep the Check-ins switch in the Activity header across its views. Put status details and desktop alerts behind the adjacent settings icon. Empty Activity has one source action; recorded sessions must not open to a blank Overview. Expose history filters and recovery categories when they contain records.
 
-Home uses warm gradient surfaces and four direct starting actions. The launcher adapts to widget dimensions, and its Today summary stays inside the card. Conversation opens as a full-height view with its own Back control; the previous page is hidden until the conversation closes. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
+The ordinary starter Home uses warm gradient surfaces and four direct starting actions; an approved first workspace starts with only its chosen widgets. The launcher adapts to widget dimensions, and its Today summary stays inside the card. Conversation opens as a full-height view with its own Back control; the previous page is hidden until the conversation closes. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
 
 ### Frontend instructions
 
-Use familiar controls, alignment, and selected states to make interactions apparent. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
+Use familiar controls, alignment, and selected states to make interactions apparent. Home, Chats, Goals and Activity share the page gutters and header baseline. The original orb belongs above the empty conversation question. Keep populated messages and the composer free of decorative logos and extra branding bars; Back uses the existing icon style. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
 
 Keep the consequence of a permission or destructive action visible at the decision point. Progressive disclosure must not hide what information reaches the AI, merge independent permissions, imply that a setup step granted access, or replace a necessary recovery instruction with a generic error. Preserve user-written content and real source data; this rule governs product instructions and help.
 

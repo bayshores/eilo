@@ -53,6 +53,7 @@ export function mountChromeSetup(
     onNativeControl = null,
     onRefresh = null,
     onDone = null,
+    doneLabel = null,
     onDismiss = null,
     returnToDesktop = false,
     bridge = extensionSetupBridge(),
@@ -321,7 +322,9 @@ export function mountChromeSetup(
       primary.textContent =
         ['reload', 'extensions'].includes(state.action) && typeof openExtensions !== 'function'
           ? 'Copy extensions address'
-          : state.label;
+          : state.action === 'done' && doneLabel
+            ? doneLabel
+            : state.label;
       receipt.textContent =
         state.id === 'connected' && state.received ? 'Website activity received' : '';
       receipt.hidden = !receipt.textContent;

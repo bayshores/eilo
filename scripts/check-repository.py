@@ -20,7 +20,12 @@ MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^\s)]+)(?:\s+\"[^\"]*\")?\)")
 MODULE_REFERENCE = re.compile(r"(?:from\s*|import\s*(?:\(\s*)?|new URL\(\s*)['\"]([^'\"]+)['\"]")
 STYLE_REFERENCE = re.compile(r"url\(\s*['\"]?([^)'\"\s]+)")
 HTML_REFERENCE = re.compile(r"(?:src|href)=[\"']([^\"']+)[\"']")
-VENDOR_MINIFIED = {"vendor/gsap/gsap.min.js", "vendor/gsap/Flip.min.js"}
+VENDOR_MINIFIED = {
+    "vendor/gsap/gsap.min.js",
+    "vendor/gsap/Flip.min.js",
+    "vendor/three/three.module.min.js",
+    "vendor/three/three.core.min.js",
+}
 
 
 def source_files() -> list[Path]:

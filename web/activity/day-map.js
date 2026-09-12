@@ -38,7 +38,7 @@ const dateLabel = (day) => dayLabel.format(new Date(`${day}T00:00:00Z`));
  */
 export function createActivityDayMap(
   host,
-  { onForget = () => {}, onManageSources = () => {}, reducedMotion = () => false } = {},
+  { onForget = () => {}, reducedMotion = () => false } = {},
 ) {
   let current = null;
   let episodes = [];
@@ -55,9 +55,7 @@ export function createActivityDayMap(
   const heading = make('div');
   const statusNote = make('p', '', 'Session spans · gaps may be unrecorded');
   heading.append(make('h2', '', 'Recorded activity'), statusNote);
-  const manage = makeButton('Manage sources', 'text-button activity-day-map__manage');
-  manage.addEventListener('click', () => onManageSources());
-  header.append(heading, manage);
+  header.append(heading);
   const chooser = make('div', 'activity-day-map__chooser');
   chooser.setAttribute('aria-label', 'Recorded day');
   chooser.append(make('span', 'activity-day-map__timezone', 'UTC'));
@@ -304,6 +302,8 @@ export function createActivityDayMap(
       view?.connection === 'offline' && episodes.length
         ? 'Last saved session spans · status offline'
         : 'Session spans · gaps may be unrecorded';
+    statusNote.classList.toggle('sr-only', view?.connection !== 'offline');
+    heading.title = statusNote.textContent;
     if (!days.includes(selectedDay)) selectedDay = days[0] || null;
     const selectedStillExists = episodes.some((episode) => episode.id === selectedId);
     if (!selectedStillExists) {

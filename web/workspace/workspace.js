@@ -16,8 +16,9 @@ import { mountChatLibrary } from '../chat/library.js';
 import { mountChatSwitcher } from '../chat/switcher.js';
 import { localCommand, commandMatches } from '../chat/commands.js';
 import { homeData, progressText, conversationEntries, notificationEntry } from '../home/data.js';
-import { checkinView } from '../activity/checkin-data.js';
 import { createWorkspaceRouter } from './router.js';
+import { mountOrb, orbState } from '../orb/presence.js';
+import { mountOnboarding } from '../onboarding/onboarding.js';
 
 const node = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -38,6 +39,9 @@ export function createLiveHome({
   dialog,
   onViewChange = () => {},
   onSettingsSection = () => {},
+  applyWorkspace = () => true,
+  getSoundEnabled = () => false,
+  setSoundEnabled = () => false,
 }) {
   let storage = null;
   try {
@@ -46,11 +50,15 @@ export function createLiveHome({
     /* In-page drafts still work. */
   }
   const client = createHomeClient({ storage });
+  let onboarding = null;
   let current = client.view,
     fingerprint = '',
     messageFingerprint = '',
     detailFingerprint = '',
-    speech = null;
+    speech = null,
+    speechState = 'idle';
+  const orbElement = node('span', 'agent-orb');
+  let presence = null;
   const activity = createActivitySession(client);
   const dock = node('section', 'conversation-dock');
   dock.setAttribute('aria-label', 'Talk to eïlo');
@@ -139,6 +147,7 @@ export function createLiveHome({
   }
   const views = createWorkspaceViews({
     container: pages,
+    pageHeader: document.querySelector('.home-header'),
     onDiscuss: (text) => talk(text),
     onConnections: () => openDetail('connections'),
     onActivity: () => showPage('activity'),
@@ -240,6 +249,7 @@ export function createLiveHome({
       }
       if (['chats', 'projects'].includes(page)) ensureLibrary();
       document.querySelector('.home-header').hidden = ['chats', 'projects'].includes(page);
+      onboarding?.update(current, page);
     },
   });
   function showPage(page, options) {
@@ -293,20 +303,42 @@ export function createLiveHome({
     }
   }
 
+  function placeOrb() {
+    const empty = !conversationEntries(current.snapshot, current.localPending).length;
+    const target =
+      threadOpen && empty
+        ? onboarding?.active
+          ? workspace.querySelector('.onboarding-orb')
+          : dock.querySelector('.conversation-empty-orb')
+        : null;
+    if (!target) {
+      orbElement.remove();
+      presence?.pause(true);
+      return;
+    }
+    if (orbElement.parentNode !== target) target.prepend(orbElement);
+    if (!presence) presence = mountOrb(orbElement);
+    presence.pause(false);
+    presence.update({ state: orbState(current, speechState) });
+  }
+
   function setThreadOpen(open) {
     const wasOpen = threadOpen;
     threadOpen = open;
     dock.dataset.open = String(open);
     workspace.classList.toggle('conversation-active', open);
     const back = dock.querySelector('.conversation-back');
-    if (back)
-      back.textContent = `← Back to ${currentPage === 'home' ? 'Home' : currentPage[0].toUpperCase() + currentPage.slice(1)}`;
+    if (back) {
+      const label = `Back to ${currentPage === 'home' ? 'Home' : currentPage[0].toUpperCase() + currentPage.slice(1)}`;
+      back.setAttribute('aria-label', label);
+      back.title = label;
+    }
     const thread = dock.querySelector('.conversation-thread');
     const toggle = dock.querySelector('.dock-history');
     if (thread) thread.hidden = !open;
     if (toggle) {
       toggle.setAttribute('aria-expanded', String(open));
-      toggle.querySelector('span').textContent = open ? 'Hide replies' : 'Replies';
+      toggle.querySelector('.dock-history-label').textContent = open ? 'Hide replies' : 'Replies';
       toggle.setAttribute('aria-label', open ? 'Hide replies' : 'Show replies');
       toggle.title = open ? 'Hide replies' : 'Show replies';
     }
@@ -318,6 +350,7 @@ export function createLiveHome({
           log.scrollTop = log.scrollHeight;
         });
     }
+    placeOrb();
     if (current.snapshot) updates.update(current);
   }
   const data = () => homeData(current.snapshot);
@@ -411,12 +444,12 @@ export function createLiveHome({
       log.setAttribute('aria-label', 'Conversation');
       log.setAttribute('aria-live', 'polite');
       log.tabIndex = 0;
-      const close = action('← Back', () => setThreadOpen(false), 'conversation-back');
+      const close = action('', () => setThreadOpen(false), 'conversation-back');
+      close.innerHTML = '<svg aria-hidden="true"><use href="#arrow-left"/></svg>';
+      close.setAttribute('aria-label', 'Back to Home');
+      close.title = 'Back to Home';
       close.addEventListener('click', () => input.focus());
-      const context = node('div', 'conversation-context');
-      context.append(node('span', 'conversation-context-mark', 'eïlo'));
-      context.append(node('span', 'conversation-context-label', 'Conversation'));
-      thread.append(close, context, log);
+      thread.append(close, log);
       const form = node('form', 'live-composer');
       const label = node('label', 'sr-only', 'Message eïlo');
       label.htmlFor = 'live-message-input';
@@ -474,6 +507,7 @@ export function createLiveHome({
           void runCommand(current.draft);
           return;
         }
+        if (onboarding && !onboarding.prepareSend()) return;
         if (!client.canSend()) return;
         setThreadOpen(true);
         client.send();
@@ -483,18 +517,23 @@ export function createLiveHome({
       status.hidden = true;
       const controls = node('div', 'live-recovery');
       controls.append(
+        status,
         action('Check connection', () => client.refresh(), 'button live-retry'),
         action('Recover saved reply', () => client.recover(), 'button live-recover'),
         action('Return to draft', () => client.returnToDraft(), 'button live-return-draft'),
       );
-      chat.append(thread, form, status, controls);
+      chat.append(thread, form, controls);
       body.append(chat);
-      speech = mountSpeechInput(form, client);
+      speech = mountSpeechInput(form, client, {
+        onSignal({ state, amplitude }) {
+          speechState = state;
+          presence?.update({ state: orbState(current, speechState), amplitude });
+        },
+      });
       const toggle = action('', () => setThreadOpen(!threadOpen), 'dock-history');
       toggle.setAttribute('aria-controls', thread.id);
       toggle.setAttribute('aria-expanded', String(threadOpen));
-      toggle.innerHTML =
-        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10h8M8 14h5M21 11a9 9 0 0 1-9 9 10 10 0 0 1-4-1l-5 2 2-5a9 9 0 1 1 16-5Z"/></svg><span>Replies</span>';
+      toggle.innerHTML = '<span class="dock-history-label">Replies</span>';
       toggle.setAttribute('aria-label', 'Show replies');
       toggle.title = 'Show replies';
       form.querySelector('.speech-actions').prepend(toggle);
@@ -561,6 +600,7 @@ export function createLiveHome({
       else log.append(miniMessage(streamEntry));
       if (atBottom) log.scrollTop = log.scrollHeight;
     } else priorPreview?.remove();
+    placeOrb();
     const input = body.querySelector('.live-input');
     if (input.value !== current.draft) {
       input.value = current.draft;
@@ -587,14 +627,18 @@ export function createLiveHome({
           : current.connection === 'offline'
             ? 'Reconnecting…'
             : 'Enter to send · Shift + Enter for a new line';
+    body
+      .querySelector('.live-chat')
+      .classList.toggle('is-offline', current.connection === 'offline');
     const unconfirmed = current.localPending?.status === 'unconfirmed';
     const status = body.querySelector('.live-chat-error');
     status.textContent =
       desktopNotice ||
-      current.error ||
       (unconfirmed
         ? 'Delivery could not be confirmed. Check the conversation before sending again.'
-        : current.snapshot?.error || '');
+        : current.connection === 'offline'
+          ? 'Connection lost. Your draft is kept.'
+          : current.error || current.snapshot?.error || '');
     status.hidden = !status.textContent;
     body.querySelector('.live-retry').hidden = current.connection === 'connected' && !unconfirmed;
     body.querySelector('.live-retry').disabled = current.sending;
@@ -784,6 +828,18 @@ export function createLiveHome({
       document.querySelector('.nav-items').append(item);
     }
     renderConversation(dock);
+    onboarding = mountOnboarding({
+      client,
+      dock,
+      workspace,
+      setThreadOpen,
+      applyWorkspace,
+      getSoundEnabled,
+      setSoundEnabled,
+      isRecording: () => speechState !== 'idle',
+      openAccount: () => accountHost.querySelector('.account-connect')?.click(),
+      openSettings: (section = 'general') => showPage('settings', { settingsSection: section }),
+    });
     // A different modal must never hide an active microphone control.
     const modalCapture = new MutationObserver(() => {
       if (document.querySelector('dialog[open]')) speech?.cancel();
@@ -798,12 +854,6 @@ export function createLiveHome({
     const context = node('div', 'home-context');
     headline.before(context);
     context.append(headline);
-    const activityButton = action(
-      'Check-in status',
-      () => showPage('activity', { activityTab: 'overview' }),
-      'activity-chip agent-status-chip',
-    );
-    context.append(activityButton);
     client.subscribe((next) => {
       current = next;
       activity.update(next);
@@ -818,11 +868,6 @@ export function createLiveHome({
         connectionsRevision = next.snapshot?.connections_revision;
         connectionsPanel?.refresh({ quiet: true });
       }
-      const checkins = checkinView(next);
-      activityButton.textContent = checkins.chip;
-      activityButton.dataset.tone = checkins.tone;
-      activityButton.setAttribute('aria-label', `${checkins.chip}. Open check-in status`);
-      activityButton.title = checkins.description;
       const value = data();
       headline.textContent =
         next.connection === 'loading'
@@ -835,7 +880,8 @@ export function createLiveHome({
                 ? 'Conversation needs attention'
                 : value.onBreak
                   ? 'On a break'
-                  : `${value.open.length} open commitment${value.open.length === 1 ? '' : 's'}`;
+                  : '';
+      context.hidden = !headline.textContent;
       renderWorkflow(next.snapshot?.workflow_run ?? null);
       const nextFingerprint = widgetFingerprint(next);
       if (nextFingerprint !== fingerprint) {
@@ -843,6 +889,7 @@ export function createLiveHome({
         refreshWidgets();
       }
       renderConversation(dock);
+      onboarding?.update(next, currentPage);
       if (
         dialog.open &&
         ['today', 'goals', 'progress', 'activity', 'browser-setup', 'calendar-day'].includes(
@@ -882,7 +929,13 @@ export function createLiveHome({
     };
     connectDesktop();
     client.start();
-    window.addEventListener('pagehide', () => {
+    window.addEventListener('pagehide', (event) => {
+      if (event.persisted) presence?.pause(true);
+      else {
+        presence?.destroy();
+        presence = null;
+        onboarding?.destroy();
+      }
       calendarPanel?.destroy();
       calendarPanel = null;
       briefingSourcesPanel?.destroy();
@@ -895,6 +948,8 @@ export function createLiveHome({
     });
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) {
+        placeOrb();
+        presence?.pause(false);
         connectDesktop();
         client.start();
         router.start();

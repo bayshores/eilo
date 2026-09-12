@@ -7,8 +7,10 @@ import {
 import { progressText } from '../home/data.js';
 import { createItemControls } from './item-controls.js';
 import { mountCheckinCenter, renderAgentLog } from '../activity/checkins.js';
+import { checkinView } from '../activity/checkin-data.js';
 import { createActivityDayMap } from '../activity/day-map.js';
 import { renderUsageWidget } from '../home/context-widgets.js';
+import { selectBrowserUsage, selectTracking } from '../home/tracking-data.js';
 
 const el = (tag, cls, text) => {
   const item = document.createElement(tag);
@@ -40,6 +42,7 @@ const when = (seconds) =>
 
 export function createWorkspaceViews({
   container,
+  pageHeader,
   onDiscuss,
   onConnections,
   onActivity,
@@ -181,10 +184,18 @@ export function createWorkspaceViews({
     selectedId = result.selected?.id || null;
     trash.querySelector('.goal-filter-count').textContent = result.counts.deleted;
     trash.setAttribute('aria-pressed', String(filter === 'deleted'));
+    trash.hidden = !result.counts.deleted && filter !== 'deleted';
+    filters.hidden =
+      filter === 'open' && result.counts.all === result.counts.open && !result.counts.deleted;
     controls.sync();
     for (const [key, item] of filterButtons) {
       item.setAttribute('aria-pressed', String(key === filter));
       item.querySelector('.goal-filter-count').textContent = result.counts[key];
+      item.hidden =
+        key !== filter &&
+        (key === 'completed'
+          ? !result.counts.completed
+          : key === 'all' && result.counts.all === result.counts.open);
     }
     const nextList = JSON.stringify([
       result.items,
@@ -287,21 +298,6 @@ export function createWorkspaceViews({
         ),
       );
       empty.append(
-        el(
-          'p',
-          '',
-          !result.supported
-            ? 'Your saved goals will appear when the connection is ready.'
-            : query
-              ? 'Try a shorter name or change the filter.'
-              : filter === 'deleted'
-                ? 'Deleted goals can be restored here.'
-                : result.counts.all
-                  ? 'Your active and completed commitments stay available here.'
-                  : 'Tell eïlo in the bar below. It will keep the details here.',
-        ),
-      );
-      empty.append(
         button(
           query ? 'Clear search' : 'Start a conversation',
           () => {
@@ -401,10 +397,19 @@ export function createWorkspaceViews({
   activity.setAttribute('aria-label', 'Activity workspace');
   activity.hidden = true;
   const toolbar = el('div', 'activity-toolbar');
+  const headerControls = el('div', 'activity-header-controls');
+  headerControls.hidden = true;
+  pageHeader.append(headerControls);
+  const checkinHost = el('div', 'activity-checkin-control');
+  headerControls.append(checkinHost, button('Sources', onConnections, 'button'));
   const choices = el('div', 'goal-filters');
   choices.setAttribute('role', 'group');
   choices.setAttribute('aria-label', 'Activity type');
   const activityButtons = new Map();
+  const activityMore = el('details', 'activity-more');
+  activityMore.append(el('summary', '', 'More'));
+  const moreActions = el('div', 'activity-more-actions');
+  activityMore.append(moreActions);
   for (const [key, title] of [
     ['overview', 'Overview'],
     ['checkins', 'Check-ins'],
@@ -417,20 +422,31 @@ export function createWorkspaceViews({
       () => {
         controls.closeMenus();
         activityFilter = key;
+        activityMore.open = false;
         renderActivity();
+        if (['agent', 'trash'].includes(key)) feed.focus({ preventScroll: true });
       },
       'goal-filter',
     );
-    choices.append(item);
+    (['agent', 'trash'].includes(key) ? moreActions : choices).append(item);
     activityButtons.set(key, item);
   }
-  toolbar.append(choices, button('Manage sources', onConnections, 'button'));
+  toolbar.append(choices);
+  headerControls.append(activityMore);
   const feed = el('div', 'activity-feed');
   feed.setAttribute('role', 'region');
   feed.setAttribute('aria-label', 'Activity records');
   feed.tabIndex = 0;
   const overview = el('div', 'activity-overview');
   overview.tabIndex = 0;
+  const firstActivity = el('section', 'activity-first-use');
+  const firstTitle = el('h2');
+  const firstAction = button(
+    'Connect Chrome',
+    () => (onActivitySetup || onConnections)(),
+    'button primary',
+  );
+  firstActivity.append(firstTitle, firstAction);
   const adaptiveTimeline = el('section', 'activity-visuals');
   adaptiveTimeline.setAttribute('aria-label', 'Recorded usage and activity');
   const usageCard = el('article', 'home-widget activity-usage-card');
@@ -440,7 +456,6 @@ export function createWorkspaceViews({
   mapHost.tabIndex = -1;
   const dayMap = createActivityDayMap(mapHost, {
     onForget: (id) => onContextCommand?.('forget', { ids: [id] }),
-    onManageSources: onConnections,
     reducedMotion: () =>
       document.body.classList.contains('reduce-motion') ||
       matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -451,46 +466,82 @@ export function createWorkspaceViews({
     renderActivity();
     activityButtons.get(key)?.focus();
   };
-  const checkinCenter = mountCheckinCenter(overview, {
+  const checkinCenter = mountCheckinCenter(checkinHost, {
     onToggle: onCheckinToggle,
     onConnect: onActivitySetup || onConnections,
     onDiscuss,
-    onLog: () => showActivityFilter('agent'),
-    onCheckIns: () => showActivityFilter('checkins'),
-    onObserved: () => showActivityFilter('observed'),
   });
-  overview.insertBefore(adaptiveTimeline, overview.querySelector('.checkin-columns'));
+  overview.append(firstActivity, adaptiveTimeline);
   activity.append(toolbar, overview, feed);
   container.append(activity);
   function renderAdaptiveTimeline(snapshot) {
-    const active = Array.isArray(snapshot?.adaptive?.episodes);
+    const hasEpisodes = Boolean(snapshot?.adaptive?.episodes?.length);
+    const hasUsage = selectBrowserUsage(current).hasData;
+    const active = hasEpisodes || hasUsage;
+    const observed = observedSessions(snapshot).length;
+    firstActivity.hidden = active || observed > 0;
+    const browser = selectTracking(current).rows.find((row) => row.id === 'browser');
+    const ready = ['Sharing', 'Collecting', 'On device'].includes(browser?.status);
+    const online = current?.connection === 'connected';
+    firstTitle.textContent = !online ? 'Activity unavailable' : 'No recorded activity';
+    firstAction.hidden = !online || ready;
+    usageCard.hidden = !hasUsage;
+    mapHost.hidden = !hasEpisodes;
     adaptiveTimeline.hidden = !active;
     if (!active) return false;
-    renderUsageWidget(
-      usageContent,
-      current,
-      () => {
-        mapHost.scrollIntoView({ block: 'nearest' });
-        mapHost.focus({ preventScroll: true });
-      },
-      onActivitySetup || onConnections,
-    );
-    dayMap.update(current);
+    if (hasUsage)
+      renderUsageWidget(
+        usageContent,
+        current,
+        () => {
+          mapHost.scrollIntoView({ block: 'nearest' });
+          mapHost.focus({ preventScroll: true });
+        },
+        onActivitySetup || onConnections,
+      );
+    if (hasEpisodes) dayMap.update(current);
     return true;
   }
   function renderActivity() {
-    const snapshot = current?.snapshot,
-      records =
-        activityFilter === 'checkins'
-          ? deliveredCheckIns(snapshot)
-          : observedSessions(snapshot, { trash: activityFilter === 'trash' });
+    const snapshot = current?.snapshot;
+    const hasCheckins = deliveredCheckIns(snapshot).length > 0;
+    const hasObserved = observedSessions(snapshot).length > 0;
+    const hasTrash = observedSessions(snapshot, { trash: true }).length > 0;
+    const hasHistory = checkinView(current).history.length > 0;
+    const hasOverview =
+      Boolean(snapshot?.adaptive?.episodes?.length) || selectBrowserUsage(current).hasData;
+    if (
+      (activityFilter === 'checkins' && !hasCheckins) ||
+      (activityFilter === 'observed' && !hasObserved) ||
+      (activityFilter === 'agent' && !hasHistory) ||
+      (activityFilter === 'trash' && !hasTrash)
+    )
+      activityFilter = 'overview';
+    if (activityFilter === 'overview' && !hasOverview)
+      activityFilter = hasObserved ? 'observed' : hasCheckins ? 'checkins' : 'overview';
+    activityButtons.get('checkins').hidden = !hasCheckins;
+    activityButtons.get('observed').hidden = !hasObserved;
+    activityButtons.get('trash').hidden = !hasTrash;
+    activityButtons.get('agent').hidden = !hasHistory;
+    activityMore.hidden = !hasHistory && !hasTrash;
+    if (activityMore.hidden) activityMore.open = false;
+    const showOverview = hasOverview || (!hasCheckins && !hasObserved);
+    activityButtons.get('overview').hidden = !showOverview;
+    choices.hidden =
+      Number(showOverview) + Number(hasCheckins) + Number(hasObserved) < 2 &&
+      !['agent', 'trash'].includes(activityFilter);
+    toolbar.hidden = choices.hidden;
+    checkinCenter.update(current);
+    const records =
+      activityFilter === 'checkins'
+        ? deliveredCheckIns(snapshot)
+        : observedSessions(snapshot, { trash: activityFilter === 'trash' });
     for (const [key, item] of activityButtons)
       item.setAttribute('aria-pressed', String(key === activityFilter));
     overview.hidden = activityFilter !== 'overview';
     feed.hidden = activityFilter === 'overview';
     if (activityFilter === 'overview') {
       renderAdaptiveTimeline(snapshot);
-      checkinCenter.update(current);
       return;
     }
     const nextKey = JSON.stringify([
@@ -508,8 +559,11 @@ export function createWorkspaceViews({
     feed.replaceChildren();
     controls.sync();
     if (activityFilter === 'agent') {
+      feed.append(el('h2', 'activity-feed-title', 'Assistant log'));
       renderAgentLog(feed, current, { onCheckIns: () => showActivityFilter('checkins') });
     } else if (activityFilter !== 'checkins') {
+      if (activityFilter === 'trash')
+        feed.append(el('h2', 'activity-feed-title', 'Recently deleted'));
       if (records.length) {
         const info = el('details', 'activity-info activity-explanation');
         info.open = infoOpen;
@@ -568,9 +622,6 @@ export function createWorkspaceViews({
         feed.append(item);
       }
     } else {
-      feed.append(
-        el('p', 'activity-explanation', 'Check-ins saved in your conversation, newest first.'),
-      );
       if (!records.length) {
         const empty = el('div', 'workspace-empty-state');
         empty.append(
@@ -593,9 +644,12 @@ export function createWorkspaceViews({
   return {
     show(nextPage, { goalFilter, activityTab } = {}) {
       controls.closeMenus();
+      if (page !== nextPage) controls.clearNotice();
       page = nextPage;
       goals.hidden = page !== 'goals';
       activity.hidden = page !== 'activity';
+      headerControls.hidden = page !== 'activity';
+      if (page !== 'activity') checkinCenter.close();
       if (goalFilter) {
         filter = goalFilter;
         query = '';

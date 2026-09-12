@@ -493,11 +493,14 @@ body.reduce-motion .context-switch::after {
   animation: none;
 }
 
-.workspace:not([data-page='home']):not([data-page='settings']) .settings-name-prompt {
+.workspace:not([data-page='home']) .settings-name-prompt {
+  display: none;
+}
+.settings-feedback:empty {
   display: none;
 }
 .settings-name-prompt {
-  align-self: center;
+  align-self: flex-start;
   margin-left: auto;
   font-size: 14px;
   min-height: 40px;

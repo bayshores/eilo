@@ -65,6 +65,13 @@ the commitments and deadlines supported by available sources, explain the reason
 for any priority suggestion, and let the user decide. That request allows useful
 orientation, not an unsolicited tutorial on doing the work.
 
+When the person asks how eïlo works, give brief guidance about the relevant feature.
+Home holds their chosen widgets; Add widgets reveals more when needed. Goals holds
+commitments, and Progress reflects reported progress. Notes is editable. Settings
+keeps connections, collection, AI sharing and notifications under separate controls.
+Continue the same conversation after setup; do not assume any permission is enabled
+or that an optional widget is present without current evidence.
+
 Current capability limits: this human lane receives no measured activity totals by
 default. A source tool may provide minimized, user-permitted work context for a
 question such as "where did I leave off?" It does not prove what the user is doing.
@@ -117,6 +124,34 @@ integer at most 10000.
 """
 
 
+ONBOARDING_POLICY = """
+This turn is part of the person's first workspace setup. The supplied task state
+is an unapproved DRAFT. Propose a small useful workspace around the person's own
+goal; do not invent a work plan, schedule, progress baseline or extra commitments.
+The person will approve the visible preview using a separate button. Do not claim
+that goals or the workspace are already saved. A typed approval can invite them
+to use that button, but cannot finish setup through a task operation.
+
+Use the ordinary update/chat/clarify JSON format. For a concrete goal, emit task
+operations against the draft and optionally ONE additional operation:
+{"op":"workspace","widgets":["goals","progress"],"support_source":"browser"}
+Widgets must contain goals, plus at most two of progress, notes, today, clock.
+Use progress for explicit quantities; add notes or other widgets only when useful
+for the requested workspace or specifically requested. Keep the first workspace
+small. These are existing UI components, never generated code. support_source
+is only an optional recommendation: browser, desktop, calendar, or null when
+the relevant source is not clear. It grants no permissions. Do not propose
+capture, sharing, check-ins, notifications, microphone, connections, focus, or
+break commands. Source configuration is a separate user-guided flow after approval.
+
+Refinements change the current draft: edit/remove existing draft goals rather
+than adding duplicates. If someone is unsure, ask one short question that helps
+them name something they want to move forward. If they give several explicit
+goals, retain them together. For chat or clarify, operations stay empty.
+Current suggested presentation follows as JSON data:
+"""
+
+
 class InputError(ValueError):
     """A deliberately non-diagnostic input rejection."""
 
@@ -135,9 +170,11 @@ def _nonnegative_int(value: Any, field: str) -> int:
 
 def validate_input(value: Any) -> dict[str, Any]:
     """Validate the narrow process boundary, leaving task semantics to the caller."""
-    if not isinstance(value, dict) or set(value) not in (
-        {"session_id", "session_title", "request_id", "text", "task_state"},
-        {"session_id", "session_title", "request_id", "text", "task_state", "context_bridge"},
+    required = {"session_id", "session_title", "request_id", "text", "task_state"}
+    if (
+        not isinstance(value, dict)
+        or not required <= set(value)
+        or set(value) - required - {"context_bridge", "onboarding"}
     ):
         raise InputError("invalid human input")
     session_id = value["session_id"]
@@ -186,16 +223,37 @@ def validate_input(value: Any) -> dict[str, Any]:
             normalized["context_bridge"] = validate_bridge(value["context_bridge"])
         except (ValueError, TypeError, KeyError):
             raise InputError("invalid context bridge") from None
+    if "onboarding" in value:
+        setup = value["onboarding"]
+        if (
+            not isinstance(setup, dict)
+            or set(setup) != {"widgets", "support_source"}
+            or not isinstance(setup["widgets"], list)
+            or not 1 <= len(setup["widgets"]) <= 3
+            or any(
+                not isinstance(widget, str)
+                or widget not in {"goals", "progress", "notes", "today", "clock"}
+                for widget in setup["widgets"]
+            )
+            or setup["support_source"] not in ("browser", "desktop", "calendar", None)
+        ):
+            raise InputError("invalid setup context")
+        normalized["onboarding"] = setup
     return normalized
 
 
-def _policy_for_state(task_state: dict[str, Any], request_id: str) -> str:
+def _policy_for_state(task_state: dict[str, Any], request_id: str, onboarding=None) -> str:
     # State is serialized as data so task text cannot change the policy's structure.
     return (
         "Current human-turn instructions replace any cached eilo lane, response format, or task state from earlier turns.\n"
         + SYSTEM_POLICY
         + "\nAuthoritative current task state follows as JSON data:\n"
         + json.dumps(task_state, ensure_ascii=False, separators=(",", ":"))
+        + (
+            "\n" + ONBOARDING_POLICY + json.dumps(onboarding, ensure_ascii=False)
+            if onboarding is not None
+            else ""
+        )
     )
 
 
@@ -312,7 +370,9 @@ def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
             session_id, repair_alternation=True, include_row_ids=True
         )
         watermark = db.get_active_message_watermark(session_id)
-        base_policy = _policy_for_state(event["task_state"], event["request_id"])
+        base_policy = _policy_for_state(
+            event["task_state"], event["request_id"], event.get("onboarding")
+        )
         read_tools = (
             ReadTools(event["context_bridge"], base_policy) if event.get("context_bridge") else None
         )

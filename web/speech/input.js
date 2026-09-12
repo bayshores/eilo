@@ -1,6 +1,6 @@
 import { createSpeechCapture } from './capture.js';
 
-export function mountSpeechInput(container, client) {
+export function mountSpeechInput(container, client, { onSignal = () => {} } = {}) {
   const controls = document.createElement('div');
   controls.className = 'speech-controls';
   controls.innerHTML =
@@ -37,6 +37,7 @@ export function mountSpeechInput(container, client) {
   }
   function stateChanged({ state, message }) {
     if (disposed) return;
+    onSignal({ state, amplitude: 0 });
     const recording = state === 'recording',
       busy = ['requesting', 'stopping', 'transcribing'].includes(state);
     mic.disabled = !available || state === 'stopping' || state === 'transcribing';
@@ -82,6 +83,7 @@ export function mountSpeechInput(container, client) {
   const capture = createSpeechCapture({
     onState: stateChanged,
     onLevel: (value) => {
+      onSignal({ state: capture.state, amplitude: Math.max(0, Math.min(1, value * 7)) });
       levels.push(Math.max(0, Math.min(1, value * 7)));
       levels.shift();
       controls

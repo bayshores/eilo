@@ -135,6 +135,46 @@ export function createDefaultState() {
   };
 }
 
+/** Keep the approval receipt with geometry so a retry cannot reset later edits. */
+export function applyOnboardingLayout(current, setup) {
+  if (
+    setup?.status !== 'complete' ||
+    !/^[A-Za-z0-9_-]{12,80}$/.test(setup.acceptance_id || '') ||
+    current.onboardingId === setup.acceptance_id
+  )
+    return current;
+  const allowed = new Set(['goals', 'progress', 'notes', 'today', 'clock']);
+  if (
+    !Array.isArray(setup.widgets) ||
+    !setup.widgets.includes('goals') ||
+    setup.widgets.length > 3 ||
+    setup.widgets.some((type) => !allowed.has(type))
+  )
+    return current;
+  const widgets = [...new Set(setup.widgets)].map((type) => ({
+    id: 'setup-' + type,
+    type,
+    size: type === 'goals' ? 'large' : 'medium',
+    footprints: {
+      wide: { w: setup.widgets.length === 1 ? 8 : 6, h: 3 },
+      compact: { w: 6, h: 3 },
+      stacked: { w: 1, h: 3 },
+    },
+  }));
+  return normalizeState({
+    version: 1,
+    onboardingId: setup.acceptance_id,
+    widgets,
+    positions: {
+      wide: widgets.map((widget, index) => ({
+        id: widget.id,
+        x: (index % 2) * 6,
+        y: Math.floor(index / 2) * 3,
+      })),
+    },
+  });
+}
+
 function isUntouchedDefault(state) {
   return (
     state.widgets.length === DEFAULT_WIDGETS.length &&
@@ -266,7 +306,15 @@ export function normalizeState(rawObject) {
         return [{ id: position.id, x, y }];
       });
     }
-  return { version: 1, widgets, positions };
+  return {
+    version: 1,
+    widgets,
+    positions,
+    ...(typeof rawObject.onboardingId === 'string' &&
+    /^[A-Za-z0-9_-]{12,80}$/.test(rawObject.onboardingId)
+      ? { onboardingId: rawObject.onboardingId }
+      : {}),
+  };
 }
 
 function dimensions(widget, mode) {
@@ -763,6 +811,7 @@ export function fitWithinHome(state, { mode = 'wide', rows = 4 } = {}) {
 function cloneState(state) {
   return {
     version: 1,
+    ...(state.onboardingId ? { onboardingId: state.onboardingId } : {}),
     widgets: state.widgets.map((widget) => ({
       ...widget,
       ...(widget.footprints

@@ -1,8 +1,10 @@
 import './styles/focus.js';
+import { applyAccent, createAccentSelector } from './styles/accent.js';
 import {
   CATALOG,
   MODES,
   createDefaultState,
+  applyOnboardingLayout,
   normalizeState,
   tidyHomeLayout,
   withUniqueSourceWidgets,
@@ -97,6 +99,7 @@ const prefs = normalizeHomePreferences({
   ...homeStorage.read(PREFS_KEY, {}),
   ...transferred?.preferences,
 });
+applyAccent(prefs.accentColor);
 // Migrate the old window-sized board once; future custom placement stays untouched.
 if (createLiveHome && prefs.homeLayoutVersion < 2) {
   if (savedLayout && !transferred) {
@@ -160,11 +163,27 @@ const live =
         openDetail: showDetail,
         onSettingsSection: (id) => adaptiveHome?.selectSettings(id),
         dialog: detail,
+        getSoundEnabled: () => prefs.soundEffects,
+        setSoundEnabled: (enabled) => {
+          prefs.soundEffects = enabled === true;
+          return writeStorage(PREFS_KEY, prefs);
+        },
+        applyWorkspace: (setup) => {
+          const next = applyOnboardingLayout(state, setup);
+          if (next === state) return true;
+          if (editing) setEditing(false);
+          state = next;
+          homePage = 0;
+          const saved = writeStorage(KEY, state);
+          requestAnimationFrame(renderBoard);
+          return saved;
+        },
         onViewChange: () => {
           adaptiveHome?.hideSettings();
           if (editing) setEditing(false);
           closeAccount();
           closeWidgetMenu();
+          if (!prefs.pin && matchMedia('(max-width: 700px)').matches) setRail(false);
           requestAnimationFrame(renderBoard);
         },
         refreshWidgets: () => {
@@ -1584,7 +1603,27 @@ live?.start();
 function createGeneralSettings() {
   const section = document.createElement('section');
   section.className = 'general-settings';
-  section.innerHTML = `<h2>General</h2><form class="profile-form"><label class="field">Your name<input type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" required></label><button class="button">Save name</button><p class="settings-feedback" role="status"></p></form><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><label class="field speech-preference">Microphone mode</label><h3>Check-ins & alerts</h3><p class="muted">Choose when eïlo can check in and whether to show desktop alerts.</p><button class="button settings-checkins">Manage check-ins</button><details><summary>Keyboard controls</summary><p>In Edit home, focus a move handle and press Space. Use arrow keys to move, Enter to place, or Escape to cancel. Use arrow keys on a resize handle to change its size.</p></details>`;
+  section.innerHTML = `<h2>General</h2><form class="profile-form"><label class="field">Your name<input type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" required></label><button class="button">Save name</button><p class="settings-feedback" role="status"></p></form><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><label class="field speech-preference">Microphone mode</label><h3>Check-ins & alerts</h3><button class="button settings-checkins">Manage check-ins</button><details><summary>Keyboard controls</summary><p>In Edit home, focus a move handle and press Space. Use arrow keys to move, Enter to place, or Escape to cancel. Use arrow keys on a resize handle to change its size.</p></details>`;
+  section.querySelector('.profile-form').after(
+    createAccentSelector({
+      value: prefs.accentColor,
+      onChange: (color) => {
+        prefs.accentColor = color;
+        return writeStorage(PREFS_KEY, prefs);
+      },
+    }),
+  );
+  const soundOption = document.createElement('label');
+  soundOption.className = 'check-option';
+  const soundInput = document.createElement('input');
+  soundInput.type = 'checkbox';
+  soundInput.checked = prefs.soundEffects;
+  soundOption.append(soundInput, document.createTextNode('Interface sounds'));
+  soundInput.addEventListener('change', () => {
+    prefs.soundEffects = soundInput.checked;
+    writeStorage(PREFS_KEY, prefs);
+  });
+  section.querySelector('.motion-setting').parentElement.after(soundOption);
   const speechMode = document.querySelector('.speech-method select');
   if (speechMode) {
     section.querySelector('.speech-preference').append(speechMode);
@@ -1600,9 +1639,7 @@ function createGeneralSettings() {
     live.showPage('settings', { settingsSection: 'general' });
     section.querySelector('.profile-form input').focus();
   });
-  $('.home-header').append(namePrompt);
-  if (!prefs.name)
-    section.querySelector('.settings-feedback').textContent = 'What should eïlo call you?';
+  $('.header-actions').append(namePrompt);
   section.querySelector('form').addEventListener('submit', (event) => {
     event.preventDefault();
     const value = section.querySelector('.profile-form input').value.trim();

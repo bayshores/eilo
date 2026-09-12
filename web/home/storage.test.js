@@ -65,6 +65,8 @@ test('normalizers accept only bounded profile and note fields', () => {
       pin: false,
       homeLayoutVersion: 1,
       reducedMotion: true,
+      soundEffects: false,
+      accentColor: '#fac399',
       widgetPins: [],
       dismissedContextWidgets: [],
     },
@@ -74,6 +76,8 @@ test('normalizers accept only bounded profile and note fields', () => {
     pin: false,
     homeLayoutVersion: 1,
     reducedMotion: false,
+    soundEffects: false,
+    accentColor: '#fac399',
     widgetPins: [],
     dismissedContextWidgets: [],
   });

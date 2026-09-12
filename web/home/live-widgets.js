@@ -79,7 +79,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
     row.append(
       node(
         'span',
-        'live-speaker',
+        entry.origin === 'check_in' ? 'live-speaker' : 'live-speaker sr-only',
         entry.role === 'user' ? 'You' : entry.origin === 'check_in' ? 'eïlo check-in' : 'eïlo',
       ),
       node('p', '', entry.text),
@@ -166,10 +166,8 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
         );
         return true;
       }
-      container.append(
-        node('h2', '', 'Your goals'),
-        node('p', 'widget-subtitle', value.onBreak ? 'On a break' : 'Saved commitments'),
-      );
+      container.append(node('h2', '', 'Your goals'));
+      if (value.onBreak) container.append(node('p', 'widget-subtitle', 'On a break'));
       const group = node('div', 'live-goals');
       const shown = value.focus
         ? [value.focus, ...value.open.filter((task) => task !== value.focus)].slice(0, 2)
@@ -185,34 +183,30 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       );
     } else if (widget.type === 'progress') {
       container.append(node('h2', '', 'Progress'));
+      const tracked = value.open.filter((task) => progressText(task));
+      const task = tracked.find((item) => item.id === value.focus?.id) || tracked[0];
       const count = node('div', 'practice-count');
       count.append(
-        node('strong', '', String(value.completed.length)),
+        node('strong', '', String(task ? task.completed_count : value.completed.length)),
         node(
           'span',
           '',
-          value.completed.length === 1 ? 'commitment completed' : 'commitments completed',
+          task
+            ? `of ${task.target_count}${task.unit ? ' ' + task.unit : ''}`
+            : value.completed.length === 1
+              ? 'commitment completed'
+              : 'commitments completed',
         ),
       );
       container.append(count);
-      const tracked = value.open.filter((task) => progressText(task));
-      if (tracked.length) {
-        const task = tracked.find((task) => task.id === value.focus?.id) || tracked[0];
-        const copy = node('div', 'live-progress-copy');
-        copy.append(node('strong', '', progressText(task)), node('p', '', task.title));
+      if (task) {
+        if (value.open.length > 1) container.append(node('p', 'live-progress-copy', task.title));
         const meter = node('progress', 'live-meter');
         meter.max = task.target_count;
         meter.value = task.completed_count;
         meter.setAttribute('aria-label', `${task.title}: ${progressText(task)}`);
-        container.append(copy, meter);
-      } else
-        container.append(
-          node(
-            'p',
-            'live-progress-copy',
-            'Progress you share with eïlo is saved with your commitments.',
-          ),
-        );
+        container.append(meter);
+      }
       container.append(
         action('See progress', () => openDetail('progress'), 'text-button live-bottom'),
       );

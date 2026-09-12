@@ -344,3 +344,61 @@ test('activity record controls use their own revision and conversation context',
     conversation_id: 'one',
   });
 });
+
+test('first setup can be skipped before sign-in without sending or losing a draft', async () => {
+  const store = memory();
+  const h = harness(store);
+  const initial = snapshot({
+    can_send: false,
+    account: { state: 'disconnected' },
+    onboarding: { status: 'draft', revision: 0 },
+    workspace: { active_chat_id: 'first-chat' },
+  });
+  await h.ready(initial);
+  h.client.setDraft('Finish my portfolio before recruiting.');
+  h.replies.push(
+    response({
+      ...initial,
+      revision: 'instance:2',
+      onboarding: { status: 'skipped', revision: 1 },
+    }),
+  );
+  await h.client.onboardingCommand('skip');
+  const post = h.calls.at(-1);
+  assert.equal(post.path, '/api/onboarding/commands');
+  assert.equal(post.headers['X-Eilo-Client'], 'local-chat');
+  assert.deepEqual(JSON.parse(post.body), { action: 'skip', request_id: ID, based_on_revision: 0 });
+  assert.equal(h.client.view.draft, 'Finish my portfolio before recruiting.');
+  h.client.stop();
+  const reopened = harness(store);
+  await reopened.ready(initial);
+  assert.equal(reopened.client.view.draft, 'Finish my portfolio before recruiting.');
+  assert.equal(reopened.calls.filter((call) => call.method === 'POST').length, 0);
+});
+
+test('onboarding approval keeps its request identity after an uncertain response', async () => {
+  const h = harness();
+  const proposed = snapshot({ onboarding: { status: 'proposed', revision: 4 } });
+  await h.ready(proposed);
+  h.client.setDraft('An unsent correction');
+  const delivery = defer();
+  h.replies.push(delivery.promise);
+  const attempt = h.client.onboardingCommand('accept', 'workspace-approval-123', 4);
+  delivery.reject(new TypeError('Connection lost'));
+  await assert.rejects(attempt, /could not be confirmed/);
+  assert.equal(h.client.view.snapshot.onboarding.status, 'proposed');
+  assert.equal(h.client.view.draft, 'An unsent correction');
+  h.replies.push(
+    response(
+      snapshot({
+        revision: 'instance:2',
+        onboarding: { status: 'complete', revision: 5, acceptance_id: 'workspace-approval-123' },
+      }),
+    ),
+  );
+  await h.client.onboardingCommand('accept', 'workspace-approval-123', 4);
+  const requests = h.calls.filter((call) => call.method === 'POST');
+  assert.equal(requests[0].body, requests[1].body);
+  assert.equal(h.client.view.snapshot.onboarding.status, 'complete');
+  assert.equal(h.client.view.draft, 'An unsent correction');
+});

@@ -1,0 +1,52 @@
+.agent-orb {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  flex: none;
+  isolation: isolate;
+}
+.agent-orb canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--peach) 33%, transparent))
+    drop-shadow(0 0 8px color-mix(in srgb, var(--peach) 20%, transparent));
+}
+.agent-orb-fallback {
+  position: absolute;
+  inset: 25%;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 35% 28%,
+      color-mix(in srgb, var(--peach) 65%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 70% 70%,
+      color-mix(in srgb, var(--peach) 25%, transparent),
+      transparent 60%
+    ),
+    color-mix(in srgb, var(--peach) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--peach) 25%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--peach) 10%, transparent);
+}
+.agent-orb[data-orb-renderer='webgl'] .agent-orb-fallback {
+  visibility: hidden;
+}
+.agent-orb[data-orb-renderer='fallback'] canvas {
+  visibility: hidden;
+}
+.agent-orb:is([data-orb-state='offline'], [data-orb-state='attention']) {
+  opacity: 0.55;
+}
+
+.conversation-empty-orb,
+.onboarding-orb {
+  display: block;
+  width: 160px;
+  height: 140px;
+  margin: 0 auto 12px;
+}

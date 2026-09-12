@@ -58,16 +58,54 @@ older browser state from silently replacing newer state.
 | Browser drafts and presentation preferences | Browser storage          | Convenience state only; it cannot create or overwrite durable commitments.               |
 | Model/runtime sign-in                       | Hermes private home      | Never read, copy, publish, or infer it from source configuration.                        |
 
+## First workspace setup
+
+`app/onboarding.py` owns a revisioned draft separate from real goals. New metadata
+initializes it; old profiles without it stay outside onboarding. The human-driver
+policy permits bounded goal edits and existing-widget selection during setup.
+`LocalChat.stage_publication` stages those changes through the existing durable
+journal without publishing them as saved goals.
+
+`POST /api/onboarding/commands` accepts explicit revision-checked, idempotent
+approval, skip and support-status commands. Approval writes goals and setup state
+in the same private metadata replacement before acknowledgment. Permission state
+is never part of that command. Interrupted inference uses existing recovery.
+
+`web/onboarding/` reuses the conversation dock and source guides. Accepted widget
+geometry and its approval marker share a browser storage record, preventing a
+repeated receipt from resetting later edits. Support guides confirm current
+collection/sharing/check-in state independently; the native alert API confirms
+only eïlo's delivery preference, not the OS authorization setting. Optional
+synthesized sounds use the existing local preferences and never alter OS audio.
+
 ## Browser code
 
 `web/` contains production browser source. Feature folders such as `home/`,
-`workspace/`, `chat/`, `goals/`, `connections/`, `calendar/`, `activity/`, and
+`workspace/`, `chat/`, `onboarding/`, `goals/`, `connections/`, `calendar/`, `activity/`, and
 `speech/` keep UI behavior close to its styles and tests. `styles/` holds shared
 tokens and base rules; `preview/` contains sample-preview wiring. `assets/`
 contains local assets. `web/asset-manifest.json` is the single explicit mapping
 used by both the live server and `scripts/preview.mjs`; update it whenever a
 served source file changes. Public `/home/` and `/activity-connect` routes are
 stable contracts even when the internal source layout changes.
+
+The agent orb in `web/orb/` adapts noRot's original point-cloud renderer to the
+existing conversation state. One canvas appears above the question during first
+setup or an empty conversation. It is detached and paused when the conversation
+has messages or is closed; the composer and populated chat have no decorative orb.
+It follows the current
+accent and reduced-motion setting, pauses out of view, and retains a static
+fallback when WebGL is unavailable. Three.js is pinned, served locally and loaded
+on visibility; `scripts/vendor-orb.mjs` reproduces its checked-in distribution.
+The orb only displays state; it does not initiate capture or inference. See the
+[orb attribution](../web/orb/NOTICE.md).
+
+Activity navigation is derived from available records: delivered check-ins and
+observed history appear when populated; the agent audit and recoverable deleted
+observations use a secondary menu. First-use guidance does not alter collection,
+sharing or check-in policy. The check-in switch remains the explicit control.
+Home, Goals, Activity and the chat library share the outer page gutters and title
+baseline; the conversation retains its centered reading width.
 
 ## Chrome context
 

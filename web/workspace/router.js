@@ -40,8 +40,10 @@ export function createWorkspaceRouter({
     }
     document.title = `eïlo — ${pageName}`;
     document.querySelector('.app-window')?.setAttribute('aria-label', `eïlo ${pageName}`);
-    document.querySelector('.home-header p')?.toggleAttribute('hidden', page !== 'home');
-    document.querySelector('.home-context')?.toggleAttribute('hidden', page !== 'home');
+    const headline = document.querySelector('.home-header p');
+    const showStatus = page === 'home' && Boolean(headline?.textContent);
+    headline?.toggleAttribute('hidden', !showStatus);
+    document.querySelector('.home-context')?.toggleAttribute('hidden', !showStatus);
     for (const item of document.querySelectorAll('.nav-item')) {
       const active =
         item.dataset.detail ===
@@ -69,11 +71,12 @@ export function createWorkspaceRouter({
       if (currentRoute !== nextRoute) windowRef.history.pushState(null, '', nextRoute);
     }
     if (focus) {
-      const pageHeading = ['connections', 'settings', 'chats', 'projects'].includes(nextPage)
-        ? documentRef.querySelector(
-            nextPage === 'connections' ? '.connections-manager h1' : '.chat-library h1',
-          )
-        : heading;
+      const pageHeading =
+        nextPage === 'connections'
+          ? documentRef.querySelector('.connections-manager h2')
+          : ['chats', 'projects'].includes(nextPage)
+            ? documentRef.querySelector('.chat-library h1')
+            : heading;
       if (pageHeading) {
         pageHeading.tabIndex = -1;
         pageHeading.focus({ preventScroll: true });

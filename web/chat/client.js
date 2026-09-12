@@ -251,7 +251,15 @@ export function createHomeClient({
     !changing &&
     !localPending;
   async function control(path, body) {
-    if (!canManage())
+    // Setup remains available when the model account needs attention.
+    const canSetup =
+      path === '/api/onboarding/commands' &&
+      connection === 'connected' &&
+      !sending &&
+      !changing &&
+      snapshot?.status !== 'busy' &&
+      !snapshot?.recovery_pending;
+    if (!canManage() && !canSetup)
       throw new Error('Wait for the current message or connection before changing this item.');
     abortPoll();
     changing = true;
@@ -276,6 +284,13 @@ export function createHomeClient({
   }
   return {
     canManage,
+    onboardingCommand(action, request = requestId(), revision = snapshot?.onboarding?.revision) {
+      return control('/api/onboarding/commands', {
+        action,
+        request_id: request,
+        based_on_revision: revision,
+      });
+    },
     homeCommand(action, fields = {}, revision) {
       return adaptiveControl('/api/home/commands', action, fields, revision);
     },

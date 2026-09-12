@@ -199,10 +199,14 @@ export function createItemControls({
           ? async () => {
               sameConversation(context);
               await onManage(inverse, revision, context);
+              if (snapshot().conversation_id === context) onSelect(task.id);
             }
           : null,
       );
+      if (action !== 'delete' && snapshot().conversation_id === context) onSelect(task.id);
       onRefresh();
+      if (action !== 'delete')
+        detail.querySelector('.goal-primary')?.focus({ preventScroll: true });
     } catch (error) {
       inform(error.message);
     }
@@ -338,6 +342,7 @@ export function createItemControls({
         }
         inform(state.task ? 'Goal updated.' : 'Goal added.');
         onRefresh();
+        detail.querySelector('[data-goal-action="edit"]')?.focus({ preventScroll: true });
       } catch (fault) {
         state.error = fault.message;
         error.textContent = fault.message;
@@ -441,6 +446,9 @@ export function createItemControls({
     sync,
     managed,
     inform,
+    clearNotice() {
+      notice.hidden = true;
+    },
     select() {
       editor = null;
       closeMenu();

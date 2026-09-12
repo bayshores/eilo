@@ -326,11 +326,10 @@
 .chat-library {
   display: block;
   width: 100%;
-  max-width: 900px;
   height: 100%;
-  margin: 0 auto;
+  margin: 0;
   overflow: auto;
-  padding: 2px 4px 20px;
+  padding: 0 0 20px;
   scrollbar-width: thin;
   overscroll-behavior: contain;
 }
@@ -340,9 +339,9 @@
   min-height: 100%;
 }
 .chat-library__header {
-  align-items: center;
+  align-items: flex-start;
   flex-direction: row;
-  padding: 4px 2px 17px;
+  padding: 0 0 24px;
 }
 .chat-library__header-actions {
   display: flex;
@@ -478,7 +477,7 @@
 }
 @media (max-width: 650px) {
   .chat-library {
-    padding: 2px 0 16px;
+    padding: 0 0 16px;
   }
   .chat-library__header {
     align-items: flex-start;

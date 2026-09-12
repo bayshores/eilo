@@ -1,0 +1,399 @@
+.workspace.onboarding-active .onboarding-shell {
+  grid-column: 2;
+  grid-row: 1;
+  z-index: 26;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1180px, 100%);
+  min-height: 0;
+  margin: 0 auto;
+  padding: 20px 24px 28px;
+  color: var(--ink);
+  background: var(--canvas);
+}
+.onboarding-top,
+.onboarding-top-actions,
+.onboarding-columns,
+.onboarding-chat,
+.onboarding-preview,
+.onboarding-preview-cards,
+.onboarding-support-invitation {
+  display: flex;
+}
+.onboarding-top {
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding-bottom: 22px;
+}
+.onboarding-mark {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.onboarding-top-actions {
+  gap: 12px;
+  align-items: center;
+}
+.onboarding-sound {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.onboarding-sound[aria-pressed='true'] {
+  background: var(--panel);
+  color: var(--ink);
+}
+.onboarding-skip,
+.onboarding-unsure,
+.onboarding-support-later {
+  color: var(--muted);
+}
+.onboarding-columns {
+  min-height: 0;
+  gap: clamp(30px, 6vw, 92px);
+  align-items: stretch;
+}
+.onboarding-chat {
+  flex: 1 1 52%;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+}
+.onboarding-intro {
+  width: 100%;
+  max-width: none;
+  text-align: center;
+}
+.onboarding-intro h1 {
+  max-width: 520px;
+  margin: 0 auto;
+  font-size: clamp(34px, 4.5vw, 58px);
+  line-height: 1.03;
+  letter-spacing: -0.055em;
+  font-weight: 500;
+}
+.onboarding-intro > p {
+  max-width: 485px;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.5;
+}
+.onboarding-intro.is-compact h1 {
+  font-size: clamp(28px, 3vw, 38px);
+}
+.onboarding-intro.is-compact > p,
+.onboarding-intro.is-compact .onboarding-examples,
+.onboarding-intro.is-compact .onboarding-unsure {
+  display: none;
+}
+.onboarding-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+.onboarding-example {
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background 160ms ease;
+}
+.onboarding-example:hover {
+  background: color-mix(in srgb, var(--panel) 75%, var(--peach));
+  transform: translateX(3px);
+}
+.onboarding-stale {
+  color: var(--peach) !important;
+  font-size: 14px !important;
+}
+.onboarding-readiness {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: var(--panel);
+}
+.onboarding-readiness p {
+  flex: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.onboarding-preview {
+  flex: 1 1 42%;
+  min-width: min(100%, 330px);
+  max-width: 480px;
+  flex-direction: column;
+  justify-content: center;
+}
+.onboarding-preview > h2 {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+}
+.onboarding-preview-cards {
+  flex-direction: column;
+  gap: 12px;
+  max-height: min(52vh, 510px);
+  overflow: auto;
+  padding: 2px;
+}
+.onboarding-preview-card {
+  padding: 21px;
+  border: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
+  border-radius: 21px;
+  background: var(--panel);
+}
+.onboarding-preview-card h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 500;
+}
+.onboarding-goal-list {
+  display: grid;
+  gap: 13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.onboarding-goal {
+  display: grid;
+  gap: 3px;
+}
+.onboarding-goal strong {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+.onboarding-goal span,
+.onboarding-preview-progress span {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.onboarding-preview-progress {
+  background: var(--peach);
+  color: #29211b;
+}
+.onboarding-preview-progress p {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+.onboarding-preview-progress strong {
+  font-size: 24px;
+  font-weight: 500;
+}
+.onboarding-preview > .onboarding-accept {
+  align-self: flex-start;
+  margin-top: 18px;
+}
+.onboarding-preview-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 17px;
+}
+.workspace.onboarding-active .board-scroll,
+.workspace.onboarding-active .home-header,
+.workspace.onboarding-active .home-pagination,
+.workspace.onboarding-active .header-actions {
+  visibility: hidden;
+  pointer-events: none;
+}
+.workspace.onboarding-active .conversation-dock {
+  grid-column: auto;
+  grid-row: auto;
+  align-self: auto;
+  width: 100%;
+  height: auto;
+  margin-top: 28px;
+}
+.workspace.onboarding-active .conversation-dock .dock-history,
+.workspace.onboarding-active .conversation-dock .speech-method,
+.workspace.onboarding-active .conversation-dock .speech-status,
+.workspace.onboarding-active .conversation-dock .speech-wave,
+.workspace.onboarding-active .conversation-dock .speech-cancel,
+.workspace.onboarding-active .conversation-dock .chat-switcher,
+.workspace.onboarding-active .conversation-dock .conversation-back {
+  display: none;
+}
+.workspace.onboarding-active .conversation-dock .live-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.workspace.onboarding-active .conversation-dock .conversation-thread {
+  position: static;
+  display: flex;
+  order: -1;
+  height: min(210px, 25dvh);
+  padding: 0 4px 0 0;
+  background: transparent;
+  box-shadow: none;
+}
+.workspace.onboarding-active .conversation-dock .live-messages {
+  padding: 0 10px 0 0;
+}
+.workspace.onboarding-active .conversation-dock .live-composer {
+  box-shadow: 0 10px 34px #0002;
+}
+.onboarding-support-invitation {
+  grid-column: 2;
+  grid-row: 5;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: fit-content;
+  margin: 6px auto 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.workspace.conversation-active .onboarding-support-invitation {
+  display: none;
+}
+.onboarding-support-error {
+  flex-basis: 100%;
+  margin: 0;
+  line-height: 1.5;
+}
+.onboarding-support-invitation .button {
+  min-height: 34px;
+  padding: 4px 10px;
+}
+:root[data-source='live'] .workspace.onboarding-active .conversation-dock {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 160px;
+  padding-top: 0;
+  width: 100%;
+  margin: 24px 0 0;
+}
+:root[data-source='live'] .workspace.onboarding-active .conversation-dock .live-chat {
+  height: auto;
+}
+:root[data-source='live'] .workspace.onboarding-active .conversation-dock .conversation-thread {
+  flex: 1 1 auto;
+  min-height: 80px;
+  padding: 0;
+}
+.onboarding-shell:not(.has-conversation) .conversation-thread {
+  display: none !important;
+}
+.onboarding-shell:not(.has-proposal) .onboarding-preview {
+  display: none;
+}
+.onboarding-shell:not(.has-proposal) .onboarding-chat {
+  max-width: 620px;
+  margin-inline: auto;
+}
+.onboarding-chat {
+  min-height: 0;
+}
+.onboarding-intro {
+  flex-shrink: 0;
+}
+:root[data-source='live'] .workspace.onboarding-active .speech-controls {
+  display: block;
+}
+:root[data-source='live'] .workspace.onboarding-active .speech-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+@media (max-width: 820px) {
+  .workspace.onboarding-active .onboarding-shell {
+    padding: 16px 0 22px;
+    overflow: auto;
+  }
+  .onboarding-columns {
+    flex-direction: column;
+    gap: 28px;
+  }
+  .onboarding-chat,
+  .onboarding-preview {
+    flex: none;
+    max-width: none;
+    min-width: 0;
+  }
+  .onboarding-chat {
+    justify-content: flex-start;
+  }
+  .onboarding-preview {
+    padding-bottom: 12px;
+  }
+  .onboarding-preview-cards {
+    max-height: none;
+  }
+  .workspace.onboarding-active .conversation-dock .conversation-thread {
+    height: min(190px, 27dvh);
+  }
+  .onboarding-support-invitation {
+    flex-wrap: wrap;
+    width: calc(100% - 24px);
+    margin-inline: 12px;
+  }
+}
+@media (max-width: 500px) {
+  .onboarding-top {
+    padding-bottom: 18px;
+  }
+  .onboarding-top-actions {
+    gap: 4px;
+  }
+  .onboarding-intro h1 {
+    font-size: 38px;
+  }
+  .onboarding-intro > p {
+    font-size: 16px;
+  }
+  .onboarding-readiness {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .workspace.onboarding-active .conversation-dock {
+    margin-top: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-example {
+    transition: none;
+  }
+  .onboarding-example:hover {
+    transform: none;
+  }
+}
+.reduce-motion .onboarding-example {
+  transition: none;
+}
+
+.onboarding-shell.has-conversation .onboarding-intro,
+.onboarding-shell.has-conversation .onboarding-examples {
+  display: none;
+}
+:root[data-source='live'] .onboarding-shell:not(.has-conversation) .conversation-dock {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.onboarding-preview {
+  align-self: center;
+}

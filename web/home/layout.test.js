@@ -4,6 +4,7 @@ import {
   CATALOG,
   MODES,
   createDefaultState,
+  applyOnboardingLayout,
   normalizeState,
   paginateHomeLayout,
   previewMove,
@@ -14,6 +15,30 @@ import {
   withUniqueSourceWidgets,
   withTrackingWidgets,
 } from './layout.js';
+
+test('approved setup applies once and retains its receipt through manual edits and reload', () => {
+  const setup = {
+    status: 'complete',
+    acceptance_id: 'approved_workspace_001',
+    widgets: ['goals', 'progress'],
+  };
+  const original = createDefaultState();
+  assert.equal(applyOnboardingLayout(original, null), original);
+  assert.equal(applyOnboardingLayout(original, { ...setup, status: 'proposed' }), original);
+  const applied = applyOnboardingLayout(original, setup);
+  assert.deepEqual(
+    applied.widgets.map((widget) => widget.type),
+    ['goals', 'progress'],
+  );
+  const edited = updateLayout(applied, { type: 'remove', id: 'setup-progress' });
+  const restored = normalizeState(JSON.parse(JSON.stringify(edited)));
+  assert.equal(restored.onboardingId, setup.acceptance_id);
+  assert.equal(applyOnboardingLayout(restored, setup), restored);
+  assert.equal(
+    applyOnboardingLayout(original, { ...setup, widgets: ['goals', 'capture'] }),
+    original,
+  );
+});
 
 const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 const assertUsable = (state, mode) => {

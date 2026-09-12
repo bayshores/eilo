@@ -787,7 +787,7 @@
     radial-gradient(ellipse at 95% 0%, #fac39940, transparent 60%),
     radial-gradient(ellipse at 0% 100%, #b4b1da25, transparent 65%),
     linear-gradient(130deg, #292b30 18%, #3a302c 100%);
-  border-color: #fac39930;
+  border-color: color-mix(in srgb, var(--accent-color) 19%, transparent);
 }
 .widget[data-type='goals'].home-widget {
   background: linear-gradient(135deg, #36333e, #2b3035 62%, #292b30);
@@ -840,7 +840,7 @@
   background: #ffffff24;
 }
 .launcher-action--sand {
-  background: #fac3992e;
+  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
 }
 .launcher-action--lavender {
   background: #b4b1da30;
@@ -983,15 +983,20 @@
 .conversation-back {
   align-self: flex-start;
   flex: 0 0 auto;
-  min-height: 40px;
-  padding: 8px 10px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
   border: 0;
   border-radius: 10px;
   background: transparent;
   color: var(--muted);
-  font: inherit;
-  font-size: 14px;
   cursor: pointer;
+}
+.conversation-back svg {
+  width: 18px;
+  height: 18px;
 }
 .conversation-back:hover {
   color: var(--ink);
@@ -999,22 +1004,27 @@
 }
 .conversation-dock .live-composer {
   flex: 0 0 auto;
-  border: 1px solid #fac39930;
-  background: linear-gradient(135deg, #fac39914, #2b2d32 40%);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 19%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-color) 8%, transparent),
+    #2b2d32 40%
+  );
   box-shadow:
     inset 0 1px #ffffff05,
     0 10px 30px #0003;
 }
 .conversation-dock .live-composer:focus-within {
-  border-color: #fac39966;
+  border-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
 }
 .conversation-thread .live-snippet-user {
+  width: fit-content;
   margin-left: auto;
   max-width: 85%;
   padding: 12px 16px;
   border: 1px solid #ffffff0a;
   border-radius: 14px;
-  background: #fac39914;
+  background: color-mix(in srgb, var(--accent-color) 8%, transparent);
 }
 .conversation-thread .live-snippet-assistant {
   padding: 2px;
@@ -1029,33 +1039,6 @@
   outline-offset: 2px;
 }
 
-.conversation-context {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: min(100%, 860px);
-  min-height: 38px;
-  margin: 10px auto 28px;
-  padding: 8px 12px;
-  border: 1px solid #ffffff0d;
-  border-radius: 12px;
-  background: #ffffff04;
-  color: #aaa8b0;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.conversation-context-mark {
-  color: var(--peach);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  text-transform: none;
-}
-.conversation-context-label {
-  opacity: 0.72;
-}
-
 .conversation-empty-state {
   display: grid;
   justify-items: center;
@@ -1065,18 +1048,6 @@
   text-align: center;
   opacity: 0.78;
   animation: conversation-empty-in 200ms ease-out;
-}
-.conversation-empty-orb {
-  width: 34px;
-  height: 34px;
-  margin-bottom: 16px;
-  border: 1px solid rgb(243 184 137 / 24%);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 28%, rgb(243 184 137 / 58%), transparent 28%),
-    radial-gradient(circle at 72% 72%, rgb(184 169 217 / 42%), transparent 34%),
-    rgb(255 255 255 / 3%);
-  box-shadow: 0 0 25px rgb(243 184 137 / 11%);
 }
 .conversation-empty-state .live-empty {
   color: inherit;
@@ -1090,29 +1061,7 @@
   font-size: 12.5px;
   letter-spacing: 0.01em;
 }
-.conversation-thread .live-snippet-assistant .live-speaker::before {
-  content: 'ë';
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border: 1px solid rgb(243 184 137 / 25%);
-  border-radius: 7px;
-  color: var(--peach);
-  background: rgb(243 184 137 / 8%);
-  font-size: 12px;
-  font-weight: 600;
-}
 
-.workspace.conversation-active {
-  background:
-    radial-gradient(circle at 24% 76%, #f3b88915, transparent 38%),
-    radial-gradient(circle at 78% 16%, #b8a9d911, transparent 36%);
-}
-.conversation-context {
-  flex: 0 0 auto;
-  margin: 10px 0 0;
-}
 .conversation-empty-state {
   animation: none;
 }
@@ -1127,9 +1076,6 @@
   font-size: 15.5px;
 }
 @media (max-height: 500px) {
-  .conversation-context {
-    display: none;
-  }
   :root[data-source='live'] .workspace.conversation-active .conversation-dock {
     padding-top: 0;
   }
@@ -1139,11 +1085,139 @@
   display: none;
 }
 .workspace.conversation-active .conversation-thread .live-messages .live-snippet-user {
-  background: #fac39914;
+  background: color-mix(in srgb, var(--accent-color) 8%, transparent);
 }
 
 /* Home keeps a compact draft preview; the conversation gives long drafts room. */
 .workspace:not(.conversation-active) .conversation-dock .live-input {
   height: 28px !important;
   max-height: 28px;
+}
+
+.accent-selector {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #ffffff18;
+  border-radius: 12px;
+}
+.accent-selector legend {
+  padding: 0 6px;
+  font-size: 15px;
+}
+.accent-presets,
+.accent-custom,
+.accent-channels {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.accent-presets button {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-width: 64px;
+  min-height: 70px;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.accent-presets button[aria-pressed='true'] {
+  border-color: var(--peach);
+  background: #ffffff08;
+  color: var(--ink);
+}
+.accent-presets button span {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px #ffffff30;
+}
+.accent-custom {
+  align-items: end;
+  margin-top: 18px;
+  gap: 18px;
+}
+.accent-picker-label,
+.accent-channels label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.accent-picker-label input {
+  width: 64px;
+  height: 42px;
+  padding: 4px;
+  cursor: pointer;
+}
+.accent-channels {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.accent-channels input {
+  width: 64px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px;
+}
+.accent-custom input {
+  border: 1px solid #ffffff24;
+  border-radius: 8px;
+  background: var(--canvas);
+  color: var(--ink);
+}
+.accent-feedback:empty {
+  display: none;
+}
+.accent-feedback:not(:empty) {
+  margin-top: 12px;
+}
+:root[data-custom-accent='true'] .widget[data-type='today'].home-widget {
+  background:
+    radial-gradient(
+      ellipse at 95% 0%,
+      color-mix(in srgb, var(--accent-color) 25%, transparent),
+      transparent 65%
+    ),
+    var(--panel);
+  border-color: color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+:root[data-custom-accent='true'] .widget[data-type='progress'].home-widget {
+  background: linear-gradient(135deg, var(--peach), color-mix(in srgb, var(--peach) 85%, white));
+}
+
+.activity-overview {
+  padding: 0 0 8px;
+  background: transparent;
+  border-radius: 0;
+}
+.activity-overview .activity-visuals {
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+.conversation-thread .live-messages:has(.conversation-empty-state) {
+  display: grid;
+  place-items: center;
+}
+.conversation-empty-state {
+  min-height: 0;
+  opacity: 1;
+}
+.conversation-empty-state .live-empty {
+  margin-top: 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.conversation-dock .live-input:focus-visible {
+  outline: none;
+}
+.conversation-dock .live-composer:has(.live-input:focus-visible) {
+  border-color: var(--peach);
+  box-shadow: 0 0 0 1px var(--peach);
 }

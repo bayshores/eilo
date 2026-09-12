@@ -37,6 +37,14 @@ from app.context_service import ContextService
 from app.context_store import ContextStoreError
 from app.errors import ChatError
 from app.google_calendar import GoogleCalendarConnection
+from app.onboarding import (
+    OnboardingError,
+    active_onboarding,
+    apply_onboarding_command,
+    initial_onboarding,
+    public_onboarding,
+    stage_onboarding,
+)
 from app.paths import META, ROOT, RUNTIME
 from app.persistence import write_private
 from app.proactive import ProactiveLoop
@@ -143,6 +151,7 @@ class LocalChat:
 
     @staticmethod
     def fresh_meta() -> dict:
+        tasks = initial_tasks()
         return {
             "version": 2,
             "title": "eilo-ui-" + uuid.uuid4().hex,
@@ -154,7 +163,8 @@ class LocalChat:
             "pending_message": None,
             "pending_turn": None,
             "pending_publication": None,
-            "tasks": initial_tasks(),
+            "tasks": tasks,
+            "onboarding": initial_onboarding(tasks),
         }
 
     @property
@@ -208,6 +218,7 @@ class LocalChat:
             and not self.meta.get("pending_publication"),
             "schema_version": 2,
             "tasks": public_state(self.meta["tasks"]),
+            "onboarding": public_onboarding(self.meta.get("onboarding")),
             "workspace": snapshot_catalog(self.meta),
             "connections_revision": self.connections.snapshot()["revision"],
             "integrations": {
@@ -515,7 +526,16 @@ class LocalChat:
                 request_id=request_id,
                 pending_turn={
                     "request_id": request_id,
-                    "based_on_revision": self.meta["tasks"]["revision"],
+                    "based_on_revision": (
+                        self.meta["onboarding"]["draft_tasks"]["revision"]
+                        if active_onboarding(self.meta.get("onboarding"))
+                        else self.meta["tasks"]["revision"]
+                    ),
+                    **(
+                        {"onboarding_revision": self.meta["onboarding"]["revision"]}
+                        if active_onboarding(self.meta.get("onboarding"))
+                        else {}
+                    ),
                 },
                 pending_message={
                     "request_id": request_id,
@@ -572,21 +592,37 @@ class LocalChat:
             if proposal["kind"] == "update" and pending.get("source_used"):
                 raise TaskError("Source-based task changes need a separate user confirmation.")
             if proposal["kind"] == "update":
-                candidate["tasks"], reply = apply_operations(
-                    candidate["tasks"],
-                    proposal["operations"],
-                    based_on_revision=proposal["based_on_revision"],
-                    request_id=request_id,
-                    source={
-                        "kind": "human",
-                        "session_id": receipt["session_id"],
-                        "user_id": str(receipt["user_id"]),
-                        "assistant_id": str(receipt["assistant_id"]),
-                    },
-                )
-                if len(reply) > 7500:
-                    reply = f"Saved all {len(proposal['operations'])} requested task changes. They are shown in your task list."
-                disposition = "committed"
+                source = {
+                    "kind": "human",
+                    "session_id": receipt["session_id"],
+                    "user_id": str(receipt["user_id"]),
+                    "assistant_id": str(receipt["assistant_id"]),
+                }
+                if "onboarding_revision" in pending:
+                    candidate["onboarding"] = stage_onboarding(
+                        candidate.get("onboarding"),
+                        proposal["operations"],
+                        based_on_revision=pending["onboarding_revision"],
+                        request_id=request_id,
+                        source=source,
+                    )
+                    reply = (
+                        "How does this look?"
+                        if candidate["onboarding"]["status"] == "proposed"
+                        else "What would you like this workspace to help you accomplish?"
+                    )
+                    disposition = "chat"
+                else:
+                    candidate["tasks"], reply = apply_operations(
+                        candidate["tasks"],
+                        proposal["operations"],
+                        based_on_revision=proposal["based_on_revision"],
+                        request_id=request_id,
+                        source=source,
+                    )
+                    if len(reply) > 7500:
+                        reply = f"Saved all {len(proposal['operations'])} requested task changes. They are shown in your task list."
+                    disposition = "committed"
             else:
                 reply, disposition = proposal["reply"], proposal["kind"]
                 # A second guard for an inconsistent *claim*, never an intent parser.
@@ -598,7 +634,7 @@ class LocalChat:
                 ):
                     reply = "I couldn't confirm that task change. Your saved tasks are unchanged."
                     disposition = "clarify"
-        except (TaskError, TypeError, KeyError):
+        except (TaskError, OnboardingError, TypeError, KeyError):
             reply = "I couldn't finish that reply. Your message is saved, and nothing was changed."
             disposition = "rejected"
         candidate["pending_publication"] = {
@@ -694,6 +730,28 @@ class LocalChat:
                 )
         await self.publish_staged_reply()
 
+    async def control_onboarding(self, body: dict) -> dict:
+        async with self.lock:
+            if not self.meta.get("onboarding"):
+                raise OnboardingError("This workspace already has its own setup.", 409)
+            if self.busy or self.meta.get("pending_publication"):
+                raise TaskConflict("Wait for the current reply before changing setup.")
+            if (
+                isinstance(body, dict)
+                and body.get("action") == "accept"
+                and (self.error or self.meta.get("pending_turn"))
+            ):
+                raise TaskConflict("Recover or retry the last reply before approving this preview.")
+            setup, tasks = apply_onboarding_command(
+                self.meta["onboarding"], self.meta["tasks"], body
+            )
+            candidate = deepcopy(self.meta)
+            candidate["onboarding"], candidate["tasks"] = setup, tasks
+            self.commit_meta(candidate)
+            self.proactive.invalidate()
+            self.changed()
+            return self.snapshot()
+
     async def control_tasks(
         self, operations: list, request_id: str, based_on_revision: int, conversation_id=None
     ) -> dict:
@@ -718,6 +776,10 @@ class LocalChat:
             await self.proactive.wait_for_preempted_event()
             candidate = deepcopy(self.meta)
             candidate["tasks"] = updated
+            # Direct goal controls are an explicit alternative to guided setup.
+            if active_onboarding(candidate.get("onboarding")):
+                candidate["onboarding"]["status"] = "skipped"
+                candidate["onboarding"]["revision"] += 1
             candidate["accountability"]["last_fingerprint"] = None
             self.commit_meta(candidate)
             self.error = None
@@ -765,7 +827,21 @@ class LocalChat:
                     "session_title": self.meta["title"],
                     "request_id": request_id,
                     "text": text,
-                    "task_state": public_state(self.meta["tasks"]),
+                    "task_state": public_state(
+                        self.meta["onboarding"]["draft_tasks"]
+                        if "onboarding_revision" in self.meta["pending_turn"]
+                        else self.meta["tasks"]
+                    ),
+                    **(
+                        {
+                            "onboarding": {
+                                "widgets": self.meta["onboarding"]["widgets"],
+                                "support_source": self.meta["onboarding"]["support_source"],
+                            }
+                        }
+                        if "onboarding_revision" in self.meta["pending_turn"]
+                        else {}
+                    ),
                     "context_bridge": source_turn.capability(),
                 },
             )

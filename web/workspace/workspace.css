@@ -232,10 +232,17 @@
 }
 .live-recovery {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
-.live-recovery:not(:has(button:not([hidden]))) {
+.live-recovery .live-chat-error {
+  flex: 1 1 200px;
+}
+.live-chat.is-offline .live-chat-status {
+  display: none;
+}
+.live-recovery:not(:has(> :not([hidden]))) {
   display: none;
 }
 :root[data-source='live'] .button:disabled {
@@ -332,7 +339,7 @@
 .workspace[data-page='chats'] .workspace-page,
 .workspace[data-page='projects'] .workspace-page {
   grid-row: 1 / 3;
-  padding-top: 32px;
+  padding-top: 28px;
 }
 .connections-page {
   width: 100%;
@@ -589,7 +596,7 @@
 }
 .conversation-thread .live-messages .live-snippet-user {
   padding: 10px 14px;
-  margin-left: 36px;
+  margin-left: auto;
   background: #41434a;
 }
 .conversation-thread .live-messages .live-snippet-assistant {

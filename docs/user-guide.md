@@ -1,5 +1,22 @@
 # User guide
 
+## Your first workspace
+
+A new workspace begins with **What are you trying to accomplish?** Describe a goal,
+choose a starter, or ask for help choosing one. Connect ChatGPT when prompted;
+your draft stays in the composer while you finish or cancel sign-in.
+
+The suggested workspace appears beside the same conversation. Ask for changes
+there, then choose **Use this workspace** to save the goals and use that
+arrangement on Home. Until approval, the proposal is a draft. **Skip setup**
+opens the ordinary app. Existing workspaces keep their goals and custom layout.
+
+After approval, continue the conversation to ask about a feature or change a goal.
+**Set up support** offers a relevant optional connection and guides its separate
+AI-sharing, check-in and alert choices. **Not now** or **Later** keeps the workspace
+and stops the invitation from appearing on each launch. All connection controls
+remain available in Settings.
+
 ## Connect ChatGPT
 
 Open **Settings → Account → Connect ChatGPT**. A **Connect ChatGPT** shortcut also appears on Home while sign-in is needed. The sign-in panel shows your code; choose **Continue in browser** and enter it on OpenAI’s page. The panel closes when connected. **Finish sign-in** reopens an unfinished connection, and **Cancel sign-in** stops it.
@@ -24,7 +41,17 @@ or edit a goal, set or clear focus, complete, cancel, reopen, or move a goal to
 Trash. Trash is recoverable local goal state; it does not erase older native
 conversation history.
 
-In **Activity → Overview**, the master control at the top explicitly says **Turn off check-ins** when enabled and **Turn on check-ins** when paused. Desktop alerts have a separate control; turning alerts off does not pause the check-in engine.
+Activity starts with the current check-in control and a way to connect activity.
+**Check-ins** and **Recorded activity** filters appear when there are records.
+**More** holds the assistant log and recently deleted observations when available.
+Empty charts and empty history pages are deferred until they have content. If
+recorded sessions are available without a usage graph, Activity opens directly to
+those records. **Sources** stays in the header.
+
+The **Check-ins** switch stays in the Activity header. Its accessible label says
+whether it will turn check-ins on or off. The adjacent settings icon opens current
+status, desktop alerts and optional help. Turning alerts off does not pause the
+check-in engine. Opening these settings does not grant a permission.
 
 Activity shows permitted observations separately from check-ins. An activity
 record can be moved to Trash or disconnected from a goal. Removing a goal link
@@ -59,10 +86,15 @@ a website segment for its recorded time. Activity shows website lanes with page
 titles and details on selection. These views fill as Chrome records activity;
 they do not measure total device screen time. Daily bars use UTC.
 
-Both are available from **Home → Add widgets** when they are not already on Home. They also appear automatically on a fresh
-or untouched Home. Your custom arrangement is kept.
+Both are available from **Home → Add widgets** when they are not already on Home.
+The ordinary starter layout includes them; a workspace approved during first
+setup begins with only the chosen widgets. Your custom arrangement is kept.
 
 Choose **Edit home → Tidy layout** to align cards while keeping their sizes, or **Settings → Widgets & layout → Restore starter layout**. Both offer Undo and keep saved contents. The upgrade makes a one-time backup of old layout metadata, removes identical source cards, and aligns the source widgets; later custom placement is kept.
+
+**Settings → General → Interface sounds** enables quiet cues for confirmed setup actions. Sounds start off, stay silent while recording or the page is hidden, and are separate from desktop notification settings.
+
+**Settings → General → Accent color** offers Peach, Rose, Lavender, Sky, and Mint presets, plus a custom color picker and RGB values (0–255). Changes apply immediately and are saved locally in this browser or desktop app. Choose Peach to restore the original accent. Dark choices are lightened for text and filled controls to keep them readable.
 
 Until you save a name, **Add your name** on Home or Settings opens **General → Your name**. The field starts empty; the old “You” placeholder is treated as missing. Names are saved locally in this browser or desktop app.
 

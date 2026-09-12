@@ -9,6 +9,7 @@ from aiohttp import web
 from app.accountability import canonical_goal_message
 from app.chat_catalog import snapshot_catalog
 from app.chat_service import MAX_MESSAGE, LocalChat
+from app.onboarding import OnboardingError
 from app.tasks import TaskConflict, TaskError
 
 REQUEST_ID = re.compile(r"[A-Za-z0-9_-]{12,80}")
@@ -115,6 +116,16 @@ def register(app: web.Application, chat: LocalChat) -> None:
         except TaskError as exc:
             return web.json_response({"error": str(exc)}, status=400)
 
+    async def onboarding(request: web.Request) -> web.Response:
+        try:
+            return web.json_response(await chat.control_onboarding(await request.json()))
+        except OnboardingError as exc:
+            return web.json_response({"error": str(exc)}, status=exc.status)
+        except TaskConflict as exc:
+            return web.json_response({"error": str(exc)}, status=409)
+        except TaskError as exc:
+            return web.json_response({"error": str(exc)}, status=400)
+
     async def recover(request: web.Request) -> web.Response:
         if await request.json() != {}:
             return web.json_response({"error": "Invalid recovery request."}, status=400)
@@ -136,4 +147,5 @@ def register(app: web.Application, chat: LocalChat) -> None:
     app.router.add_post("/api/new", new)
     app.router.add_post("/api/goal", goal)
     app.router.add_post("/api/tasks", tasks)
+    app.router.add_post("/api/onboarding/commands", onboarding)
     app.router.add_post("/api/recover", recover)

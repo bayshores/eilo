@@ -172,11 +172,7 @@ function createUsage(container) {
   const siteName = node('span', 'usage-site-name');
   const siteTime = node('span', 'usage-site-time');
   siteDetail.append(siteName, siteTime);
-  allocation.append(
-    node('span', 'usage-allocation-label', 'Where time went · 7d'),
-    ribbon,
-    siteDetail,
-  );
+  allocation.append(ribbon, siteDetail);
   summary.append(total, period, allocation);
   const chart = node('div', 'usage-week');
   chart.setAttribute('role', 'group');

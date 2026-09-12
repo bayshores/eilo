@@ -8,6 +8,8 @@ export function mountDesktopSetup(
     onConfigure,
     onRefresh,
     onDone,
+    onDismiss = onDone,
+    doneLabel = null,
     requestPermission = globalThis.eiloDesktop?.openContextPermission,
   } = {},
 ) {
@@ -49,7 +51,7 @@ export function mountDesktopSetup(
       lastKey = key;
       heading.textContent = state.title;
       copy.textContent = state.copy;
-      primary.textContent = state.label;
+      primary.textContent = state.action === 'done' && doneLabel ? doneLabel : state.label;
       visual.dataset.stage = String(state.stage);
       animateSetup(root);
     }
@@ -90,7 +92,7 @@ export function mountDesktopSetup(
       render();
     }
   });
-  later.addEventListener('click', () => onDone?.());
+  later.addEventListener('click', () => onDismiss?.());
   return {
     update(next, options = {}) {
       current = next;
