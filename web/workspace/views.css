@@ -403,6 +403,10 @@
   box-shadow: none;
   padding: 12px 17px;
 }
+.workspace.conversation-active .conversation-thread {
+  height: calc(100dvh - 185px);
+  max-height: none;
+}
 .conversation-thread .live-messages {
   padding-right: 43px;
 }

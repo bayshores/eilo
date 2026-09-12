@@ -142,22 +142,93 @@ export function withConversationDock(rawState) {
 export function withTrackingWidgets(rawState) {
   const next = normalizeState(rawState);
   const untouched = normalizeState(withConversationDock(createDefaultState()));
-  if (JSON.stringify(next) !== JSON.stringify(untouched)) return next;
-  next.widgets = [
-    { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
-    { id: 'goals-1', type: 'goals', size: 'small' },
-    { id: 'tracking-1', type: 'tracking', size: 'small' },
-    { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
-    { id: 'usage-1', type: 'usage', size: 'medium' },
-  ];
-  next.positions.wide = [
-    { id: 'today-1', x: 0, y: 0 },
-    { id: 'goals-1', x: 4, y: 0 },
-    { id: 'tracking-1', x: 8, y: 0 },
-    { id: 'progress-1', x: 0, y: 2 },
-    { id: 'usage-1', x: 4, y: 2 },
-  ];
-  return next;
+  const legacy = {
+    version: 1,
+    widgets: [
+      { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'goals-1', type: 'goals', size: 'small' },
+      { id: 'tracking-1', type: 'tracking', size: 'small' },
+      { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'usage-1', type: 'usage', size: 'medium' },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'goals-1', x: 4, y: 0 },
+        { id: 'tracking-1', x: 8, y: 0 },
+        { id: 'progress-1', x: 0, y: 2 },
+        { id: 'usage-1', x: 4, y: 2 },
+      ],
+    },
+  };
+  const dashboard = {
+    version: 1,
+    widgets: [
+      { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 6, h: 2 } } },
+      { id: 'goals-1', type: 'goals', size: 'small', footprints: { wide: { w: 6, h: 2 } } },
+      { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'usage-1', type: 'usage', size: 'medium' },
+      { id: 'tracking-1', type: 'tracking', size: 'small', footprints: { wide: { w: 12, h: 2 } } },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'goals-1', x: 6, y: 0 },
+        { id: 'progress-1', x: 0, y: 2 },
+        { id: 'usage-1', x: 4, y: 2 },
+        { id: 'tracking-1', x: 0, y: 4 },
+      ],
+    },
+  };
+  const launcher = {
+    version: 1,
+    widgets: [
+      { id: 'today-1', type: 'today', size: 'large', footprints: { wide: { w: 12, h: 3 } } },
+    ],
+    positions: { wide: [{ id: 'today-1', x: 0, y: 0 }] },
+  };
+  const compactHome = {
+    version: 1,
+    widgets: [
+      { id: 'today-1', type: 'today', size: 'large', footprints: { wide: { w: 12, h: 3 } } },
+      { id: 'goals-1', type: 'goals', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 3, h: 2 } } },
+      { id: 'usage-1', type: 'usage', size: 'small', footprints: { wide: { w: 5, h: 2 } } },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'goals-1', x: 0, y: 3 },
+        { id: 'progress-1', x: 4, y: 3 },
+        { id: 'usage-1', x: 7, y: 3 },
+      ],
+    },
+  };
+  if (
+    JSON.stringify(next) !== JSON.stringify(untouched) &&
+    JSON.stringify(next) !== JSON.stringify(legacy) &&
+    JSON.stringify(next) !== JSON.stringify(dashboard) &&
+    JSON.stringify(next) !== JSON.stringify(launcher) &&
+    JSON.stringify(next) !== JSON.stringify(compactHome)
+  )
+    return next;
+  return {
+    version: 1,
+    widgets: [
+      { id: 'today-1', type: 'today', size: 'large', footprints: { wide: { w: 12, h: 4 } } },
+      { id: 'goals-1', type: 'goals', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 3, h: 2 } } },
+      { id: 'usage-1', type: 'usage', size: 'small', footprints: { wide: { w: 5, h: 2 } } },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'goals-1', x: 0, y: 4 },
+        { id: 'progress-1', x: 4, y: 4 },
+        { id: 'usage-1', x: 7, y: 4 },
+      ],
+    },
+  };
 }
 
 export function normalizeState(rawObject) {

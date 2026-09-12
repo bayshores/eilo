@@ -53,13 +53,21 @@ test('tracking widgets fit an untouched live Home and never reset a custom arran
   const next = withTrackingWidgets(previous);
   assert.deepEqual(
     next.widgets.map((widget) => widget.type),
-    ['today', 'goals', 'tracking', 'progress', 'usage'],
+    ['today', 'goals', 'progress', 'usage'],
   );
-  assertUsable(next, 'wide');
-  assert.ok(projectLayout(next, 'wide').every((widget) => widget.y + widget.h <= 4));
+  for (const mode of Object.keys(MODES)) assertUsable(next, mode);
+  assert.deepEqual(
+    projectLayout(next, 'wide').map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
+    [
+      { id: 'today-1', x: 0, y: 0, w: 12, h: 4 },
+      { id: 'goals-1', x: 0, y: 4, w: 4, h: 2 },
+      { id: 'progress-1', x: 4, y: 4, w: 3, h: 2 },
+      { id: 'usage-1', x: 7, y: 4, w: 5, h: 2 },
+    ],
+  );
   assert.deepEqual(previous, original);
   assert.deepEqual(withTrackingWidgets(next), next);
-  const removed = updateLayout(next, { type: 'remove', id: 'tracking-1' });
+  const removed = updateLayout(next, { type: 'remove', id: 'today-1' });
   assert.deepEqual(withTrackingWidgets(removed), removed, 'a removed widget is not re-added');
   const custom = updateLayout(previous, {
     type: 'add',

@@ -3,6 +3,7 @@ import { createSpeechCapture } from './capture.js';
 export function mountSpeechInput(container, client) {
   const controls = document.createElement('div');
   controls.className = 'speech-controls';
+  controls.dataset.state = 'idle';
   controls.innerHTML =
     '<div class="speech-actions"><button type="button" class="speech-mic" aria-label="Start recording" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span class="speech-button-label">Speak</span></button><label class="sr-only" for="speech-mode">Microphone mode</label><select id="speech-mode" aria-label="Microphone mode"><option value="toggle">Click to toggle</option><option value="hold">Hold to talk</option></select><div class="speech-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><button type="button" class="text-button speech-cancel" hidden>Cancel</button></div><p class="speech-status" role="status">Transcribed on this Mac. Review before sending.</p>';
   container.append(controls);
@@ -102,10 +103,9 @@ export function mountSpeechInput(container, client) {
       if (disposed) return;
       available = value.ready === true;
       if (available) stateChanged({ state: 'idle' });
-      else status.textContent = 'Local speech is unavailable. You can still type.';
     })
     .catch(() => {
-      if (!disposed) status.textContent = 'Could not check local speech. You can still type.';
+      if (!disposed) controls.dataset.state = 'idle';
     });
   mode.addEventListener('change', () => {
     try {
