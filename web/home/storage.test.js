@@ -70,7 +70,7 @@ test('normalizers accept only bounded profile and note fields', () => {
     },
   );
   assert.deepEqual(normalizeHomePreferences(null), {
-    name: 'You',
+    name: '',
     pin: false,
     homeLayoutVersion: 1,
     reducedMotion: false,
@@ -90,7 +90,12 @@ test('personal profile names are restored only from local preferences', () => {
     normalizeHomePreferences(storage.read(HOME_STORAGE_KEYS.preferences, {})).name,
     'Morgan',
   );
-  assert.equal(normalizeHomePreferences({}).name, 'You');
+  assert.equal(normalizeHomePreferences({}).name, '');
+  assert.equal(
+    normalizeHomePreferences({ name: 'You' }).name,
+    '',
+    'legacy placeholder asks for a real name',
+  );
 });
 
 test('scrolling Home migration version is explicit and survives normalization', () => {

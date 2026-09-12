@@ -62,7 +62,9 @@ they do not measure total device screen time. Daily bars use UTC.
 Both are available from **Home → Add widgets** when they are not already on Home. They also appear automatically on a fresh
 or untouched Home. Your custom arrangement is kept.
 
-Choose **Edit home → Tidy layout** to align cards while keeping their sizes, or **Settings → Home & context → Restore starter layout**. Both offer Undo and keep saved contents. The upgrade makes a one-time backup of old layout metadata, removes identical source cards, and aligns the source widgets; later custom placement is kept.
+Choose **Edit home → Tidy layout** to align cards while keeping their sizes, or **Settings → Widgets & layout → Restore starter layout**. Both offer Undo and keep saved contents. The upgrade makes a one-time backup of old layout metadata, removes identical source cards, and aligns the source widgets; later custom placement is kept.
+
+Until you save a name, **Add your name** on Home or Settings opens **General → Your name**. The field starts empty; the old “You” placeholder is treated as missing. Names are saved locally in this browser or desktop app.
 
 The floating sidebar opens from the left edge and waits 1.4 seconds after the pointer leaves before hiding. **Settings → General → Keep sidebar open** pins it.
 
@@ -75,9 +77,9 @@ goals or conversation content.
 
 Open **Settings** in the floating navigation. **Activity & AI → Understand my work** separately lets the existing AI use your conversation and permitted activity. Capture, AI sharing, and check-ins each keep their own controls.
 
-**Settings → Home & context → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards above the composer. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
+**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards above the composer. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
 
-A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Home & context returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
+A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Widgets & layout returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
 
 In **Settings → Activity & AI**, desktop capture, Chrome, visible text and AI help have separate controls. **Pause capture** stops new capture. **Settings → Memory → Forget activity & context** removes activity and what was learned from it; saved conversations and explicitly chosen notes/preferences stay separate. Activity presents compact work episodes with details on selection. Recorded usage is not proof of focus or task completion.
 

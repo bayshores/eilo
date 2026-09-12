@@ -1492,7 +1492,7 @@ function showDetail(type) {
   } else if (type === 'profile') {
     title.textContent = live ? 'Local profile' : 'Prototype profile';
     body.innerHTML =
-      '<form class="profile-form"><label class="field">Display name<input type="text" maxlength="40" autocomplete="off" required></label><button class="button primary">Save name</button></form><p class="muted">This display name is saved in this browser. It does not change your sign-in account.</p>';
+      '<form class="profile-form"><label class="field">Your name<input type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" required></label><button class="button primary">Save name</button></form><p class="muted">This display name is saved in this browser. It does not change your sign-in account.</p>';
     body.querySelector('input').value = prefs.name;
     body.querySelector('form').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -1511,8 +1511,8 @@ function showDetail(type) {
   detail.showModal();
 }
 function renderProfile() {
-  $('.account-trigger').textContent = Array.from(prefs.name)[0].toUpperCase();
-  $('.account-name').firstChild.textContent = prefs.name;
+  $('.account-trigger').textContent = Array.from(prefs.name)[0]?.toUpperCase() || 'ë';
+  $('.account-name').firstChild.textContent = prefs.name || 'Add your name';
 }
 $('.detail-close').addEventListener('click', () => detail.close());
 detail.addEventListener('close', () => {
@@ -1584,19 +1584,32 @@ live?.start();
 function createGeneralSettings() {
   const section = document.createElement('section');
   section.className = 'general-settings';
-  section.innerHTML = `<h2>General</h2><form class="profile-form"><label class="field">Display name<input type="text" maxlength="40" autocomplete="off" required></label><button class="button">Save name</button><p class="settings-feedback" role="status"></p></form><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><label class="field speech-preference">Microphone mode</label><h3>Check-ins & alerts</h3><p class="muted">Choose when eïlo can check in and whether to show desktop alerts.</p><button class="button settings-checkins">Manage check-ins</button><details><summary>Keyboard controls</summary><p>In Edit home, focus a move handle and press Space. Use arrow keys to move, Enter to place, or Escape to cancel. Use arrow keys on a resize handle to change its size.</p></details>`;
+  section.innerHTML = `<h2>General</h2><form class="profile-form"><label class="field">Your name<input type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" required></label><button class="button">Save name</button><p class="settings-feedback" role="status"></p></form><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><label class="field speech-preference">Microphone mode</label><h3>Check-ins & alerts</h3><p class="muted">Choose when eïlo can check in and whether to show desktop alerts.</p><button class="button settings-checkins">Manage check-ins</button><details><summary>Keyboard controls</summary><p>In Edit home, focus a move handle and press Space. Use arrow keys to move, Enter to place, or Escape to cancel. Use arrow keys on a resize handle to change its size.</p></details>`;
   const speechMode = document.querySelector('.speech-method select');
   if (speechMode) {
     section.querySelector('.speech-preference').append(speechMode);
     document.querySelector('.speech-mode-caret')?.remove();
   }
   section.querySelector('.profile-form input').value = prefs.name;
+  const namePrompt = document.createElement('button');
+  namePrompt.type = 'button';
+  namePrompt.className = 'button settings-name-prompt';
+  namePrompt.textContent = 'Add your name';
+  namePrompt.hidden = Boolean(prefs.name);
+  namePrompt.addEventListener('click', () => {
+    live.showPage('settings', { settingsSection: 'general' });
+    section.querySelector('.profile-form input').focus();
+  });
+  $('.home-header').append(namePrompt);
+  if (!prefs.name)
+    section.querySelector('.settings-feedback').textContent = 'What should eïlo call you?';
   section.querySelector('form').addEventListener('submit', (event) => {
     event.preventDefault();
     const value = section.querySelector('.profile-form input').value.trim();
     if (!value) return;
     prefs.name = value;
     const saved = writeStorage(PREFS_KEY, prefs);
+    namePrompt.hidden = saved;
     renderProfile();
     section.querySelector('.settings-feedback').textContent = saved
       ? 'Name saved.'

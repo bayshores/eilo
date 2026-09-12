@@ -8,6 +8,14 @@ const FLAGS = [
   'visuals_enabled',
   'ai_enabled',
 ];
+const SETTINGS_DESCRIPTIONS = {
+  general: 'Appearance, sidebar, microphone, and alerts.',
+  overview: 'Your current work and the widgets on Home.',
+  sources: 'Choose what activity to collect and what your AI can use.',
+  connections: 'Connect and manage your apps and services.',
+  memory: 'Review what stays on this Mac and clear saved activity.',
+  account: 'Manage the ChatGPT account eïlo uses for conversations.',
+};
 const KIND_LABELS = {
   intention: 'Current intention',
   resume: 'Return point',
@@ -123,6 +131,17 @@ export function createContextPanel({
   const tabButtons = new Map();
   const mutators = new Set();
   const switches = new Map();
+  let dismissTooltip = () => {};
+  const dismissOnEscape = (event) => {
+    if (event.key === 'Escape' && dialog.querySelector('.settings-tooltip:popover-open')) {
+      dismissTooltip();
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+  document.addEventListener('keydown', dismissOnEscape, true);
+  const dismissOnResize = () => dismissTooltip();
+  window.addEventListener('resize', dismissOnResize);
   let current = null,
     busy = false,
     selected = 'overview',
@@ -136,6 +155,7 @@ export function createContextPanel({
     showDesktopGuide = false;
 
   function selectTab(id, focus = false) {
+    dismissTooltip();
     selected = id;
     for (const [key, tab] of tabButtons) {
       tab.setAttribute('aria-selected', String(key === id));
@@ -149,7 +169,7 @@ export function createContextPanel({
   }
   for (const [id, label] of [
     ...extraSections.filter((item) => item.id === 'general').map(({ id, label }) => [id, label]),
-    ['overview', host ? 'Home & context' : 'Overview'],
+    ['overview', host ? 'Widgets & layout' : 'Overview'],
     ['sources', 'Activity & AI'],
     ...extraSections
       .filter((item) => item.id === 'connections')
@@ -163,6 +183,49 @@ export function createContextPanel({
     tab.id = `context-tab-${id}`;
     tab.setAttribute('role', 'tab');
     tab.setAttribute('aria-controls', `context-view-${id}`);
+    if (host && SETTINGS_DESCRIPTIONS[id]) {
+      const tip = node('div', 'settings-tooltip', SETTINGS_DESCRIPTIONS[id]);
+      tip.id = `settings-tip-${id}`;
+      tip.setAttribute('role', 'tooltip');
+      tip.setAttribute('popover', 'manual');
+      tab.setAttribute('aria-describedby', tip.id);
+      dialog.append(tip);
+      let timer;
+      const hide = () => {
+        clearTimeout(timer);
+        if (tip.matches(':popover-open')) tip.hidePopover();
+      };
+      const show = () => {
+        dismissTooltip();
+        dismissTooltip = hide;
+        tip.showPopover();
+        const anchor = tab.getBoundingClientRect();
+        const bounds = tip.getBoundingClientRect();
+        const beside = anchor.right + 12 + bounds.width <= innerWidth - 12;
+        const left = beside
+          ? anchor.right + 12
+          : Math.max(12, Math.min(anchor.left, innerWidth - bounds.width - 12));
+        const top = beside ? anchor.top + (anchor.height - bounds.height) / 2 : anchor.bottom + 8;
+        tip.style.left = `${left}px`;
+        tip.style.top = `${Math.max(12, Math.min(top, innerHeight - bounds.height - 12))}px`;
+      };
+      const hideSoon = () => {
+        clearTimeout(timer);
+        timer = setTimeout(hide, 160);
+      };
+      tab.addEventListener('pointerenter', (event) => {
+        if (event.pointerType !== 'mouse') return;
+        dismissTooltip();
+        dismissTooltip = hide;
+        timer = setTimeout(show, 400);
+      });
+      tab.addEventListener('pointerleave', hideSoon);
+      tab.addEventListener('focus', show);
+      tab.addEventListener('blur', hideSoon);
+      tab.addEventListener('pointerdown', hide);
+      tip.addEventListener('pointerenter', () => clearTimeout(timer));
+      tip.addEventListener('pointerleave', hideSoon);
+    }
     const panel = node('div', 'context-panel__view');
     panel.id = `context-view-${id}`;
     panel.setAttribute('role', 'tabpanel');
@@ -173,7 +236,11 @@ export function createContextPanel({
     tab.addEventListener('click', () => selectTab(id));
     tab.addEventListener('keydown', (event) => {
       const ids = [...tabButtons.keys()];
-      const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+      const step = ['ArrowRight', 'ArrowDown'].includes(event.key)
+        ? 1
+        : ['ArrowLeft', 'ArrowUp'].includes(event.key)
+          ? -1
+          : 0;
       if (!step && !['Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       const target =
@@ -317,7 +384,7 @@ export function createContextPanel({
   }
   const chooseSources = button('Choose context sources', 'context-navigation-row');
   chooseSources.innerHTML =
-    '<span>Context sources<small>Choose what eïlo can use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
+    '<span>Activity & AI<small>Choose what eïlo can collect and use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
   chooseSources.addEventListener('click', () => selectTab('sources', true));
   overview.append(work, layout, chooseSources);
 
@@ -673,6 +740,7 @@ export function createContextPanel({
       update(current);
     },
     hide() {
+      dismissTooltip();
       desktopGuide.pause();
     },
     open(opener) {
@@ -687,6 +755,9 @@ export function createContextPanel({
       if (!host) dialog.close();
     },
     destroy() {
+      dismissTooltip();
+      document.removeEventListener('keydown', dismissOnEscape, true);
+      window.removeEventListener('resize', dismissOnResize);
       desktopGuide.destroy();
       dialog.remove();
     },
