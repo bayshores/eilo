@@ -294,8 +294,13 @@ export function createLiveHome({
   }
 
   function setThreadOpen(open) {
+    const wasOpen = threadOpen;
     threadOpen = open;
     dock.dataset.open = String(open);
+    workspace.classList.toggle('conversation-active', open);
+    const back = dock.querySelector('.conversation-back');
+    if (back)
+      back.textContent = `← Back to ${currentPage === 'home' ? 'Home' : currentPage[0].toUpperCase() + currentPage.slice(1)}`;
     const thread = dock.querySelector('.conversation-thread');
     const toggle = dock.querySelector('.dock-history');
     if (thread) thread.hidden = !open;
@@ -305,7 +310,8 @@ export function createLiveHome({
       toggle.setAttribute('aria-label', open ? 'Hide replies' : 'Show replies');
       toggle.title = open ? 'Hide replies' : 'Show replies';
     }
-    if (open) {
+    if (open && !wasOpen) {
+      dock.querySelector('.live-input')?.focus();
       const log = dock.querySelector('.live-messages');
       if (log)
         requestAnimationFrame(() => {
@@ -316,7 +322,7 @@ export function createLiveHome({
   }
   const data = () => homeData(current.snapshot);
   function talk(text) {
-    if (text && !current.draft) client.setDraft(text);
+    if (typeof text === 'string' && text && !current.draft) client.setDraft(text);
     if (dialog.open) dialog.close();
     setThreadOpen(true);
     dock.querySelector('.live-input')?.focus();
@@ -405,10 +411,12 @@ export function createLiveHome({
       log.setAttribute('aria-label', 'Conversation');
       log.setAttribute('aria-live', 'polite');
       log.tabIndex = 0;
-      const close = action('×', () => setThreadOpen(false), 'conversation-close');
-      close.setAttribute('aria-label', 'Close conversation');
+      const close = action('← Back', () => setThreadOpen(false), 'conversation-back');
       close.addEventListener('click', () => input.focus());
-      thread.append(log, close);
+      const context = node('div', 'conversation-context');
+      context.append(node('span', 'conversation-context-mark', 'eïlo'));
+      context.append(node('span', 'conversation-context-label', 'Conversation'));
+      thread.append(close, context, log);
       const form = node('form', 'live-composer');
       const label = node('label', 'sr-only', 'Message eïlo');
       label.htmlFor = 'live-message-input';
@@ -534,7 +542,13 @@ export function createLiveHome({
       const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 70;
       const oldScroll = log.scrollTop;
       log.replaceChildren();
-      if (!entries.length) log.append(node('p', 'live-empty', 'What matters right now?'));
+      if (!entries.length) {
+        const empty = node('div', 'conversation-empty-state');
+        const orb = node('span', 'conversation-empty-orb');
+        orb.setAttribute('aria-hidden', 'true');
+        empty.append(orb, node('p', 'live-empty', 'What matters right now?'));
+        log.append(empty);
+      }
       entries.forEach((entry) => log.append(miniMessage(entry)));
       if (!messageFingerprint || atBottom) log.scrollTop = log.scrollHeight;
       else log.scrollTop = oldScroll;

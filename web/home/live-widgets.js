@@ -44,7 +44,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
     container.append(
       node('h2', '', heading),
       node('p', 'live-empty', description),
-      action('Talk to eïlo', talk, 'button live-bottom'),
+      action('Talk to eïlo', () => talk(), 'button live-bottom'),
     );
   };
   const taskRow = (task, { due = false, focus = false } = {}) => {
@@ -120,59 +120,43 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       return true;
     }
     if (widget.type === 'today') {
-      const calendar = snapshot.integrations?.google_calendar,
-        agenda = calendarAgenda(calendar);
-      if (agenda.length) {
-        container.append(
-          node('h2', '', 'Today'),
-          node(
-            'p',
-            'widget-subtitle',
-            calendar.state === 'paused'
-              ? 'Calendar sync paused'
-              : calendar.error
-                ? 'Calendar · last synced view'
-                : 'From your calendars',
-          ),
-        );
-        const list = node('div', 'live-agenda');
-        agenda.slice(0, 3).forEach((event) => {
-          const row = node('div', 'live-task calendar-agenda-row');
-          row.append(
-            node('span', 'live-task-time', calendarTime(event)),
-            node('strong', '', event.title),
-          );
-          row.title = event.calendar_name;
-          list.append(row);
-        });
-        container.append(
-          list,
-          action('View day', () => openDetail('calendar-day'), 'text-button live-bottom'),
-        );
-        return true;
-      }
-      if (!value.open.length) {
-        empty(
-          container,
-          'Today',
-          'Tell eïlo what you have coming up. Your commitments will appear here.',
-        );
-        return true;
-      }
-      container.append(
-        node('h2', '', 'Today'),
-        node('p', 'widget-subtitle', value.onBreak ? 'On a break' : 'Open commitments'),
+      container.classList.add('home-launcher');
+      const calendar = snapshot.integrations?.google_calendar;
+      const agenda = calendarAgenda(calendar);
+      container.append(node('h2', '', 'What’s next?'));
+      const actions = node('div', 'launcher-actions');
+      for (const [label, tone, handler] of [
+        [
+          'Start focus',
+          'sand',
+          () =>
+            talk(
+              value.focus
+                ? `Help me focus on ${value.focus.title}.`
+                : 'Help me start a focus session.',
+            ),
+        ],
+        ['Continue goal', 'lavender', () => openDetail('goals')],
+        ['Add commitment', 'blue', () => talk('I want to add a commitment.')],
+        ['Talk to eïlo', 'mint', () => talk()],
+      ])
+        actions.append(action(label, handler, `launcher-action launcher-action--${tone}`));
+      const today = action(
+        '',
+        () => openDetail(agenda.length ? 'calendar-day' : 'today'),
+        'launcher-today',
       );
-      const list = node('div', 'live-agenda');
-      value.open.slice(0, 3).forEach((task) => list.append(taskRow(task, { due: true })));
-      container.append(
-        list,
-        action(
-          value.open.length > 3 ? `View all ${value.open.length}` : 'See commitments',
-          () => openDetail('today'),
-          'text-button live-bottom',
-        ),
+      const nextTask = value.focus || value.open[0];
+      const todayCopy = agenda.length
+        ? `${calendarTime(agenda[0])} · ${agenda[0].title}`
+        : nextTask?.title || 'No commitments yet';
+      today.append(
+        node('span', 'launcher-today__label', 'Today'),
+        node('span', 'launcher-today__copy', todayCopy),
+        node('span', 'launcher-today__arrow', '→'),
       );
+      today.setAttribute('aria-label', `View today: ${todayCopy}`);
+      container.append(actions, today);
     } else if (widget.type === 'goals') {
       if (!value.open.length) {
         empty(
@@ -243,7 +227,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
         snippet,
         action(
           snapshot.status === 'busy' ? 'View conversation' : 'Message eïlo',
-          talk,
+          () => talk(),
           'button live-bottom',
         ),
       );

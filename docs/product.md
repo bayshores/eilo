@@ -49,6 +49,8 @@ Every card on Home is a normal widget with the same move, resize, remove, and ke
 
 **Settings** is available in the floating navigation, organized into General, Home & context, Activity & AI, Connections, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Setup and settings never take space away from the widget canvas. Keep Check-ins and its explicit on/off action visible at the top of Activity Overview, including when modern activity records are available.
 
+Home uses warm gradient surfaces and four direct starting actions. The launcher adapts to widget dimensions, and its Today summary stays inside the card. Conversation opens as a full-height view with its own Back control; the previous page is hidden until the conversation closes. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
+
 ### Frontend instructions
 
 Use familiar controls, alignment, and selected states to make interactions apparent. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.

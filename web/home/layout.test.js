@@ -64,17 +64,68 @@ test('catalog and defaults are stable and match the intended wide arrangement', 
 test('tracking widgets fit an untouched live Home and never reset a custom arrangement', () => {
   const previous = withConversationDock(createDefaultState());
   const original = structuredClone(previous);
+  const legacy = {
+    version: 1,
+    widgets: [
+      { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'goals-1', type: 'goals', size: 'small' },
+      { id: 'tracking-1', type: 'tracking', size: 'small' },
+      { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+      { id: 'usage-1', type: 'usage', size: 'medium' },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'goals-1', x: 4, y: 0 },
+        { id: 'tracking-1', x: 8, y: 0 },
+        { id: 'progress-1', x: 0, y: 2 },
+        { id: 'usage-1', x: 4, y: 2 },
+      ],
+    },
+  };
+  const legacyOriginal = structuredClone(legacy);
   const next = withTrackingWidgets(previous);
   assert.deepEqual(
     next.widgets.map((widget) => widget.type),
     ['today', 'goals', 'tracking', 'progress', 'usage'],
   );
   assertUsable(next, 'wide');
-  assert.ok(projectLayout(next, 'wide').every((widget) => widget.y + widget.h <= 4));
+  assert.deepEqual(
+    projectLayout(next, 'wide').map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
+    [
+      { id: 'today-1', x: 0, y: 0, w: 12, h: 2 },
+      { id: 'goals-1', x: 0, y: 2, w: 4, h: 2 },
+      { id: 'tracking-1', x: 4, y: 2, w: 4, h: 2 },
+      { id: 'progress-1', x: 8, y: 2, w: 4, h: 2 },
+      { id: 'usage-1', x: 0, y: 4, w: 8, h: 2 },
+    ],
+  );
+  assert.deepEqual(
+    paginateHomeLayout(next, 'wide', 4).map((page) => page.map((widget) => widget.id)),
+    [['today-1', 'goals-1', 'tracking-1', 'progress-1'], ['usage-1']],
+  );
   assert.deepEqual(previous, original);
+  assert.deepEqual(withTrackingWidgets(legacy), next, 'the exact prior five-card default migrates');
+  assert.deepEqual(legacy, legacyOriginal);
   assert.deepEqual(withTrackingWidgets(next), next);
   const removed = updateLayout(next, { type: 'remove', id: 'tracking-1' });
   assert.deepEqual(withTrackingWidgets(removed), removed, 'a removed widget is not re-added');
+  const moved = updateLayout(previous, { type: 'move', id: 'today-1', x: 1, y: 0 });
+  assert.deepEqual(withTrackingWidgets(moved), moved, 'a moved widget does not migrate');
+  const movedLegacy = updateLayout(legacy, { type: 'move', id: 'today-1', x: 1, y: 0 });
+  assert.deepEqual(
+    withTrackingWidgets(movedLegacy),
+    movedLegacy,
+    'a customized legacy layout is preserved',
+  );
+  const context = updateLayout(previous, {
+    type: 'add',
+    widgetType: 'context',
+    size: 'small',
+    id: 'context-1',
+    componentId: 'calendar',
+  });
+  assert.deepEqual(withTrackingWidgets(context), context, 'a context widget is preserved');
   const custom = updateLayout(previous, {
     type: 'add',
     widgetType: 'clock',

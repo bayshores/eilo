@@ -56,6 +56,35 @@ const DEFAULT_WIDE = Object.freeze([
   { id: 'progress-1', x: 4, y: 2 },
   { id: 'conversation-1', x: 7, y: 2 },
 ]);
+const LEGACY_TRACKING_DEFAULT = Object.freeze({
+  version: 1,
+  widgets: Object.freeze([
+    Object.freeze({
+      id: 'today-1',
+      type: 'today',
+      size: 'small',
+      footprints: { wide: { w: 4, h: 2 } },
+    }),
+    Object.freeze({ id: 'goals-1', type: 'goals', size: 'small' }),
+    Object.freeze({ id: 'tracking-1', type: 'tracking', size: 'small' }),
+    Object.freeze({
+      id: 'progress-1',
+      type: 'progress',
+      size: 'small',
+      footprints: { wide: { w: 4, h: 2 } },
+    }),
+    Object.freeze({ id: 'usage-1', type: 'usage', size: 'medium' }),
+  ]),
+  positions: Object.freeze({
+    wide: Object.freeze([
+      Object.freeze({ id: 'today-1', x: 0, y: 0 }),
+      Object.freeze({ id: 'goals-1', x: 4, y: 0 }),
+      Object.freeze({ id: 'tracking-1', x: 8, y: 0 }),
+      Object.freeze({ id: 'progress-1', x: 0, y: 2 }),
+      Object.freeze({ id: 'usage-1', x: 4, y: 2 }),
+    ]),
+  }),
+});
 const UNIQUE_SOURCE_WIDGET_TYPES = new Set(['today', 'goals', 'progress', 'tracking', 'usage']);
 // 24 stacked eight-row widgets need 192 rows.
 const ROW_LIMIT = 192;
@@ -155,9 +184,14 @@ export function withConversationDock(rawState) {
 export function withTrackingWidgets(rawState) {
   const next = normalizeState(rawState);
   const untouched = normalizeState(withConversationDock(createDefaultState()));
-  if (JSON.stringify(next) !== JSON.stringify(untouched)) return next;
+  const legacy = normalizeState(LEGACY_TRACKING_DEFAULT);
+  if (
+    JSON.stringify(next) !== JSON.stringify(untouched) &&
+    JSON.stringify(next) !== JSON.stringify(legacy)
+  )
+    return next;
   next.widgets = [
-    { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
+    { id: 'today-1', type: 'today', size: 'small', footprints: { wide: { w: 12, h: 2 } } },
     { id: 'goals-1', type: 'goals', size: 'small' },
     { id: 'tracking-1', type: 'tracking', size: 'small' },
     { id: 'progress-1', type: 'progress', size: 'small', footprints: { wide: { w: 4, h: 2 } } },
@@ -165,10 +199,10 @@ export function withTrackingWidgets(rawState) {
   ];
   next.positions.wide = [
     { id: 'today-1', x: 0, y: 0 },
-    { id: 'goals-1', x: 4, y: 0 },
-    { id: 'tracking-1', x: 8, y: 0 },
-    { id: 'progress-1', x: 0, y: 2 },
-    { id: 'usage-1', x: 4, y: 2 },
+    { id: 'goals-1', x: 0, y: 2 },
+    { id: 'tracking-1', x: 4, y: 2 },
+    { id: 'progress-1', x: 8, y: 2 },
+    { id: 'usage-1', x: 0, y: 4 },
   ];
   return next;
 }

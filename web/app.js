@@ -88,7 +88,8 @@ const elements = new Map();
 const homeStorage = createHomeStorage();
 const transferred =
   document.documentElement.dataset.source === 'live' ? readLayoutTransfer(location.hash) : null;
-let state = normalizeState(transferred?.layout ?? homeStorage.read(KEY, createDefaultState()));
+const savedLayout = homeStorage.read(KEY, null);
+let state = normalizeState(transferred?.layout ?? savedLayout ?? createDefaultState());
 if (createLiveHome)
   state = withUniqueSourceWidgets(withTrackingWidgets(withConversationDock(state)));
 const content = normalizeHomeContent(homeStorage.read(CONTENT_KEY, {}));
@@ -98,21 +99,23 @@ const prefs = normalizeHomePreferences({
 });
 // Migrate the old window-sized board once; future custom placement stays untouched.
 if (createLiveHome && prefs.homeLayoutVersion < 2) {
-  homeStorage.write(KEY + ':before-scroll', homeStorage.read(KEY, state));
-  state.widgets = state.widgets.map((widget) =>
-    ['today', 'goals', 'progress', 'tracking', 'usage'].includes(widget.type)
-      ? {
-          ...widget,
-          size: widget.type === 'usage' ? 'medium' : 'small',
-          footprints: {
-            wide: { w: widget.type === 'usage' ? 8 : 4, h: 2 },
-            compact: { w: widget.type === 'usage' ? 6 : 3, h: 2 },
-            stacked: { w: 1, h: 2 },
-          },
-        }
-      : widget,
-  );
-  for (const layoutMode of Object.keys(MODES)) state = tidyHomeLayout(state, layoutMode);
+  if (savedLayout && !transferred) {
+    homeStorage.write(KEY + ':before-scroll', homeStorage.read(KEY, state));
+    state.widgets = state.widgets.map((widget) =>
+      ['today', 'goals', 'progress', 'tracking', 'usage'].includes(widget.type)
+        ? {
+            ...widget,
+            size: widget.type === 'usage' ? 'medium' : 'small',
+            footprints: {
+              wide: { w: widget.type === 'usage' ? 8 : 4, h: 2 },
+              compact: { w: widget.type === 'usage' ? 6 : 3, h: 2 },
+              stacked: { w: 1, h: 2 },
+            },
+          }
+        : widget,
+    );
+    for (const layoutMode of Object.keys(MODES)) state = tidyHomeLayout(state, layoutMode);
+  }
   prefs.homeLayoutVersion = 2;
   homeStorage.write(KEY, state);
   homeStorage.write(PREFS_KEY, prefs);
