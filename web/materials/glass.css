@@ -1,0 +1,208 @@
+/* Material only: existing components retain geometry, fonts and layout transitions. */
+@property --glass-light-x {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 24%;
+}
+@property --glass-light-y {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
+@property --glass-light-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 135deg;
+}
+
+:root .eilo-glass {
+  isolation: isolate;
+  background: transparent;
+  color: var(--ink, #f3f2f4);
+  box-shadow:
+    inset 0 1px 0 #ffffff18,
+    inset 0 -1px 0 #00000058,
+    0 1px 2px #00000024,
+    0 5px 8px -4px #00000080,
+    0 16px 24px -10px #00000080,
+    0 30px 48px -24px #00000055;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-source='live'] .widget.home-widget.eilo-glass-widget {
+  background: transparent;
+  color: var(--ink);
+}
+:root .live-composer.eilo-glass {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.eilo-glass:not(.widget):not(.adaptive-widget) {
+  position: relative;
+}
+.eilo-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      ellipse 70% 36% at var(--glass-light-x, 24%) var(--glass-light-y, 0%),
+      #ffffff10,
+      transparent 75%
+    ),
+    linear-gradient(112deg, transparent 3%, #ffffff08 15%, #ffffff02 29%, transparent 42%),
+    linear-gradient(180deg, #ffffff0b, #ffffff02 7%, transparent 28%, transparent 90%, #ffffff04),
+    #1012140a;
+  box-shadow:
+    inset 0 2px 1px -1px #ffffff20,
+    inset 2px 0 2px -2px #ffffff30,
+    inset -2px 0 2px -2px #ffffff20,
+    inset 0 -3px 2px -2px #ffffff35;
+  backdrop-filter: var(--glass-refraction, blur(3px)) brightness(1.24) saturate(1.18);
+  -webkit-backdrop-filter: var(--glass-refraction, blur(3px)) brightness(1.24) saturate(1.18);
+}
+.eilo-glass:not(.drag-ghost)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 3px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    var(--glass-light-angle, 135deg),
+    #ffffff3d,
+    #ffffff05 18%,
+    transparent 42%,
+    #00000020 66%,
+    #ffffff26 92%,
+    #ffffff05
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.eilo-glass-stage {
+  perspective: 1200px;
+}
+.eilo-glass {
+  rotate: 0deg;
+  transition:
+    rotate 0.35s var(--ease-settle, ease-out),
+    --glass-light-x 0.25s ease-out,
+    --glass-light-y 0.25s ease-out,
+    --glass-light-angle 0.25s ease-out;
+}
+.eilo-glass.eilo-glass-hover {
+  transition-duration: 0.16s;
+}
+.editing .eilo-glass,
+.resize-active .eilo-glass,
+.eilo-glass:is(.is-dragging, .is-resizing, .keyboard-moving, .holding-widget, .drag-ghost) {
+  rotate: 0deg !important;
+}
+.is-dragging .eilo-glass,
+.drag-ghost .eilo-glass {
+  transition: none;
+  rotate: 0deg !important;
+}
+:root .eilo-glass.drag-ghost {
+  box-shadow: none;
+}
+:root .eilo-glass-widget.keyboard-moving {
+  box-shadow: inset 0 0 0 3px var(--peach);
+}
+
+/* Progress used dark text on an opaque peach surface before the glass port. */
+.eilo-glass-widget[data-type='progress'] {
+  --cue-rest: #b6b6bd;
+  --cue-text: #e2e5df;
+  --cue-surface: #36383f;
+  --cue-active: var(--peach);
+}
+.eilo-glass-widget[data-type='progress']
+  :is(.widget-subtitle, .practice-count span, .text-button, .move-widget) {
+  color: var(--muted);
+}
+.eilo-glass-widget[data-type='progress'] .live-meter {
+  background: #ffffff1a;
+}
+.eilo-glass-widget[data-type='progress'] .live-meter::-webkit-progress-bar {
+  background: #ffffff1a;
+}
+.eilo-glass-widget[data-type='progress'] .live-meter::-webkit-progress-value {
+  background: var(--peach);
+}
+.eilo-glass-widget[data-type='progress'] .live-meter::-moz-progress-bar {
+  background: var(--peach);
+}
+.eilo-glass.live-composer .live-input {
+  background: transparent;
+  color: var(--ink);
+}
+
+/* Back-painted pigment is limited to prominent widget type, never editable text. */
+.eilo-glass.widget-content > h2,
+.eilo-glass .practice-count strong,
+.eilo-glass .clock-time {
+  color: #eeefe5;
+  filter: drop-shadow(0 0.7px 0.3px #07161399) drop-shadow(0 1px 1.5px #07161345);
+}
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .eilo-glass.widget-content > h2,
+  .eilo-glass .practice-count strong,
+  .eilo-glass .clock-time {
+    background: linear-gradient(176deg, #fffff7 4%, #f1f2e9 38%, #e4e8de);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce), (hover: none) {
+  .eilo-glass {
+    rotate: 0deg !important;
+  }
+}
+.reduce-motion .eilo-glass {
+  rotate: 0deg !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .eilo-glass::before {
+    background-color: #202624f5;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .eilo-glass::before {
+    background-color: #202624eb;
+  }
+}
+@media (forced-colors: active) {
+  :root .eilo-glass {
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+    outline: 1px solid CanvasText;
+  }
+  .eilo-glass::before,
+  .eilo-glass:not(.drag-ghost)::after {
+    display: none;
+  }
+  .eilo-glass.widget-content > h2,
+  .eilo-glass .practice-count strong,
+  .eilo-glass .clock-time {
+    background: none;
+    color: CanvasText;
+    filter: none;
+  }
+}

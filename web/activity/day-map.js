@@ -25,12 +25,14 @@ const makeButton = (label, className) => {
   return element;
 };
 const dayLabel = new Intl.DateTimeFormat(undefined, {
-  timeZone: 'UTC',
   weekday: 'short',
   month: 'short',
   day: 'numeric',
 });
-const dateLabel = (day) => dayLabel.format(new Date(`${day}T00:00:00Z`));
+const dateLabel = (day) => {
+  const [year, month, date] = day.split('-').map(Number);
+  return dayLabel.format(new Date(year, month - 1, date));
+};
 
 /**
  * A small presentation-only map of admitted episodes. It deliberately draws seen spans
@@ -58,11 +60,11 @@ export function createActivityDayMap(
   header.append(heading);
   const chooser = make('div', 'activity-day-map__chooser');
   chooser.setAttribute('aria-label', 'Recorded day');
-  chooser.append(make('span', 'activity-day-map__timezone', 'UTC'));
+  chooser.append(make('span', 'activity-day-map__timezone', 'Local time'));
   const chips = make('div', 'activity-day-map__chips');
   const select = make('select', 'activity-day-map__select');
   select.dataset.focusKey = 'day-select';
-  select.setAttribute('aria-label', 'Choose a recorded day in UTC');
+  select.setAttribute('aria-label', 'Choose a recorded day in local time');
   select.addEventListener('change', () => {
     selectedDay = select.value;
     selectedId = null;
@@ -97,6 +99,7 @@ export function createActivityDayMap(
     target.append(axis);
   }
   function drawMap(focusedId = null) {
+    header.querySelector('.activity-day-map__more')?.remove();
     map.replaceChildren();
     const segments = daySegments(episodes, selectedDay);
     if (!segments.length) {
@@ -111,6 +114,10 @@ export function createActivityDayMap(
     const lanes = groupLanes(projectSegments(segments, window));
     const visible = showAll ? lanes : visibleLanes(lanes, selectedId || focusedId);
     const tracks = make('div', 'activity-day-map__tracks');
+    tracks.tabIndex = 0;
+    tracks.dataset.focusKey = 'tracks';
+    tracks.setAttribute('role', 'region');
+    tracks.setAttribute('aria-label', 'Recorded activity timeline');
     for (const lane of visible) {
       const laneElement = make('section', 'activity-day-map__lane');
       laneElement.dataset.tone = String(lane.tone);
@@ -121,7 +128,7 @@ export function createActivityDayMap(
       for (const row of rows) {
         const rowElement = make('div', 'activity-day-map__lane-row');
         for (const segment of row.segments) {
-          const session = makeButton(segment.title, 'activity-day-map__session');
+          const session = makeButton('', 'activity-day-map__session');
           session.dataset.episodeId = segment.id;
           session.dataset.focusKey = `episode:${segment.id}`;
           session.dataset.selected = String(segment.id === selectedId);
@@ -166,7 +173,7 @@ export function createActivityDayMap(
         showAll = !showAll;
         render();
       });
-      map.append(more);
+      header.append(more);
     }
   }
   function emptyCopy() {
@@ -272,10 +279,15 @@ export function createActivityDayMap(
     chooser.hidden = !days.length;
   }
   function render() {
+    const previousTracks = map.querySelector('.activity-day-map__tracks');
+    const scrollTop = map.dataset.day === selectedDay ? previousTracks?.scrollTop || 0 : 0;
+    map.dataset.day = selectedDay || '';
     const focusKey = document.activeElement?.closest?.('[data-focus-key]')?.dataset.focusKey;
     drawChooser();
     drawMap(focusKey?.startsWith('episode:') ? focusKey.slice('episode:'.length) : null);
     drawDetails();
+    const tracks = map.querySelector('.activity-day-map__tracks');
+    if (tracks) tracks.scrollTop = scrollTop;
     host.classList.toggle('reduce-motion', Boolean(reducedMotion()));
     if (focusKey)
       [...host.querySelectorAll('[data-focus-key]')]

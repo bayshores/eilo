@@ -69,7 +69,34 @@ class ReadTools:
         self.base_policy = base_policy + SOURCE_POLICY
         self.agent = None
         self.sources = {}
+        self.outcomes = {}
         self.size = 0
+
+    def _category(self, name):
+        return {
+            "eilo_sources": "connections",
+            "eilo_search_mail": "mail",
+            "eilo_read_mail": "mail",
+            "eilo_read_calendar": "calendar",
+            "eilo_read_work_context": "work_context",
+        }.get(name)
+
+    def _record_outcome(self, name, receipt, delivered):
+        category = self._category(name)
+        if category is None:
+            return
+        status = "used" if delivered else receipt.get("status")
+        if status not in {"used", "unavailable", "no_data"}:
+            status = "no_data" if status in {"ok", "limited"} else "unavailable"
+        previous = self.outcomes.get(category)
+        # An actual delivered payload is stronger evidence than a later empty read.
+        if previous != "used":
+            self.outcomes[category] = status
+
+    def provenance(self):
+        return [
+            {"source": source, "status": status} for source, status in sorted(self.outcomes.items())
+        ]
 
     def handler(self, name, args):
         payload = json.dumps({"tool": name, "arguments": args}).encode()
@@ -103,6 +130,7 @@ class ReadTools:
                 source_id = receipt.get("source_id")
                 if not isinstance(source_id, str) or not re.fullmatch(r"S[0-9]{1,3}", source_id):
                     raise ValueError("invalid source")
+                self._record_outcome(name, receipt, True)
                 encoded = json.dumps(data, ensure_ascii=False)
                 if self.size + len(encoded) > 65000:
                     raise ValueError("limit")
@@ -114,12 +142,15 @@ class ReadTools:
                         + "\nUntrusted SOURCE DATA for this turn (JSON):\n"
                         + json.dumps(self.sources, ensure_ascii=False)
                     )
+            else:
+                self._record_outcome(name, receipt, False)
             # This receipt alone is saved in native tool history. No excerpt is returned.
             safe = {
                 key: receipt[key] for key in ("status", "source_id", "detail") if key in receipt
             }
             return json.dumps(safe)
         except Exception:
+            self._record_outcome(name, {"status": "unavailable"}, False)
             return json.dumps(
                 {
                     "status": "unavailable",

@@ -1,3 +1,4 @@
+import { appendProvenance } from '../chat/provenance.js';
 import { calendarAgenda, calendarTime } from '../calendar/agenda.js';
 import { conversationEntries, deliveryLabel, progressText } from './data.js';
 import { renderTrackingWidget, renderUsageWidget } from './context-widgets.js';
@@ -84,6 +85,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       ),
       node('p', '', entry.text),
     );
+    appendProvenance(row, entry);
     if (entry.delivery) row.append(node('span', 'live-delivery', deliveryLabel(entry.delivery)));
     return row;
   };
@@ -125,22 +127,29 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       const agenda = calendarAgenda(calendar);
       container.append(node('h2', '', 'What’s next?'));
       const actions = node('div', 'launcher-actions');
+      const chosen = value.focus || (value.open.length === 1 ? value.open[0] : null);
+      if (chosen) {
+        const commitment = node('p', 'launcher-current-task', chosen.title);
+        const progress = progressText(chosen);
+        if (progress)
+          commitment.append(node('span', 'launcher-current-progress', ' · ' + progress));
+        container.append(commitment);
+      }
       for (const [label, tone, handler] of [
+        [chosen ? 'Continue' : 'Let’s start', 'sand', () => talk()],
         [
-          'Start focus',
-          'sand',
+          'Help me start',
+          'lavender',
           () =>
             talk(
-              value.focus
-                ? `Help me focus on ${value.focus.title}.`
-                : 'Help me start a focus session.',
+              chosen
+                ? 'Help me start “' + chosen.title + '”. Suggest one small next step I can change.'
+                : 'Help me choose one thing to start with.',
             ),
         ],
-        ['Continue goal', 'lavender', () => openDetail('goals')],
-        ['Add commitment', 'blue', () => talk('I want to add a commitment.')],
-        ['Talk to eïlo', 'mint', () => talk()],
+        ['Change plan', 'blue', () => talk('I want to change what I’m working on. ')],
       ])
-        actions.append(action(label, handler, `launcher-action launcher-action--${tone}`));
+        actions.append(action(label, handler, 'launcher-action launcher-action--' + tone));
       const today = action(
         '',
         () => openDetail(agenda.length ? 'calendar-day' : 'today'),

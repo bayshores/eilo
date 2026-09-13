@@ -1,3 +1,4 @@
+import { createInlineDialog } from '../workspace/inline-dialog.js';
 import { mountDesktopSetup } from '../activity/desktop-setup.js';
 
 const FLAGS = [
@@ -107,6 +108,7 @@ export function createContextPanel({
     host ? 'section' : 'dialog',
     `context-panel${host ? ' context-panel--embedded' : ''}`,
   );
+  const openInline = host ? null : createInlineDialog(dialog);
   const isOpen = () => (host ? !host.hidden : dialog.open);
   if (host) dialog.setAttribute('aria-label', 'Settings');
   else dialog.setAttribute('aria-labelledby', 'context-panel-title');
@@ -131,17 +133,6 @@ export function createContextPanel({
   const tabButtons = new Map();
   const mutators = new Set();
   const switches = new Map();
-  let dismissTooltip = () => {};
-  const dismissOnEscape = (event) => {
-    if (event.key === 'Escape' && dialog.querySelector('.settings-tooltip:popover-open')) {
-      dismissTooltip();
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  };
-  document.addEventListener('keydown', dismissOnEscape, true);
-  const dismissOnResize = () => dismissTooltip();
-  window.addEventListener('resize', dismissOnResize);
   let current = null,
     busy = false,
     selected = 'overview',
@@ -155,7 +146,7 @@ export function createContextPanel({
     showDesktopGuide = false;
 
   function selectTab(id, focus = false) {
-    dismissTooltip();
+    id = id === 'connections' ? 'sources' : id;
     selected = id;
     for (const [key, tab] of tabButtons) {
       tab.setAttribute('aria-selected', String(key === id));
@@ -170,10 +161,7 @@ export function createContextPanel({
   for (const [id, label] of [
     ...extraSections.filter((item) => item.id === 'general').map(({ id, label }) => [id, label]),
     ['overview', host ? 'Widgets & layout' : 'Overview'],
-    ['sources', 'Activity & AI'],
-    ...extraSections
-      .filter((item) => item.id === 'connections')
-      .map(({ id, label }) => [id, label]),
+    ['sources', 'Permissions'],
     ['memory', 'Memory'],
     ...extraSections
       .filter((item) => !['general', 'connections'].includes(item.id))
@@ -184,47 +172,10 @@ export function createContextPanel({
     tab.setAttribute('role', 'tab');
     tab.setAttribute('aria-controls', `context-view-${id}`);
     if (host && SETTINGS_DESCRIPTIONS[id]) {
-      const tip = node('div', 'settings-tooltip', SETTINGS_DESCRIPTIONS[id]);
-      tip.id = `settings-tip-${id}`;
-      tip.setAttribute('role', 'tooltip');
-      tip.setAttribute('popover', 'manual');
-      tab.setAttribute('aria-describedby', tip.id);
-      dialog.append(tip);
-      let timer;
-      const hide = () => {
-        clearTimeout(timer);
-        if (tip.matches(':popover-open')) tip.hidePopover();
-      };
-      const show = () => {
-        dismissTooltip();
-        dismissTooltip = hide;
-        tip.showPopover();
-        const anchor = tab.getBoundingClientRect();
-        const bounds = tip.getBoundingClientRect();
-        const beside = anchor.right + 12 + bounds.width <= innerWidth - 12;
-        const left = beside
-          ? anchor.right + 12
-          : Math.max(12, Math.min(anchor.left, innerWidth - bounds.width - 12));
-        const top = beside ? anchor.top + (anchor.height - bounds.height) / 2 : anchor.bottom + 8;
-        tip.style.left = `${left}px`;
-        tip.style.top = `${Math.max(12, Math.min(top, innerHeight - bounds.height - 12))}px`;
-      };
-      const hideSoon = () => {
-        clearTimeout(timer);
-        timer = setTimeout(hide, 160);
-      };
-      tab.addEventListener('pointerenter', (event) => {
-        if (event.pointerType !== 'mouse') return;
-        dismissTooltip();
-        dismissTooltip = hide;
-        timer = setTimeout(show, 400);
-      });
-      tab.addEventListener('pointerleave', hideSoon);
-      tab.addEventListener('focus', show);
-      tab.addEventListener('blur', hideSoon);
-      tab.addEventListener('pointerdown', hide);
-      tip.addEventListener('pointerenter', () => clearTimeout(timer));
-      tip.addEventListener('pointerleave', hideSoon);
+      const description = node('span', 'sr-only', SETTINGS_DESCRIPTIONS[id]);
+      description.id = `settings-tip-${id}`;
+      tab.setAttribute('aria-describedby', description.id);
+      dialog.append(description);
     }
     const panel = node('div', 'context-panel__view');
     panel.id = `context-view-${id}`;
@@ -384,29 +335,39 @@ export function createContextPanel({
   }
   const chooseSources = button('Choose context sources', 'context-navigation-row');
   chooseSources.innerHTML =
-    '<span>Activity & AI<small>Choose what eïlo can collect and use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
+    '<span>Permissions<small>Choose what eïlo can collect and use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
   chooseSources.addEventListener('click', () => selectTab('sources', true));
   overview.append(work, layout, chooseSources);
 
   const sources = panels.get('sources');
-  const sharing = section('Use with eïlo');
+  const sharing = section('AI access to activity');
   sharing.append(
     switchRow(
       'ai_enabled',
-      'Understand my work',
-      'Send conversation and permitted activity to your AI.',
+      'Let AI use recorded activity',
+      'Send your conversation and permitted activity to your connected AI for context and check-ins. Recording and AI access are separate choices.',
       (checked) => run('context', 'configure', { ai_enabled: checked }),
     ),
   );
-  const capture = section('Activity sources');
-  const pause = action('Pause capture', 'context', 'configure', () => ({
+  const capture = section('Record activity on this Mac');
+  const pause = action('Pause recording', 'context', 'configure', () => ({
     enabled: !current?.policy?.enabled,
   }));
   pause.classList.add('context-pause');
   const sourceRows = new Map();
   for (const [flag, label, detail, source] of [
-    ['desktop_enabled', 'Desktop', 'The app you’re using. Text is a separate choice.', 'desktop'],
-    ['browser_enabled', 'Chrome', 'Current tab. Private windows stay private.', 'browser'],
+    [
+      'desktop_enabled',
+      'Record desktop activity',
+      'App names and time. Window text is a separate choice.',
+      'desktop',
+    ],
+    [
+      'browser_enabled',
+      'Record Chrome activity',
+      'Active website names and time. Private windows are excluded.',
+      'browser',
+    ],
   ]) {
     const row = switchRow(flag, label, detail, async (checked) => {
       await run('context', 'configure', { [flag]: checked, ...(checked ? { enabled: true } : {}) });
@@ -452,8 +413,8 @@ export function createContextPanel({
   rich.append(
     switchRow(
       'text_enabled',
-      'Visible text',
-      'Include text from permitted windows.',
+      'Include visible text',
+      'Record text from permitted windows and pages. It reaches AI only when AI access is on.',
       async (checked) => {
         await run('context', 'configure', { text_enabled: checked });
         if (checked && current?.policy?.desktop_enabled) {
@@ -494,7 +455,13 @@ export function createContextPanel({
   exclusions.append(excludedList, excludeForm);
   const integrations = button('Manage connected apps', 'context-navigation-row');
   integrations.addEventListener('click', () => closeThen(onConnections));
-  sources.append(sharing, capture, rich, exclusions, integrations);
+  const excludedDetails = node('details', 'context-disclosure');
+  excludedDetails.append(node('summary', '', 'Excluded websites'), exclusions);
+  sources.append(capture, rich, sharing);
+  const connections = extraSections.find((item) => item.id === 'connections')?.element;
+  if (connections) sources.append(connections);
+  else sources.append(integrations);
+  sources.append(excludedDetails);
 
   const memory = panels.get('memory');
   const retention = section('Kept on this Mac');
@@ -667,7 +634,7 @@ export function createContextPanel({
           : sourceLabels[current?.capture_status?.[source]?.status] || 'Waiting for activity';
     }
     pause.hidden = !policy.desktop_enabled && !policy.browser_enabled;
-    pause.textContent = policy.enabled ? 'Pause capture' : 'Resume capture';
+    pause.textContent = policy.enabled ? 'Pause recording' : 'Resume recording';
     const desktopHealth = current?.capture_status?.desktop || {};
     permission.hidden =
       showDesktopGuide ||
@@ -677,11 +644,10 @@ export function createContextPanel({
     desktopHost.hidden = !showDesktopGuide;
     if (showDesktopGuide && selected === 'sources')
       desktopGuide.update(current, { text: policy.text_enabled });
-    browserSetup.hidden =
-      !policy.browser_enabled ||
-      !['disconnected', 'configured', 'registration_required', 'waiting'].includes(
-        current?.capture_status?.browser?.status,
-      );
+    browserSetup.hidden = false;
+    browserSetup.textContent = current?.capture_status?.browser?.setup_verified
+      ? 'Chrome connection details'
+      : 'Set up Chrome';
     const nextExclusions = JSON.stringify(policy.excluded_domains || []);
     if (nextExclusions !== exclusionsKey) {
       exclusionsKey = nextExclusions;
@@ -735,18 +701,18 @@ export function createContextPanel({
       return isOpen();
     },
     selectSection(id) {
+      id = id === 'connections' ? 'sources' : id;
       selectTab(tabButtons.has(id) ? id : 'general');
       renderedKey = '';
       update(current);
     },
     hide() {
-      dismissTooltip();
       desktopGuide.pause();
     },
     open(opener) {
       trigger = opener;
       trigger?.setAttribute('aria-expanded', 'true');
-      if (!host) dialog.showModal();
+      if (!host) openInline();
       renderedKey = '';
       update(current);
       tabButtons.get(selected).focus({ preventScroll: true });
@@ -755,9 +721,6 @@ export function createContextPanel({
       if (!host) dialog.close();
     },
     destroy() {
-      dismissTooltip();
-      document.removeEventListener('keydown', dismissOnEscape, true);
-      window.removeEventListener('resize', dismissOnResize);
       desktopGuide.destroy();
       dialog.remove();
     },

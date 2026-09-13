@@ -40,22 +40,13 @@ class WorkspaceCatalogControllerTests(unittest.IsolatedAsyncioTestCase):
 
         async def command(arguments, **kwargs):
             self.calls.append((arguments, kwargs))
-            if arguments[0] == "--resolve-title":
+            if arguments[0] == "--read-chat":
                 title = arguments[1]
-                return (
-                    0,
-                    json.dumps(
-                        {
-                            "session_id": "native-old" if self.resolve_ok else None,
-                            "session_title": title if self.resolve_ok else "wrong-title",
-                        }
-                    ),
-                    "",
-                )
-            if arguments[:6] == ["sessions", "export", "--format", "jsonl", "--redact", "--yes"]:
+                record = dict(self.record)
+                record["title"] = title if self.resolve_ok else "wrong-title"
                 return (
                     0 if self.export_ok else 1,
-                    json.dumps(self.record) if self.export_ok else "",
+                    json.dumps(record) if self.export_ok else "",
                     "",
                 )
             return 0, "", ""
@@ -102,17 +93,13 @@ class WorkspaceCatalogControllerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.chat.meta["tasks"], original_goals)
         self.assertEqual(self.chat.meta["accountability"], original_activity)
         self.assertEqual(self.chat.meta["source_settings"], original_sources)
-        self.assertTrue(
-            any(
-                call[0] == ["--resolve-title", self.record["title"]]
-                and call[1].get("launcher") == "hermes-human"
-                for call in self.calls
-            )
+        self.assertFalse(
+            any(call[0][0] == "sessions" and call[0][1] == "export" for call in self.calls)
         )
         self.assertTrue(
             any(
-                call[0][:6] == ["sessions", "export", "--format", "jsonl", "--redact", "--yes"]
-                and call[0][6:] == ["--session-id", "native-old", "-"]
+                call[0] == ["--read-chat", self.record["title"]]
+                and call[1].get("launcher") == "hermes-human"
                 for call in self.calls
             )
         )

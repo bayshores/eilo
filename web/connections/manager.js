@@ -102,6 +102,7 @@ export function mountConnectionsManager(
   container,
   {
     fetcher = fetch,
+    embeddedPermissions = false,
     openGoogleAuthorization = async () => false,
     openBriefingAuthorization = async () => false,
     onActivitySetup = () => {},
@@ -364,7 +365,14 @@ export function mountConnectionsManager(
     input.dataset.focus = `toggle-${item.id}`;
     input.setAttribute('role', 'switch');
     input.setAttribute('aria-checked', String(item.enabled));
-    input.setAttribute('aria-label', `Use ${item.name}`);
+    input.setAttribute(
+      'aria-label',
+      item.id === 'google-calendar'
+        ? 'Sync Google Calendar to this Mac'
+        : item.id === 'gmail'
+          ? 'Let AI read connected Gmail inboxes'
+          : `Enable ${item.name}`,
+    );
     input.addEventListener('change', async () => {
       const wanted = input.checked;
       input.setAttribute('aria-checked', String(wanted));
@@ -587,7 +595,7 @@ export function mountConnectionsManager(
       snapshot && [...snapshot.apps, ...snapshot.mcps].find((item) => item.id === selected);
     if (chosen || addOpen) {
       const back = button(
-        '‹  Connections',
+        embeddedPermissions ? '‹  Connected apps' : '‹  Connections',
         () => {
           selected = '';
           addOpen = false;
@@ -626,9 +634,18 @@ export function mountConnectionsManager(
     }
     const header = make('header', 'connections-manager__header');
     header.append(make('div', 'connections-manager__title-wrap'));
-    const heading = make('h2', '', 'Connections');
+    const heading = make('h2', '', embeddedPermissions ? 'Connected apps' : 'Connections');
     heading.id = 'connections-manager-title';
-    header.firstChild.append(heading, make('p', '', 'Choose what eïlo can work with.'));
+    header.firstChild.append(
+      heading,
+      make(
+        'p',
+        '',
+        embeddedPermissions
+          ? 'Manage each account and what AI can read.'
+          : 'Choose what eïlo can work with.',
+      ),
+    );
     const add = button(
       'Add MCP',
       () => {
@@ -691,7 +708,9 @@ export function mountConnectionsManager(
       `${item.name} ${item.description || ''} ${item.state || ''}`
         .toLocaleLowerCase()
         .includes(needle);
-    const apps = snapshot.apps.filter(matches),
+    const apps = snapshot.apps.filter(
+        (item) => matches(item) && (!embeddedPermissions || item.id !== 'browser-activity'),
+      ),
       mcps = snapshot.mcps.filter(matches);
     const list = make('div', 'connections-manager__list');
     if (tab !== 'mcps') apps.forEach((item) => list.append(row(item, 'app')));

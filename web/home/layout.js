@@ -958,3 +958,61 @@ export function readLayoutTransfer(hash) {
     return null;
   }
 }
+
+/** Stage an addition against the original pages so drag/resize previews never accumulate reflow. */
+export function previewWidgetAddition(
+  state,
+  widget,
+  { mode = 'wide', rows = 4, page = 0, x, y, w, h } = {},
+) {
+  if (
+    !validWidget(widget) ||
+    state.widgets.length >= 24 ||
+    state.widgets.some((item) => item.id === widget.id)
+  )
+    return state;
+  mode = validMode(mode);
+  rows = Math.max(2, Math.min(8, Math.floor(rows) || 4));
+  const pages = paginateHomeLayout(state, mode, rows);
+  page = Math.max(0, Math.min(pages.length - 1, page));
+  const current = pages[page] || [];
+  const size = dimensions(widget, mode);
+  const footprint = normalizedFootprint(widget.type, mode, {
+    w: w ?? size.w,
+    h: Math.min(h ?? size.h, rows),
+  });
+  let target = { ...widget, ...footprint, x: 0, y: 0 };
+  if (Number.isFinite(x) && Number.isFinite(y))
+    target = clamped(target, x, Math.min(y, rows - target.h), MODES[mode]);
+  else target = fitWithinPage(target, current, MODES[mode], rows, 0, 0) || target;
+  const clear = current.filter((item) => !overlaps(item, target));
+  const displaced = current.filter((item) => overlaps(item, target));
+  const placed = [target, ...clear];
+  const spill = [];
+  for (const item of displaced) {
+    const slot = fitWithinPage(item, placed, MODES[mode], rows, item.x, item.y);
+    if (slot) placed.push(slot);
+    else spill.push(item);
+  }
+  const layouts = pages.map((items, index) => (index === page ? placed : items));
+  if (!layouts.length) layouts.push(placed);
+  const positions = layouts.flatMap((items, index) =>
+    items.map((item) => ({ id: item.id, x: item.x, y: item.y + index * rows })),
+  );
+  let overflow = [];
+  for (const item of spill) overflow.push(fit(item, overflow, MODES[mode]));
+  positions.push(
+    ...overflow.map((item) => ({ id: item.id, x: item.x, y: item.y + layouts.length * rows })),
+  );
+  const byId = new Map(pages.flat().map((item) => [item.id, item]));
+  const next = cloneState(normalizeState(state));
+  next.widgets = next.widgets.map((item) => {
+    const displayed = byId.get(item.id);
+    return displayed
+      ? { ...item, footprints: { ...item.footprints, [mode]: { w: displayed.w, h: displayed.h } } }
+      : item;
+  });
+  next.widgets.push({ ...widget, footprints: { ...widget.footprints, [mode]: footprint } });
+  next.positions[mode] = positions;
+  return next;
+}

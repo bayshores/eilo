@@ -11,6 +11,11 @@ const CUES = {
     [523.25, 0, 0.08],
     [659.25, 0.05, 0.1],
   ],
+  sent: [[349.23, 0, 0.055]],
+  completed: [
+    [523.25, 0, 0.07],
+    [783.99, 0.045, 0.11],
+  ],
 };
 
 const MAX_ACTIVE_VOICES = 4;
@@ -22,6 +27,7 @@ const MAX_ACTIVE_VOICES = 4;
 export function createInterfaceSound({
   enabled = () => false,
   muted = () => false,
+  volume = () => 0.5,
   AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext,
   document = globalThis.document,
   isUserGesture = () => globalThis.navigator?.userActivation?.isActive ?? true,
@@ -34,7 +40,8 @@ export function createInterfaceSound({
   const cues = new Map();
 
   const hidden = () => document?.visibilityState === 'hidden';
-  const allowed = () => !disposed && enabled() && !muted() && !hidden();
+  const level = () => Math.min(1, Math.max(0, Number(volume()) || 0));
+  const allowed = () => !disposed && enabled() && !muted() && !hidden() && level() > 0;
 
   function remove(voice) {
     if (!active.delete(voice)) return;
@@ -93,7 +100,9 @@ export function createInterfaceSound({
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(frequency, start);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.018, start + 0.012);
+    // Keep confirmation tones audible without competing with speech or media.
+    // The live preference remains the final cap.
+    gain.gain.exponentialRampToValueAtTime(0.05 * level(), start + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, end);
     oscillator.connect(gain);
     gain.connect(context.destination);
@@ -112,7 +121,10 @@ export function createInterfaceSound({
   }
 
   function prepare() {
-    if (!allowed() || !isUserGesture()) return false;
+    if (!allowed() || !isUserGesture()) {
+      if (!allowed()) stop();
+      return false;
+    }
     const nextContext = getContext();
     if (!nextContext) return false;
     const token = ++generation;
@@ -130,10 +142,48 @@ export function createInterfaceSound({
   }
 
   function play(kind) {
-    if (!CUES[kind] || !prepared || !allowed() || context?.state !== 'running') return false;
+    if (!allowed()) {
+      stop();
+      return false;
+    }
+    if (!CUES[kind] || !prepared || context?.state !== 'running') return false;
     const token = ++generation;
     begin(kind, token);
     return true;
+  }
+
+  async function playTest() {
+    if (!allowed() || !isUserGesture()) {
+      if (!allowed()) stop();
+      return false;
+    }
+    const nextContext = getContext();
+    if (!nextContext) return false;
+    const token = ++generation;
+    prepared = false;
+    try {
+      await nextContext.resume?.();
+    } catch {
+      return false;
+    }
+    if (
+      token !== generation ||
+      !allowed() ||
+      context !== nextContext ||
+      nextContext.state !== 'running'
+    )
+      return false;
+    prepared = true;
+    const playToken = ++generation;
+    begin('ready', playToken);
+    return true;
+  }
+
+  // Browser storage owns these preferences. Its subscriber calls sync after a
+  // change so an active cue cannot outlive a mute or opt-out.
+  function sync() {
+    if (!allowed()) stop();
+    return allowed();
   }
 
   const visibilityChanged = () => {
@@ -144,6 +194,17 @@ export function createInterfaceSound({
   return {
     prepare,
     play,
+    playTest,
+    confirm() {
+      return play('confirmed');
+    },
+    sent() {
+      return play('sent');
+    },
+    complete() {
+      return play('completed');
+    },
+    sync,
     stop,
     destroy() {
       if (disposed) return;

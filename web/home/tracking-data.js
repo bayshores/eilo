@@ -236,3 +236,31 @@ export function formatRecordedTime(seconds) {
   const remainder = minutes % 60;
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
 }
+
+/** Status describes observed transport health, never just a saved permission. */
+export function recordingSummary(view) {
+  const tracking = selectTracking(view);
+  if (!tracking.online) return 'Recording status unavailable';
+  const policy = view?.snapshot?.adaptive?.policy;
+  const legacy = view?.snapshot?.accountability?.activity?.state === 'active';
+  const enabledSources = ['desktop', 'browser'].filter(
+    (source) => policy?.enabled && policy[source + '_enabled'],
+  );
+  const rows = tracking.rows.filter(
+    (row) => enabledSources.includes(row.id) || (row.id === 'browser' && legacy),
+  );
+  if (!rows.length)
+    return policy && !policy.enabled && (policy.desktop_enabled || policy.browser_enabled)
+      ? 'Recording paused'
+      : 'Recording off';
+  const active = rows.filter((row) => ['Collecting', 'Sharing'].includes(row.status));
+  const failed = rows.filter((row) => row.tone === 'attention');
+  if (active.length)
+    return (
+      'Recording: ' +
+      active.map((row) => row.name).join(' + ') +
+      (failed.length ? ' · Needs attention' : '')
+    );
+  if (failed.length) return 'Recording needs attention';
+  return 'Waiting for activity';
+}

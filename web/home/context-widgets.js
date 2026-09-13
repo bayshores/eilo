@@ -360,10 +360,17 @@ export function renderUsageWidget(container, view, onActivity = () => {}, onConn
     const button = node('button', 'usage-ribbon__segment');
     button.type = 'button';
     button.dataset.origin = segment.id;
-    button.style.flexGrow = String(segment.seconds / data.totalSeconds);
     button.style.setProperty('--usage-color', segment.color);
-    const label = `${segment.label}: ${formatRecordedTime(segment.seconds)} across seven days`;
+    button.style.setProperty(
+      '--usage-share',
+      String((segment.seconds / data.totalSeconds) * 100) + '%',
+    );
+    const label = segment.label + ': ' + formatRecordedTime(segment.seconds) + ' across seven days';
     button.setAttribute('aria-label', label);
+    button.append(
+      node('span', 'usage-ribbon__label', segment.label),
+      node('span', 'usage-ribbon__time', formatRecordedTime(segment.seconds)),
+    );
     const showDetail = () => {
       state.selectedSite = segment.id;
       updateAllocation(state);

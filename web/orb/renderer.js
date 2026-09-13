@@ -129,7 +129,7 @@ export function createVoiceOrb(container, { detail = 14, interactive = true } = 
       blending: THREE.NormalBlending,
       depthTest: false,
       depthWrite: false,
-      size: 2,
+      size: 1,
       sizeAttenuation: true,
     });
   const uniforms = {
@@ -145,6 +145,7 @@ export function createVoiceOrb(container, { detail = 14, interactive = true } = 
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `
+varying float pointCoverage;
 uniform float time;
 uniform float radius;
 uniform float amplitude;
@@ -190,7 +191,27 @@ s *= (1.0 + gaussian * cursorActive * 0.3);
 vec3 transformed = vec3(p.x, p.y, p.z);
 `,
     );
-    shader.vertexShader = shader.vertexShader.replace('gl_PointSize = size;', 'gl_PointSize = s;');
+    shader.vertexShader = shader.vertexShader.replace(
+      'gl_PointSize = size;',
+      'gl_PointSize = s * size;',
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <logdepthbuf_vertex>',
+      `
+float sampledSize = max(gl_PointSize, 2.0);
+pointCoverage = pow(gl_PointSize/sampledSize, 2.0);
+gl_PointSize = sampledSize;
+#include <logdepthbuf_vertex>
+`,
+    );
+    shader.fragmentShader = 'varying float pointCoverage;\n' + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <map_particle_fragment>',
+      `
+#include <map_particle_fragment>
+diffuseColor.a *= pointCoverage;
+`,
+    );
   };
   material.needsUpdate = true;
   const points = new THREE.Points(geometry, material);
@@ -217,7 +238,9 @@ vec3 transformed = vec3(p.x, p.y, p.z);
     if (destroyed || lost) return;
     const bounds = container.getBoundingClientRect();
     if (!bounds.width || !bounds.height) return;
-    renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2));
+    const nativeRatio = Math.min(globalThis.devicePixelRatio || 1, 2);
+    const ratio = Math.min(nativeRatio * 2, 4, 512 / Math.max(bounds.width, bounds.height));
+    renderer.setPixelRatio(Math.max(1, ratio));
     camera.aspect = bounds.width / bounds.height;
     camera.updateProjectionMatrix();
     renderer.setSize(bounds.width, bounds.height, false);

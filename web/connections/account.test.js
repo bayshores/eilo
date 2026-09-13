@@ -9,9 +9,11 @@ class Element {
     this.listeners = {};
     this.textContent = '';
     this.hidden = false;
+    this.classList = { add() {} };
   }
   append(...children) {
     this.children.push(...children);
+    for (const child of children) child.parentElement = this;
   }
   replaceChildren(...children) {
     this.children = children;
@@ -22,7 +24,7 @@ class Element {
   addEventListener(name, handler) {
     this.listeners[name] = handler;
   }
-  showModal() {
+  show() {
     this.open = true;
   }
   close() {
@@ -38,6 +40,9 @@ class Element {
   async click() {
     if (!this.disabled) await this.listeners.click?.();
     await new Promise(setImmediate);
+  }
+  querySelector(selector) {
+    return this.all().find((node) => node.tag === selector) || null;
   }
   all() {
     return this.children.flatMap((child) => [child, ...child.all()]);

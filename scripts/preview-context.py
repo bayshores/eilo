@@ -1,6 +1,7 @@
 """Isolated interactive integration fixture. No real model, capture, or accounts."""
 
 import argparse
+import asyncio
 import re
 import sys
 import tempfile
@@ -246,14 +247,38 @@ class DemoChat(LocalChat):
     show_sample_activity = False
     show_sample_records = False
     checkin_phase = None
+    chat_context_fixture = None
 
     def snapshot(self):
         snapshot = super().snapshot()
+        if self.chat_context_fixture:
+            snapshot["chat_context"] = dict(self.chat_context_fixture)
         if self.show_sample_activity:
             snapshot = sample_activity(snapshot)
         if self.checkin_phase:
             snapshot = sample_checkin(snapshot, self.checkin_phase)
         return sample_records(snapshot) if self.show_sample_records else snapshot
+
+    async def compress_context(self, body):
+        if not self.chat_context_fixture:
+            return await super().compress_context(body)
+        self.chat_context_fixture["status"] = "compressing"
+        self.chat_context_fixture["can_compress"] = False
+        self.changed()
+
+        async def finish():
+            await asyncio.sleep(1)
+            self.chat_context_fixture.update(
+                status="compressed",
+                used_tokens=14000,
+                remaining_tokens=258000,
+                percent_used=5.1,
+                can_compress=True,
+            )
+            self.changed()
+
+        self.task = asyncio.create_task(finish())
+        return self.snapshot()
 
     async def initialize(self):
         self.changed()
@@ -381,6 +406,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument(
+        "--chat-context", action="store_true", help="Exercise synthetic chat context controls"
+    )
+    parser.add_argument(
         "--sample-activity", action="store_true", help="Show generated visual-review data"
     )
     parser.add_argument(
@@ -421,6 +449,19 @@ def main():
         chat.show_sample_activity = args.sample_activity
         chat.show_sample_records = args.sample_records
         chat.checkin_phase = args.checkin_phase
+        if args.chat_context:
+            chat.chat_context_fixture = {
+                "window_tokens": 272000,
+                "used_tokens": 178000,
+                "remaining_tokens": 94000,
+                "percent_used": 65.4,
+                "measurement": "estimate",
+                "threshold_tokens": 204000,
+                "compression_enabled": True,
+                "can_compress": True,
+                "status": "idle",
+                "usage": {"input_tokens": 845000, "output_tokens": 22000},
+            }
         key = Fernet.generate_key()
         chat.context = ContextService(
             Path(folder) / "context",
@@ -444,7 +485,8 @@ def main():
         print(f"Synthetic integration fixture: http://127.0.0.1:{args.port}/home/", flush=True)
         app = create_app(chat, args.port)
         if (
-            args.sample_activity
+            args.chat_context
+            or args.sample_activity
             or args.sample_records
             or args.onboarding
             or args.checkin_phase

@@ -31,17 +31,8 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
 
         async def command(arguments, **kwargs):
             self.command_calls.append((arguments, kwargs))
-            if arguments[0] == "--resolve-title":
-                return (
-                    0,
-                    json.dumps(
-                        {
-                            "session_id": "fixture_session" if self.records else None,
-                            "session_title": arguments[1],
-                        }
-                    ),
-                    "",
-                )
+            if arguments[0] == "--read-chat":
+                return 0, json.dumps(self.records[0] if self.records else {}), ""
             if arguments[0] == "--input":
                 self.request_started.set()
                 self.native_calls += 1
@@ -215,7 +206,7 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state["messages"], [])
         self.assertEqual(self.native_calls, 1)
 
-    async def test_failed_first_turn_resolves_title_and_recovers_saved_user_without_replay(self):
+    async def test_failed_first_turn_reads_title_and_recovers_saved_user_without_replay(self):
         self.return_code = 1
         self.records = [
             self.native_record(
@@ -240,17 +231,13 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
             self.chat.messages, [{"id": "1", "role": "user", "text": "Keep this first message"}]
         )
         self.assertEqual(self.native_calls, 1)
-        self.assertTrue(
-            any(
-                call[0] == ["--resolve-title", self.chat.meta["title"]]
-                and call[1].get("launcher") == "hermes-human"
-                for call in self.command_calls
-            )
+        self.assertFalse(
+            any(call[0][0] == "sessions" and call[0][1] == "export" for call in self.command_calls)
         )
         self.assertTrue(
             any(
-                call[0][:6] == ["sessions", "export", "--format", "jsonl", "--redact", "--yes"]
-                and call[0][6:8] == ["--session-id", "fixture_session"]
+                call[0] == ["--read-chat", self.chat.meta["title"]]
+                and call[1].get("launcher") == "hermes-human"
                 for call in self.command_calls
             )
         )

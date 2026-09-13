@@ -38,6 +38,34 @@ a delivered check-in and assistant history; it can run alone or with
 IDs are for rendering, not backend deletion/restoration tests. Use a goal created
 in an ordinary onboarding fixture to verify durable goal recovery.
 
+## Home layout regression checks
+
+Run `python3 scripts/preview-home-layout.py` and open **http://127.0.0.1:8794/**.
+This renders the real Home launcher and populated Browser usage cards with the
+production stylesheet order and synthetic content. It does not start a model,
+read personal state, or expose files outside the public asset allowlist.
+
+The matrix covers 192 combinations of narrow/wide card widths, short/tall saved
+heights, absent goals and long titles, including container-query boundaries.
+Check both typography options. **Check geometry** reports overlapping controls,
+controls outside their cards, missing launcher actions and invalid usage fixtures.
+Inspect representative cards visually and exercise their controls too; a geometry
+pass alone does not prove label readability or working navigation. After changing
+Home content, verify the real app at its existing saved card sizes and the ordinary
+preview at compact and wide window sizes. Window width alone is insufficient.
+
+## Chat context verification
+
+`.venv/bin/python scripts/preview-context.py --port 8798 --chat-context`
+starts an isolated UI fixture with synthetic usage and a simulated summary.
+Use it for keyboard, narrow-screen and progress-state checks without model calls.
+
+Run `.runtime/venv/bin/python -m unittest tests.test_chat_context_native` for
+native storage checks using temporary databases: usage-anchor validation,
+archived history, cloned replies, summary carriers, compression rotation and
+the pinned summary route. These tests skip in the developer environment when
+Hermes is absent; run them explicitly with the project-local runtime.
+
 ## Real Mac app
 
 The current native target is Apple Silicon, macOS 14 or later. Install Xcode Command Line Tools if `xcrun` is unavailable (`xcode-select --install`). Then:

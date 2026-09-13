@@ -1,5 +1,9 @@
 // These are interface actions, never prompts sent to the model.
 export const LOCAL_COMMANDS = Object.freeze([
+  { command: '/context', label: 'View context space', page: null },
+  { command: '/compress', label: 'Summarize older context', page: null },
+  { command: '/usage', label: 'View token usage', page: null },
+  { command: '/help', label: 'Show chat commands', page: null },
   { command: '/mcp', label: 'Manage MCP servers', page: 'connections' },
   { command: '/connections', label: 'Manage connected services', page: 'connections' },
   { command: '/chats', label: 'Open your chats', page: 'chats' },

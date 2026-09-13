@@ -58,6 +58,25 @@ older browser state from silently replacing newer state.
 | Browser drafts and presentation preferences | Browser storage          | Convenience state only; it cannot create or overwrite durable commitments.               |
 | Model/runtime sign-in                       | Hermes private home      | Never read, copy, publish, or infer it from source configuration.                        |
 
+## Chat context and compaction
+
+`chat_context_runtime.py` reads Hermes's native display history separately from
+the active model context. It includes compaction archives and compression
+ancestors, unwraps synthetic summary carriers, and preserves eïlo publication
+metadata when native row IDs change. `chat_context.py` projects only validated
+numeric usage anchors and cached limits; it does not probe a provider.
+
+The composer consumes `chat_context` in the existing state snapshot.
+`POST /api/chat/context` accepts only a revision-checked, idempotent compression
+request for the active conversation. A durable per-chat receipt precedes the
+native operation. The same native lock serializes compaction, inference and
+publication. Restart resolves native saved history without replaying compression.
+Old catalog records gain the two optional control fields before strict validation.
+
+The human driver pins each Hermes compression attempt to its audited main
+provider/model and emits only allowlisted compression status values. Context
+details never expose auxiliary diagnostics, credentials, or hidden summary text.
+
 ## First workspace setup
 
 `app/onboarding.py` owns a revisioned draft separate from real goals. New metadata
@@ -172,3 +191,23 @@ unrelated mail-only turns retain their existing scope.
 Keep dependencies directed inward: browser code calls HTTP, routes call domains,
 and domains own state. Do not let a browser feature reach local files, credentials,
 or a runtime directly.
+
+## Return-point and provenance presentation
+
+Browser presentation preferences default visible navigation, sound and daily
+guidance on for unset values. Draft outboxes use local browser storage (migrated
+from the previous session store), with per-chat pending-request identities kept.
+Conversation-open and reading-position preferences contain no task authority.
+
+The daily return view in `web/home/daily-start.js` reads the existing committed
+goal projection and explicitly linked work context. Day dismissal is a local
+presentation choice across chats; it never changes goals or schedules. No
+background model call is introduced.
+
+Source-use receipts are bounded version-1 native display metadata authored by
+the human/event drivers. They retain only task revision, input category and
+provided/unavailable/no-data outcome. Raw source content remains transient.
+Published message projection validates the receipt; historical messages without
+one remain readable. Legacy pending event publication shapes are accepted only
+for exact lookup/recovery, never for a new append. The UI renders these receipts
+as **What informed this?**, without claiming sentence-level influence.

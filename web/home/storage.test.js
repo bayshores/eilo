@@ -62,10 +62,12 @@ test('normalizers accept only bounded profile and note fields', () => {
     normalizeHomePreferences({ name: ' A '.repeat(30), pin: 1, reducedMotion: true }),
     {
       name: ' A '.repeat(30).slice(0, 40),
-      pin: false,
+      pin: true,
       homeLayoutVersion: 1,
       reducedMotion: true,
-      soundEffects: false,
+      soundEffects: true,
+      soundVolume: 0.5,
+      dailyGuidance: true,
       accentColor: '#fac399',
       widgetPins: [],
       dismissedContextWidgets: [],
@@ -73,10 +75,12 @@ test('normalizers accept only bounded profile and note fields', () => {
   );
   assert.deepEqual(normalizeHomePreferences(null), {
     name: '',
-    pin: false,
+    pin: true,
     homeLayoutVersion: 1,
     reducedMotion: false,
-    soundEffects: false,
+    soundEffects: true,
+    soundVolume: 0.5,
+    dailyGuidance: true,
     accentColor: '#fac399',
     widgetPins: [],
     dismissedContextWidgets: [],
@@ -105,4 +109,19 @@ test('personal profile names are restored only from local preferences', () => {
 test('scrolling Home migration version is explicit and survives normalization', () => {
   assert.equal(normalizeHomePreferences({ homeLayoutVersion: 2 }).homeLayoutVersion, 2);
   assert.equal(normalizeHomePreferences({ homeLayoutVersion: '2' }).homeLayoutVersion, 1);
+});
+
+test('defaults are helpful but explicit off preferences survive', () => {
+  const value = normalizeHomePreferences({
+    pin: false,
+    soundEffects: false,
+    dailyGuidance: false,
+    soundVolume: 0,
+  });
+  assert.equal(value.pin, false);
+  assert.equal(value.soundEffects, false);
+  assert.equal(value.dailyGuidance, false);
+  assert.equal(value.soundVolume, 0);
+  assert.equal(normalizeHomePreferences({ soundVolume: Infinity }).soundVolume, 0.5);
+  assert.equal(normalizeHomePreferences({ soundVolume: 5 }).soundVolume, 1);
 });

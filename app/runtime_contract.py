@@ -39,11 +39,47 @@ def check_config() -> None:
         ) from exc
 
 
+_PROVENANCE_SOURCES = frozenset(
+    {"conversation", "goals", "connections", "mail", "calendar", "work_context", "activity"}
+)
+_PROVENANCE_STATUSES = frozenset({"used", "unavailable", "no_data"})
+
+
+def validate_provenance(value: object) -> dict | None:
+    """Return a minimized, code-authored provenance projection or reject it."""
+    if not isinstance(value, dict) or set(value) != {"version", "task_revision", "sources"}:
+        return None
+    if (
+        type(value["version"]) is not int
+        or value["version"] != 1
+        or type(value["task_revision"]) is not int
+        or value["task_revision"] < 0
+    ):
+        return None
+    sources = value["sources"]
+    if not isinstance(sources, list) or len(sources) > len(_PROVENANCE_SOURCES):
+        return None
+    clean, seen = [], set()
+    for source in sources:
+        if (
+            not isinstance(source, dict)
+            or set(source) != {"source", "status"}
+            or source.get("source") not in _PROVENANCE_SOURCES
+            or source.get("status") not in _PROVENANCE_STATUSES
+            or source["source"] in seen
+        ):
+            return None
+        seen.add(source["source"])
+        clean.append({"source": source["source"], "status": source["status"]})
+    return {"version": 1, "task_revision": value["task_revision"], "sources": clean}
+
+
 def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
     """Project audited native history into the small public message shape."""
     messages = []
     current_event = None
     current_human = None
+    current_human_revision = None
     for message in record.get("messages", []):
         metadata = message.get("display_metadata") or {}
         if message.get("display_kind") == "eilo_observation":
@@ -55,6 +91,8 @@ def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
             current_human = (
                 metadata.get("request_id") if metadata.get("lane") == "eilo_human" else None
             )
+        if message.get("role") == "user":
+            current_human_revision = metadata.get("based_on_revision")
         if message.get("role") == "assistant" and (
             (current_human and message.get("display_kind") != "eilo_decision")
             or message.get("display_kind") == "eilo_human_proposal"
@@ -62,17 +100,30 @@ def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
             if (
                 message.get("display_kind") == "eilo_human_proposal"
                 and metadata.get("published") is True
-                and str(metadata.get("assistant_id")) == str(message.get("id"))
+                and (
+                    str(metadata.get("assistant_id")) == str(message.get("id"))
+                    or (
+                        current_human
+                        and metadata.get("request_id") == current_human
+                        and type(current_human_revision) is int
+                        and current_human_revision >= 0
+                        and metadata.get("based_on_revision") == current_human_revision
+                        and metadata.get("disposition")
+                        in {"chat", "clarify", "committed", "rejected"}
+                    )
+                )
                 and isinstance(metadata.get("public_reply"), str)
                 and metadata["public_reply"].strip()
             ):
-                messages.append(
-                    {
-                        "id": str(message["id"]),
-                        "role": "assistant",
-                        "text": metadata["public_reply"],
-                    }
-                )
+                projected = {
+                    "id": str(message["id"]),
+                    "role": "assistant",
+                    "text": metadata["public_reply"],
+                }
+                provenance = validate_provenance(metadata.get("provenance"))
+                if provenance is not None:
+                    projected["provenance"] = provenance
+                messages.append(projected)
             continue
         if message.get("role") == "assistant" and (
             current_event or message.get("display_kind") == "eilo_decision"
@@ -98,15 +149,17 @@ def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
                 except (ValueError, TypeError):
                     decision = None
                 if decision and decision["decision"] != "quiet":
-                    messages.append(
-                        {
-                            "id": str(message["id"]),
-                            "role": "assistant",
-                            "text": decision["message"],
-                            "origin": "check_in",
-                            "event_id": event_id,
-                        }
-                    )
+                    projected = {
+                        "id": str(message["id"]),
+                        "role": "assistant",
+                        "text": decision["message"],
+                        "origin": "check_in",
+                        "event_id": event_id,
+                    }
+                    provenance = validate_provenance(metadata.get("provenance"))
+                    if provenance is not None:
+                        projected["provenance"] = provenance
+                    messages.append(projected)
             continue
         if message.get("role") not in ("user", "assistant") or message.get("display_kind"):
             continue

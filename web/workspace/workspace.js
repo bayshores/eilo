@@ -13,12 +13,15 @@ import { mountBriefingSources } from '../connections/briefing-sources.js';
 import { mountConnectionsManager } from '../connections/manager.js';
 import { mountAccount } from '../connections/account.js';
 import { mountChatLibrary } from '../chat/library.js';
-import { mountChatSwitcher } from '../chat/switcher.js';
 import { localCommand, commandMatches } from '../chat/commands.js';
+import { mountChatContext } from '../chat/context.js';
 import { homeData, progressText, conversationEntries, notificationEntry } from '../home/data.js';
 import { createWorkspaceRouter } from './router.js';
 import { mountOrb, orbState } from '../orb/presence.js';
 import { mountOnboarding } from '../onboarding/onboarding.js';
+import { createInterfaceSound } from '../onboarding/sound.js';
+import { mountDailyStart } from '../home/daily-start.js';
+import { selectTracking, recordingSummary } from '../home/tracking-data.js';
 
 const node = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -40,23 +43,76 @@ export function createLiveHome({
   onViewChange = () => {},
   onSettingsSection = () => {},
   applyWorkspace = () => true,
-  getSoundEnabled = () => false,
+  getSoundEnabled = () => true,
+  getPreferences = () => ({ dailyGuidance: true, soundVolume: 0.5 }),
+  setDailyGuidance = () => {},
   setSoundEnabled = () => false,
 }) {
   let storage = null;
   try {
-    storage = sessionStorage;
+    storage = localStorage;
+    const draftKey = 'eilo:home:conversation-draft:v1';
+    if (!storage.getItem(draftKey) && sessionStorage.getItem(draftKey))
+      storage.setItem(draftKey, sessionStorage.getItem(draftKey));
+    sessionStorage.removeItem(draftKey);
   } catch {
     /* In-page drafts still work. */
   }
   const client = createHomeClient({ storage });
-  let onboarding = null;
+  const presentationKey = 'eilo:workspace-presentation:v1';
+  let savedPresentation = null;
+  try {
+    savedPresentation = JSON.parse(storage?.getItem(presentationKey) || 'null');
+  } catch {
+    /* A fresh view is safe. */
+  }
+  let restorePresentation = true;
+  const talkPositions = new Map();
+  let workspaceFocus = null;
+  let historyOpen = false;
+  let presentedChatId = null;
+  function rememberPresentation() {
+    if (!current.snapshot?.workspace?.active_chat_id) return;
+    const id = current.snapshot.workspace.active_chat_id;
+    const input = dock.querySelector('.live-input');
+    const log = dock.querySelector('.live-messages');
+    const previous = talkPositions.get(id) || {};
+    const position = {
+      draft: input?.value || '',
+      start: input?.selectionStart || 0,
+      end: input?.selectionEnd || 0,
+      direction: input?.selectionDirection || 'none',
+      scroll: log?.getClientRects().length ? log.scrollTop : previous.scroll || 0,
+    };
+    talkPositions.set(id, position);
+    try {
+      storage?.setItem(
+        presentationKey,
+        JSON.stringify({
+          page: currentPage,
+          open: threadOpen,
+          chat: current.snapshot.workspace.active_chat_id,
+          ...position,
+        }),
+      );
+    } catch {
+      /* The active view remains usable. */
+    }
+  }
+  let dailyStart = null;
+  let onboarding = null,
+    chatContext = null;
   let current = client.view,
     fingerprint = '',
     messageFingerprint = '',
     detailFingerprint = '',
     speech = null,
     speechState = 'idle';
+  const sound = createInterfaceSound({
+    enabled: getSoundEnabled,
+    muted: () => speechState !== 'idle',
+    volume: () => getPreferences().soundVolume,
+  });
   const orbElement = node('span', 'agent-orb');
   let presence = null;
   const activity = createActivitySession(client);
@@ -64,6 +120,16 @@ export function createLiveHome({
   dock.setAttribute('aria-label', 'Talk to eïlo');
   dock.dataset.open = 'false';
   document.querySelector('.workspace').append(dock);
+  const talkEntry = action(
+    '',
+    () => (threadOpen ? setThreadOpen(false) : talk()),
+    'nav-item talk-entry',
+  );
+  talkEntry.dataset.detail = 'talk';
+  talkEntry.setAttribute('aria-label', 'Talk to eïlo');
+  talkEntry.setAttribute('aria-pressed', 'false');
+  const talkOrb = node('span', 'talk-entry-orb');
+  talkEntry.append(talkOrb, node('span', 'nav-label', 'Talk'));
   let threadOpen = false,
     desktopNotice = '';
   let stopDesktop = null,
@@ -85,7 +151,7 @@ export function createLiveHome({
   });
   const updates = createLiveUpdates({
     openConversation: () => talk(),
-    container: dock,
+    container: document.querySelector('.workspace'),
     isConversationOpen: () => threadOpen,
   });
   const workspace = document.querySelector('.workspace'),
@@ -94,6 +160,22 @@ export function createLiveHome({
   pages.hidden = true;
   board.after(pages);
   const header = document.querySelector('.home-header h1');
+  const talkActions = node('div', 'talk-actions');
+  talkActions.hidden = true;
+  const historyToggle = action(
+    'History',
+    () => setHistoryOpen(!historyOpen),
+    'button talk-history-toggle',
+  );
+  historyToggle.setAttribute('aria-expanded', 'false');
+  historyToggle.setAttribute('aria-controls', 'talk-history');
+  const returnWorkspace = action('Workspace', () => setThreadOpen(false), 'button talk-return');
+  talkActions.append(historyToggle, returnWorkspace);
+  document.querySelector('.header-actions').append(talkActions);
+  workspace.addEventListener('focusin', (event) => {
+    if (!threadOpen && (board.contains(event.target) || pages.contains(event.target)))
+      workspaceFocus = event.target;
+  });
   const accountHost = node('div', 'account-host');
   mountAccount(accountHost, { client });
   const accountShortcut = action(
@@ -108,11 +190,71 @@ export function createLiveHome({
     accountShortcut.hidden = !state || ['connected', 'unknown'].includes(state);
   });
 
+  const captureControls = node('div', 'capture-controls');
+  const captureStatus = action(
+    'Checking recording…',
+    () => showPage('connections'),
+    'text-button capture-status',
+  );
+  const pauseCapture = action(
+    'Pause recording',
+    async () => {
+      pauseCapture.disabled = true;
+      sound.prepare();
+      try {
+        if (current.snapshot?.adaptive?.policy?.enabled)
+          await client.contextCommand('configure', {
+            ...current.snapshot.adaptive.policy,
+            enabled: false,
+          });
+        if (current.snapshot?.accountability?.activity?.state === 'active')
+          await activity.control('pause');
+        sound.play('confirmed');
+      } catch (error) {
+        captureError.textContent = error.message || 'Recording could not be paused. Try again.';
+      } finally {
+        pauseCapture.disabled = false;
+      }
+    },
+    'text-button capture-pause',
+  );
+  const mute = action(
+    'Mute sounds',
+    () => {
+      setSoundEnabled(!getSoundEnabled());
+      sound.sync();
+      updateCaptureControls();
+    },
+    'text-button interface-mute',
+  );
+  const captureError = node('span', 'capture-error');
+  captureError.setAttribute('role', 'status');
+  captureControls.append(captureStatus, pauseCapture, mute, captureError);
+  workspace.append(captureControls);
+  function updateCaptureControls() {
+    const policy = current.snapshot?.adaptive?.policy;
+    const tracking = selectTracking(current);
+    const configured = policy?.enabled && (policy.desktop_enabled || policy.browser_enabled);
+    const legacy = current.snapshot?.accountability?.activity?.state === 'active';
+    captureStatus.textContent = recordingSummary(current);
+    captureStatus.title =
+      tracking.rows
+        .filter((row) => ['desktop', 'browser'].includes(row.id))
+        .map((row) => row.name + ': ' + row.status)
+        .join(' · ') + (policy?.ai_enabled ? ' · AI sharing on' : ' · AI sharing off');
+    pauseCapture.hidden = !tracking.online || !(configured || legacy);
+    mute.textContent = getSoundEnabled() ? 'Mute sounds' : 'Sounds off';
+    mute.setAttribute(
+      'aria-label',
+      getSoundEnabled() ? 'Mute interface sounds' : 'Turn on interface sounds',
+    );
+    mute.setAttribute('aria-pressed', String(!getSoundEnabled()));
+  }
+
   header.tabIndex = -1;
   let currentPage = 'home';
   let connectionsPanel = null,
     libraryPanel = null,
-    quickChats = null,
     connectionsRevision = null,
     commandsHidden = false;
   const browserGuides = new Set();
@@ -151,7 +293,12 @@ export function createLiveHome({
     onDiscuss: (text) => talk(text),
     onConnections: () => openDetail('connections'),
     onActivity: () => showPage('activity'),
-    onManage: (operations, revision, context) => client.controlTasks(operations, revision, context),
+    onManage: async (operations, revision, context) => {
+      sound.prepare();
+      const result = await client.controlTasks(operations, revision, context);
+      sound.play(operations.some((item) => item.op === 'complete') ? 'completed' : 'confirmed');
+      return result;
+    },
     onRecord: (action, id, revision, context) =>
       client.controlRecord(action, id, revision, context),
     canManage: () => client.canManage(),
@@ -178,10 +325,41 @@ export function createLiveHome({
     libraryHost = node('div', 'library-page');
   connectionsHost.hidden = false;
   libraryHost.hidden = true;
-  pages.append(settingsHost, libraryHost);
+  libraryHost.id = 'talk-history';
+  libraryHost.classList.add('talk-history');
+  libraryHost.setAttribute('aria-label', 'Conversation history');
+  pages.append(settingsHost);
+  dock.append(libraryHost);
+  const compactHistory = matchMedia('(max-width: 1000px)');
+  function syncHistoryLayout() {
+    const chat = dock.querySelector('.live-chat');
+    if (!chat) return;
+    const hidden = threadOpen && historyOpen && compactHistory.matches;
+    const hadFocus = chat.contains(document.activeElement);
+    chat.inert = hidden;
+    if (hidden && hadFocus) libraryHost.querySelector('input')?.focus({ preventScroll: true });
+  }
+  compactHistory.addEventListener('change', syncHistoryLayout);
+  function setHistoryOpen(open, { focus = true } = {}) {
+    const inline = dock.querySelector('.inline-surface[open]');
+    if (inline) {
+      if (!inline.dispatchEvent(new Event('cancel', { cancelable: true }))) return;
+      inline.close();
+    }
+    rememberPresentation();
+    historyOpen = open;
+    libraryHost.hidden = !open;
+    dock.classList.toggle('history-open', open);
+    historyToggle.setAttribute('aria-expanded', String(open));
+    if (open) ensureLibrary();
+    syncHistoryLayout();
+    if (focus)
+      (open ? libraryHost.querySelector('input') : historyToggle)?.focus({ preventScroll: true });
+  }
   function ensureConnections() {
     if (!connectionsPanel)
       connectionsPanel = mountConnectionsManager(connectionsHost, {
+        embeddedPermissions: true,
         mountCalendar: (host, options) => {
           const connection = node('div'),
             sharing = node('div');
@@ -215,7 +393,7 @@ export function createLiveHome({
         onChanged: (next) => client.acceptWorkspace(next),
         onActivate: () => {
           messageFingerprint = '';
-          showPage('home');
+          if (compactHistory.matches) setHistoryOpen(false, { focus: false });
           talk();
         },
       });
@@ -227,32 +405,45 @@ export function createLiveHome({
       onViewChange(page);
       if (['settings', 'connections'].includes(page)) speech?.cancel();
       if (dialog.open) dialog.close();
-      setThreadOpen(false);
-      currentPage = page;
+      setThreadOpen(false, { focus: false });
+      if (!['chats', 'projects'].includes(page)) currentPage = page;
+      rememberPresentation();
     },
     renderPage: (
       page,
       { goalFilter, connectionsTab, activityTab, settingsSection, connectionId } = {},
     ) => {
+      if (['chats', 'projects'].includes(page)) {
+        setThreadOpen(true, { focus: false });
+        setHistoryOpen(true);
+        return;
+      }
       workspace.dataset.page = page;
       board.hidden = page !== 'home';
       pages.hidden = page === 'home';
       views.show(page, { goalFilter, activityTab });
       settingsHost.hidden = !['settings', 'connections'].includes(page);
-      libraryHost.hidden = !['chats', 'projects'].includes(page);
       if (page === 'connections' || page === 'settings') {
         onSettingsSection(settingsSection || (page === 'connections' ? 'connections' : 'general'));
         if (connectionsTab || connectionId) {
           ensureConnections();
-          connectionsPanel.show({ tab: connectionsTab || 'apps', id: connectionId });
+          connectionsPanel.show({
+            tab: connectionsTab || 'apps',
+            id: connectionId === 'activity' ? 'browser-activity' : connectionId,
+          });
         }
       }
-      if (['chats', 'projects'].includes(page)) ensureLibrary();
-      document.querySelector('.home-header').hidden = ['chats', 'projects'].includes(page);
+      document.querySelector('.home-header').hidden = false;
       onboarding?.update(current, page);
+      dailyStart?.update(current, page, threadOpen);
     },
   });
   function showPage(page, options) {
+    if (['chats', 'projects'].includes(page)) {
+      talk();
+      setHistoryOpen(true);
+      return page;
+    }
     return router.showPage(page, options);
   }
 
@@ -273,7 +464,14 @@ export function createLiveHome({
     commandsHidden = true;
     desktopNotice = '';
     try {
-      if (command.page)
+      if (command.command === '/help') {
+        commandsHidden = false;
+        client.setDraft('/');
+        dock.querySelector('.live-input')?.focus();
+      } else if (['context', 'compress', 'usage'].includes(command.command.slice(1))) {
+        const mode = command.command.slice(1);
+        chatContext?.open(mode === 'compress' ? 'context' : mode);
+      } else if (command.page)
         showPage(command.page, { connectionsTab: command.command === '/mcp' ? 'mcps' : 'all' });
       else {
         await client.controlCatalog('new_chat');
@@ -304,13 +502,8 @@ export function createLiveHome({
   }
 
   function placeOrb() {
-    const empty = !conversationEntries(current.snapshot, current.localPending).length;
     const target =
-      threadOpen && empty
-        ? onboarding?.active
-          ? workspace.querySelector('.onboarding-orb')
-          : dock.querySelector('.conversation-empty-orb')
-        : null;
+      onboarding?.active && threadOpen ? workspace.querySelector('.onboarding-orb') : talkOrb;
     if (!target) {
       orbElement.remove();
       presence?.pause(true);
@@ -322,17 +515,23 @@ export function createLiveHome({
     presence.update({ state: orbState(current, speechState) });
   }
 
-  function setThreadOpen(open) {
+  function setThreadOpen(open, { focus = true } = {}) {
     const wasOpen = threadOpen;
+    if (wasOpen && !open) {
+      rememberPresentation();
+      speech?.cancel();
+    }
     threadOpen = open;
     dock.dataset.open = String(open);
     workspace.classList.toggle('conversation-active', open);
-    const back = dock.querySelector('.conversation-back');
-    if (back) {
-      const label = `Back to ${currentPage === 'home' ? 'Home' : currentPage[0].toUpperCase() + currentPage.slice(1)}`;
-      back.setAttribute('aria-label', label);
-      back.title = label;
-    }
+    talkActions.hidden = !open;
+    talkEntry.setAttribute('aria-pressed', String(open));
+    returnWorkspace.setAttribute(
+      'aria-label',
+      `Return to ${currentPage === 'connections' ? 'Settings' : currentPage[0].toUpperCase() + currentPage.slice(1)}`,
+    );
+    router.updateNavigation(currentPage, { talking: open });
+    syncHistoryLayout();
     const thread = dock.querySelector('.conversation-thread');
     const toggle = dock.querySelector('.dock-history');
     if (thread) thread.hidden = !open;
@@ -342,14 +541,31 @@ export function createLiveHome({
       toggle.setAttribute('aria-label', open ? 'Hide replies' : 'Show replies');
       toggle.title = open ? 'Hide replies' : 'Show replies';
     }
-    if (open && !wasOpen) {
-      dock.querySelector('.live-input')?.focus();
+    if (open && (!wasOpen || presentedChatId !== current.snapshot?.workspace?.active_chat_id)) {
+      presentedChatId = current.snapshot?.workspace?.active_chat_id;
+      const input = dock.querySelector('.live-input');
+      const saved =
+        talkPositions.get(current.snapshot?.workspace?.active_chat_id) || savedPresentation;
+      if (input && saved?.draft === input.value)
+        input.setSelectionRange(saved.start || 0, saved.end || 0, saved.direction || 'none');
+      if (focus) {
+        if (historyOpen && compactHistory.matches)
+          libraryHost.querySelector('input')?.focus({ preventScroll: true });
+        else input?.focus({ preventScroll: true });
+      }
       const log = dock.querySelector('.live-messages');
       if (log)
         requestAnimationFrame(() => {
-          log.scrollTop = log.scrollHeight;
+          log.scrollTop = saved?.scroll ?? log.scrollHeight;
         });
     }
+    if (!open && wasOpen && focus) {
+      if (workspaceFocus?.isConnected && workspaceFocus.getClientRects().length)
+        workspaceFocus.focus({ preventScroll: true });
+      else header.focus({ preventScroll: true });
+    }
+    rememberPresentation();
+    dailyStart?.update(current, currentPage, open);
     placeOrb();
     if (current.snapshot) updates.update(current);
   }
@@ -444,12 +660,8 @@ export function createLiveHome({
       log.setAttribute('aria-label', 'Conversation');
       log.setAttribute('aria-live', 'polite');
       log.tabIndex = 0;
-      const close = action('', () => setThreadOpen(false), 'conversation-back');
-      close.innerHTML = '<svg aria-hidden="true"><use href="#arrow-left"/></svg>';
-      close.setAttribute('aria-label', 'Back to Home');
-      close.title = 'Back to Home';
-      close.addEventListener('click', () => input.focus());
-      thread.append(close, log);
+      log.addEventListener('scroll', rememberPresentation, { passive: true });
+      thread.append(log);
       const form = node('form', 'live-composer');
       const label = node('label', 'sr-only', 'Message eïlo');
       label.htmlFor = 'live-message-input';
@@ -458,6 +670,8 @@ export function createLiveHome({
       input.placeholder = 'Tell eïlo what’s on your mind…';
       input.maxLength = 12000;
       input.rows = 1;
+      input.addEventListener('select', rememberPresentation);
+      input.addEventListener('blur', rememberPresentation);
       const fitInput = () => {
         input.style.height = 'auto';
         input.style.height = Math.min(100, Math.max(28, input.scrollHeight)) + 'px';
@@ -510,7 +724,11 @@ export function createLiveHome({
         if (onboarding && !onboarding.prepareSend()) return;
         if (!client.canSend()) return;
         setThreadOpen(true);
-        client.send();
+        sound.prepare();
+        void client.send().then(() => {
+          if (!client.view.error && client.view.localPending?.status !== 'unconfirmed')
+            sound.play('sent');
+        });
       });
       const status = node('p', 'live-chat-error');
       status.setAttribute('role', 'status');
@@ -527,36 +745,36 @@ export function createLiveHome({
       speech = mountSpeechInput(form, client, {
         onSignal({ state, amplitude }) {
           speechState = state;
+          sound.sync?.();
           presence?.update({ state: orbState(current, speechState), amplitude });
         },
       });
+      chatContext = mountChatContext(form.querySelector('.speech-actions'), { client });
       const toggle = action('', () => setThreadOpen(!threadOpen), 'dock-history');
       toggle.setAttribute('aria-controls', thread.id);
       toggle.setAttribute('aria-expanded', String(threadOpen));
       toggle.innerHTML = '<span class="dock-history-label">Replies</span>';
       toggle.setAttribute('aria-label', 'Show replies');
       toggle.title = 'Show replies';
-      form.querySelector('.speech-actions').prepend(toggle);
-      quickChats = mountChatSwitcher(form.querySelector('.speech-actions'), {
-        canManage: () => client.canManage(),
-        onBrowse: () => showPage('chats'),
-        onSwitch: async (chatId) => {
-          await client.controlCatalog('switch_chat', { chat_id: chatId });
-          messageFingerprint = '';
-          talk();
+      const helpStart = action(
+        'Help me start',
+        () => {
+          const goal = data().focus;
+          talk(
+            goal
+              ? 'Help me start “' + goal.title + '”. Help me find one small first step.'
+              : 'Help me choose one small thing to start. Suggest a first step; let me decide.',
+          );
         },
-        onNew: async () => {
-          await client.controlCatalog('new_chat');
-          messageFingerprint = '';
-          talk();
-        },
-      });
+        'text-button help-start',
+      );
+      form.querySelector('.speech-actions').prepend(toggle, helpStart);
       body.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && threadOpen && !event.defaultPrevented) {
+        if (event.key === 'Escape' && threadOpen && !event.defaultPrevented && !event.isComposing) {
           event.preventDefault();
           event.stopPropagation();
-          setThreadOpen(false);
-          input.focus();
+          if (historyOpen) setHistoryOpen(false);
+          else setThreadOpen(false);
         }
       });
     }
@@ -583,9 +801,7 @@ export function createLiveHome({
       log.replaceChildren();
       if (!entries.length) {
         const empty = node('div', 'conversation-empty-state');
-        const orb = node('span', 'conversation-empty-orb');
-        orb.setAttribute('aria-hidden', 'true');
-        empty.append(orb, node('p', 'live-empty', 'What matters right now?'));
+        empty.append(node('p', 'live-empty', 'What’s getting in the way?'));
         log.append(empty);
       }
       entries.forEach((entry) => log.append(miniMessage(entry)));
@@ -612,8 +828,8 @@ export function createLiveHome({
       ? command.command === '/new' && !client.canManage()
       : !client.canSend();
     body.querySelector('.live-send').textContent = command ? 'Open' : 'Send';
+    body.querySelector('.live-send').setAttribute('aria-label', command ? 'Open command' : 'Send');
     renderCommands();
-    quickChats?.update(current.snapshot);
     const busy = current.snapshot?.status === 'busy';
     body
       .querySelector('.live-chat-status')
@@ -621,7 +837,9 @@ export function createLiveHome({
     body.querySelector('.live-chat-status').textContent = current.sending
       ? 'Sending…'
       : busy
-        ? 'eïlo is replying…'
+        ? current.snapshot?.chat_context?.status === 'compressing'
+          ? 'Summarizing older messages…'
+          : 'eïlo is replying…'
         : current.connection === 'loading'
           ? 'Connecting…'
           : current.connection === 'offline'
@@ -815,18 +1033,16 @@ export function createLiveHome({
       item.title = name;
       item.append(node('span', 'nav-label', name));
     }
-    for (const [page, label, icon] of [
-      ['chats', 'Chats', 'chat'],
-      ['settings', 'Settings', 'sliders'],
-    ]) {
+    for (const [page, label, icon] of [['settings', 'Settings', 'sliders']]) {
       const item = action('', () => showPage(page), 'nav-item');
       item.dataset.detail = page;
-      item.setAttribute('aria-label', page === 'chats' ? 'Chats and projects' : 'Settings');
-      item.title = page === 'chats' ? 'Chats and projects' : 'Settings';
+      item.setAttribute('aria-label', page === 'chats' ? 'Chats and projects' : label);
+      item.title = page === 'chats' ? 'Chats and projects' : label;
       item.innerHTML = `<svg aria-hidden="true"><use href="#${icon}"/></svg>`;
       item.append(node('span', 'nav-label', label));
       document.querySelector('.nav-items').append(item);
     }
+    document.querySelector('.nav-items').append(talkEntry);
     renderConversation(dock);
     onboarding = mountOnboarding({
       client,
@@ -836,6 +1052,14 @@ export function createLiveHome({
       applyWorkspace,
       getSoundEnabled,
       setSoundEnabled,
+      soundController: sound,
+      onStarted: (goal) => {
+        dailyStart?.dismiss();
+        if (!current.draft) {
+          talk('Help me start “' + goal + '”. Help me find one small first step.');
+          if (client.canSend()) void client.send();
+        } else talk();
+      },
       isRecording: () => speechState !== 'idle',
       openAccount: () => accountHost.querySelector('.account-connect')?.click(),
       openSettings: (section = 'general') => showPage('settings', { settingsSection: section }),
@@ -855,8 +1079,11 @@ export function createLiveHome({
     headline.before(context);
     context.append(headline);
     client.subscribe((next) => {
+      if (next.snapshot?.workspace?.active_chat_id !== current.snapshot?.workspace?.active_chat_id)
+        rememberPresentation();
       current = next;
       activity.update(next);
+      updateCaptureControls();
       for (const guide of browserGuides) guide.update(next);
       updates.update(next);
       views.update(next);
@@ -890,6 +1117,21 @@ export function createLiveHome({
       }
       renderConversation(dock);
       onboarding?.update(next, currentPage);
+      dailyStart?.update(next, currentPage, threadOpen);
+      if (restorePresentation && next.snapshot) {
+        restorePresentation = false;
+        if (
+          savedPresentation?.chat === next.snapshot.workspace?.active_chat_id &&
+          savedPresentation.open === true &&
+          !onboarding?.active
+        ) {
+          setThreadOpen(true, { focus: false });
+          const log = dock.querySelector('.live-messages');
+          if (Number.isFinite(savedPresentation.scroll) && savedPresentation.scroll >= 0)
+            log.scrollTop = savedPresentation.scroll;
+        }
+        savedPresentation = null;
+      }
       if (
         dialog.open &&
         ['today', 'goals', 'progress', 'activity', 'browser-setup', 'calendar-day'].includes(
@@ -904,6 +1146,15 @@ export function createLiveHome({
         dialog.scrollTop = top;
       }
     });
+    dailyStart = mountDailyStart(workspace, {
+      storage,
+      getPreferences,
+      onContinue: () => talk(),
+      onChange: () => talk('I want to change what I’m working on. '),
+      onDisable: () => setDailyGuidance(false),
+    });
+    board.before(workspace.querySelector('.daily-start'));
+    dailyStart.update(current, currentPage, threadOpen);
     router.start();
     const connectDesktop = () => {
       stopDesktop = window.eiloDesktop?.onOpenCheckIn(async (target) => {
@@ -935,6 +1186,8 @@ export function createLiveHome({
         presence?.destroy();
         presence = null;
         onboarding?.destroy();
+        dailyStart?.destroy();
+        sound.destroy();
       }
       calendarPanel?.destroy();
       calendarPanel = null;
@@ -958,13 +1211,19 @@ export function createLiveHome({
   }
   return {
     client,
+    sound,
+    refreshPreferences() {
+      sound.sync?.();
+      dailyStart?.refresh();
+      updateCaptureControls();
+    },
     settingsHost,
     settingsSections: [
       { id: 'connections', label: 'Connections', element: connectionsHost },
       { id: 'account', label: 'Account', element: accountSection },
     ],
     settingsSectionSelected(id) {
-      if (id === 'connections') {
+      if (['connections', 'sources'].includes(id)) {
         ensureConnections();
         connectionsPanel.show({ tab: 'apps' });
       }

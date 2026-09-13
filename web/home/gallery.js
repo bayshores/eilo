@@ -13,6 +13,9 @@ export function createWidgetGallery({
   onOpening = () => {},
   onAdd,
 }) {
+  const boardHost = appWindow.querySelector('.board-scroll');
+  boardHost.prepend(dialog);
+  dialog.classList.add('gallery-inline');
   const search = dialog.querySelector('#widget-search');
   const list = dialog.querySelector('.widget-categories');
   const selection = dialog.querySelector('.gallery-selection');
@@ -25,14 +28,7 @@ export function createWidgetGallery({
   let returnFocus = null;
 
   function position() {
-    const bounds = appWindow.getBoundingClientRect();
-    const narrow = innerWidth <= 700;
-    const width = Math.min(570, innerWidth - 24);
-    dialog.style.width = `${width}px`;
-    dialog.style.left = `${Math.max(12, Math.min(innerWidth - width - 12, bounds.right - width - 18))}px`;
-    const top = narrow ? 18 : Math.max(18, Math.min(bounds.top + 130, innerHeight - 400));
-    dialog.style.top = `${top}px`;
-    dialog.style.maxHeight = `${Math.max(280, Math.min(bounds.bottom - top - 20, innerHeight - top - 18))}px`;
+    dialog.style.width = Math.min(740, boardHost.clientWidth) + 'px';
   }
 
   function render() {
@@ -62,7 +58,7 @@ export function createWidgetGallery({
     renderPreview({ type: selectedType, size: selectedSize }, preview.firstElementChild);
     const full = getWidgetCount() >= 24;
     confirm.disabled = full;
-    confirm.textContent = full ? '24-widget limit reached' : 'Add widget';
+    confirm.textContent = full ? '24-widget limit reached' : 'Preview placement';
   }
 
   function open() {
@@ -72,7 +68,8 @@ export function createWidgetGallery({
     selectedType ||= 'progress';
     render();
     position();
-    dialog.showModal();
+    dialog.show();
+    boardHost.scrollTop = 0;
     search.focus();
   }
 
@@ -80,13 +77,24 @@ export function createWidgetGallery({
   dialog.addEventListener('close', () => {
     if (returnFocus?.isConnected && !returnFocus.closest('[hidden]')) returnFocus.focus();
   });
+  dialog.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    dialog.close();
+  });
   search.addEventListener('input', render);
   confirm.addEventListener('click', () => {
     if (!selectedType || getWidgetCount() >= 24) return;
-    const focusTarget = onAdd(selectedType, selectedSize);
-    if (!focusTarget) return;
-    returnFocus = focusTarget;
     dialog.close();
+    const focusTarget = onAdd(selectedType, selectedSize);
+    if (!focusTarget) {
+      dialog.show();
+      returnFocus = search;
+      search.focus();
+      return;
+    }
+    returnFocus = focusTarget;
   });
 
   return { open, position, render };

@@ -1,3 +1,4 @@
+import { createInlineDialog } from '../workspace/inline-dialog.js';
 const AUTHORIZATION_URL = 'https://auth.openai.com/codex/device';
 const create = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -22,6 +23,7 @@ export function mountAccount(container, { client, fetcher = fetch } = {}) {
   container.replaceChildren(trigger);
 
   const dialog = create('dialog', 'account-dialog');
+  const openInline = createInlineDialog(dialog);
   dialog.id = 'account-dialog';
   dialog.setAttribute('aria-labelledby', 'account-dialog-title');
   dialog.setAttribute('aria-describedby', 'account-dialog-detail');
@@ -118,7 +120,7 @@ export function mountAccount(container, { client, fetcher = fetch } = {}) {
   };
   trigger.addEventListener('click', () => {
     if (destroyed) return;
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) openInline();
     trigger.setAttribute('aria-expanded', 'true');
     title.focus({ preventScroll: true });
     if (!authorizing()) void command('start');

@@ -29,6 +29,28 @@ def action(meta, **body):
 
 
 class ChatCatalogTests(unittest.TestCase):
+    def test_existing_catalog_upgrades_context_fields_without_changing_chat(self):
+        original = ensure_catalog(legacy_meta())
+        for chat in original["chat_catalog"]["chats"]:
+            chat["conversation"].pop("context_compaction")
+            chat["conversation"].pop("accepted_context_requests")
+        original.pop("context_compaction", None)
+        original.pop("accepted_context_requests", None)
+        before = deepcopy(original)
+        upgraded = ensure_catalog(original)
+        self.assertEqual(original, before)
+        self.assertEqual(upgraded["session_id"], before["session_id"])
+        self.assertEqual(upgraded["tasks"], before["tasks"])
+        self.assertEqual(upgraded["accepted_requests"], before["accepted_requests"])
+        self.assertEqual(
+            upgraded["chat_catalog"]["active_chat_id"], before["chat_catalog"]["active_chat_id"]
+        )
+        self.assertEqual(upgraded["chat_catalog"]["revision"], before["chat_catalog"]["revision"])
+        self.assertEqual(
+            upgraded["chat_catalog"]["chats"][0]["conversation"]["accepted_context_requests"], []
+        )
+        self.assertEqual(ensure_catalog(upgraded), upgraded)
+
     def test_migration_preserves_global_state_and_native_pointer(self):
         original = legacy_meta()
         migrated = ensure_catalog(original)

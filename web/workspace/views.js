@@ -1,3 +1,10 @@
+import { appendProvenance } from '../chat/provenance.js';
+import {
+  recordedEpisodeRows,
+  formatRecordedTime,
+  formatSeenRange,
+  websiteLabel,
+} from '../activity/day-map-data.js';
 import {
   selectGoals,
   relatedSessions,
@@ -59,7 +66,9 @@ export function createWorkspaceViews({
     filter = 'open',
     query = '',
     selectedId = null,
-    activityFilter = 'overview';
+    expandedId = null,
+    activityFilter = 'recorded',
+    selectedActivityDay = '';
   let listKey = '',
     detailKey = '',
     activityKey = '',
@@ -114,6 +123,7 @@ export function createWorkspaceViews({
   list.tabIndex = 0;
   const detail = el('article', 'goal-detail');
   detail.setAttribute('aria-label', 'Selected goal');
+  detail.id = 'expanded-goal-detail';
   const trash = button(
     '',
     () => {
@@ -131,7 +141,8 @@ export function createWorkspaceViews({
   indexHeader.prepend(searchLabel);
   filters.append(trash);
   index.append(indexHeader, filters, list);
-  goals.append(index, detail);
+  index.append(detail);
+  goals.append(index);
   container.append(goals);
   controls = createItemControls({
     container,
@@ -143,6 +154,7 @@ export function createWorkspaceViews({
     onRefresh: refresh,
     onSelect: (id) => {
       selectedId = id || null;
+      expandedId = selectedId;
       query = '';
       search.value = '';
       const saved = current?.snapshot?.tasks?.tasks.find((task) => task.id === id);
@@ -173,10 +185,21 @@ export function createWorkspaceViews({
     event.preventDefault();
     controls.select();
     selectedId = options[next].dataset.goalId;
+    expandedId = selectedId;
     renderGoals();
     [...list.querySelectorAll('.goal-option')]
       .find((item) => item.dataset.goalId === selectedId)
       ?.focus();
+  });
+  goals.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !expandedId || controls.editingKey()) return;
+    if (!detail.contains(event.target)) return;
+    event.preventDefault();
+    const id = expandedId;
+    expandedId = null;
+    controls.closeMenus();
+    renderGoals();
+    [...list.querySelectorAll('.goal-option')].find((item) => item.dataset.goalId === id)?.focus();
   });
   function renderGoals() {
     const snapshot = current?.snapshot;
@@ -200,11 +223,13 @@ export function createWorkspaceViews({
     const nextList = JSON.stringify([
       result.items,
       selectedId,
+      expandedId,
       snapshot?.tasks?.focus_id,
       result.supported,
       filter,
       query,
     ]);
+    const detailFocus = detail.contains(document.activeElement) ? document.activeElement : null;
     if (nextList !== listKey) {
       listKey = nextList;
       const focusId = document.activeElement.closest?.('.goal-option')?.dataset.goalId,
@@ -230,14 +255,17 @@ export function createWorkspaceViews({
         const item = button(
           '',
           () => {
+            const editing = controls.editingKey();
             controls.select();
+            expandedId = expandedId === task.id && !editing ? null : task.id;
             selectedId = task.id;
             renderGoals();
           },
           'goal-option',
         );
         item.dataset.goalId = task.id;
-        item.setAttribute('aria-pressed', String(task.id === selectedId));
+        item.setAttribute('aria-expanded', String(task.id === expandedId));
+        if (task.id === expandedId) item.setAttribute('aria-controls', detail.id);
         item.append(el('strong', 'goal-option-title', task.title));
         const meta = [
           task.status !== 'open'
@@ -249,6 +277,13 @@ export function createWorkspaceViews({
           task.due_text || null,
         ].filter(Boolean);
         if (meta.length) item.append(el('span', 'goal-option-meta', meta.join(' · ')));
+        item.append(
+          el(
+            'span',
+            'goal-option-disclosure',
+            task.id === expandedId ? 'Close details' : 'Details',
+          ),
+        );
         list.append(item);
       }
       list.scrollTop = scroll;
@@ -260,6 +295,17 @@ export function createWorkspaceViews({
         next?.focus({ preventScroll: true });
       }
     }
+    const editingKey = controls.editingKey();
+    const anchor = [...list.querySelectorAll('.goal-option')].find(
+      (item) => item.dataset.goalId === (editingKey || expandedId),
+    );
+    detail.hidden = !editingKey && result.items.length > 0 && !anchor;
+    if (editingKey === 'new') {
+      if (indexHeader.nextElementSibling !== detail) indexHeader.after(detail);
+    } else if (anchor) {
+      if (anchor.nextElementSibling !== detail) anchor.after(detail);
+    } else if (detail.parentNode !== index) index.append(detail);
+    if (detailFocus?.isConnected && !detail.hidden) detailFocus.focus({ preventScroll: true });
     if (controls.renderEditor()) return;
     const task = result.selected,
       sessions = task ? relatedSessions(snapshot, task.id) : [];
@@ -281,6 +327,7 @@ export function createWorkspaceViews({
     controls.closeMenus();
     detail.replaceChildren();
     if (!task) {
+      detail.setAttribute('aria-label', 'Goal details');
       const empty = el('div', 'goal-empty');
       empty.append(
         el(
@@ -321,7 +368,8 @@ export function createWorkspaceViews({
     if (task.id === snapshot.tasks.focus_id && task.status === 'open')
       status.append(el('span', 'goal-focus', 'Current focus'));
     status.append(controls.goalOptions(task));
-    body.append(status, el('h2', 'goal-title', task.title));
+    detail.setAttribute('aria-label', task.title + ' details');
+    body.append(status);
     if (task.status === 'deleted')
       body.append(
         el(
@@ -411,10 +459,8 @@ export function createWorkspaceViews({
   const moreActions = el('div', 'activity-more-actions');
   activityMore.append(moreActions);
   for (const [key, title] of [
-    ['overview', 'Overview'],
-    ['checkins', 'Check-ins'],
-    ['observed', 'Recorded activity'],
-    ['agent', 'Assistant log'],
+    ['recorded', 'Recorded activity'],
+    ['ai', 'AI activity'],
     ['trash', 'Recently deleted'],
   ]) {
     const item = button(
@@ -428,11 +474,18 @@ export function createWorkspaceViews({
       },
       'goal-filter',
     );
-    (['agent', 'trash'].includes(key) ? moreActions : choices).append(item);
+    (key === 'trash' ? moreActions : choices).append(item);
     activityButtons.set(key, item);
   }
-  toolbar.append(choices);
-  headerControls.append(activityMore);
+  const activityDate = el('select', 'activity-date');
+  activityDate.setAttribute('aria-label', 'Recorded activity day');
+  activityDate.addEventListener('change', () => {
+    selectedActivityDay = activityDate.value;
+    activityKey = '';
+    renderActivity();
+  });
+  toolbar.append(choices, activityDate);
+  toolbar.append(activityMore);
   const feed = el('div', 'activity-feed');
   feed.setAttribute('role', 'region');
   feed.setAttribute('aria-label', 'Activity records');
@@ -471,7 +524,7 @@ export function createWorkspaceViews({
     onConnect: onActivitySetup || onConnections,
     onDiscuss,
   });
-  overview.append(firstActivity, adaptiveTimeline);
+  overview.append(firstActivity);
   activity.append(toolbar, overview, feed);
   container.append(activity);
   function renderAdaptiveTimeline(snapshot) {
@@ -504,49 +557,64 @@ export function createWorkspaceViews({
   }
   function renderActivity() {
     const snapshot = current?.snapshot;
-    const hasCheckins = deliveredCheckIns(snapshot).length > 0;
-    const hasObserved = observedSessions(snapshot).length > 0;
     const hasTrash = observedSessions(snapshot, { trash: true }).length > 0;
     const hasHistory = checkinView(current).history.length > 0;
-    const hasOverview =
-      Boolean(snapshot?.adaptive?.episodes?.length) || selectBrowserUsage(current).hasData;
-    if (
-      (activityFilter === 'checkins' && !hasCheckins) ||
-      (activityFilter === 'observed' && !hasObserved) ||
-      (activityFilter === 'agent' && !hasHistory) ||
-      (activityFilter === 'trash' && !hasTrash)
-    )
-      activityFilter = 'overview';
-    if (activityFilter === 'overview' && !hasOverview)
-      activityFilter = hasObserved ? 'observed' : hasCheckins ? 'checkins' : 'overview';
-    activityButtons.get('checkins').hidden = !hasCheckins;
-    activityButtons.get('observed').hidden = !hasObserved;
+    if (activityFilter === 'trash' && !hasTrash) activityFilter = 'recorded';
     activityButtons.get('trash').hidden = !hasTrash;
-    activityButtons.get('agent').hidden = !hasHistory;
-    activityMore.hidden = !hasHistory && !hasTrash;
+    activityMore.hidden = !hasTrash;
     if (activityMore.hidden) activityMore.open = false;
-    const showOverview = hasOverview || (!hasCheckins && !hasObserved);
-    activityButtons.get('overview').hidden = !showOverview;
-    choices.hidden =
-      Number(showOverview) + Number(hasCheckins) + Number(hasObserved) < 2 &&
-      !['agent', 'trash'].includes(activityFilter);
-    toolbar.hidden = choices.hidden;
+    choices.hidden = false;
+    toolbar.hidden = false;
     checkinCenter.update(current);
+    const legacyRecords = observedSessions(snapshot, { trash: activityFilter === 'trash' });
+    const allRows =
+      activityFilter === 'trash'
+        ? legacyRecords.map((session) => ({
+            kind: 'legacy',
+            ...session,
+            day: '',
+            stamp: session.start,
+          }))
+        : recordedEpisodeRows(snapshot?.adaptive?.episodes, legacyRecords);
+    const days = [...new Set(allRows.map((item) => item.day).filter(Boolean))];
+    if (!days.includes(selectedActivityDay)) selectedActivityDay = days[0] || '';
+    const dayOptions = days.join('|');
+    if (activityDate.dataset.days !== dayOptions) {
+      activityDate.replaceChildren();
+      for (const day of days) {
+        const option = el(
+          'option',
+          '',
+          new Date(day + 'T12:00:00').toLocaleDateString([], {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          }),
+        );
+        option.value = day;
+        activityDate.append(option);
+      }
+      activityDate.dataset.days = dayOptions;
+    }
+    activityDate.value = selectedActivityDay;
+    activityDate.hidden = activityFilter !== 'recorded' || days.length < 2;
     const records =
-      activityFilter === 'checkins'
-        ? deliveredCheckIns(snapshot)
-        : observedSessions(snapshot, { trash: activityFilter === 'trash' });
+      activityFilter === 'recorded'
+        ? allRows.filter((item) => item.day === selectedActivityDay)
+        : allRows;
     for (const [key, item] of activityButtons)
       item.setAttribute('aria-pressed', String(key === activityFilter));
-    overview.hidden = activityFilter !== 'overview';
-    feed.hidden = activityFilter === 'overview';
-    if (activityFilter === 'overview') {
-      renderAdaptiveTimeline(snapshot);
-      return;
-    }
+    overview.hidden = true;
+    feed.hidden = false;
     const nextKey = JSON.stringify([
       activityFilter,
+      selectedActivityDay,
       records,
+      snapshot?.messages,
+      snapshot?.adaptive?.episodes,
+      snapshot?.adaptive?.usage,
+      snapshot?.adaptive?.policy,
+      checkinView(current).history,
       snapshot?.accountability?.activity?.state,
       snapshot?.accountability?.check_ins,
       snapshot?.tasks,
@@ -556,14 +624,68 @@ export function createWorkspaceViews({
     activityKey = nextKey;
     const scroll = feed.scrollTop;
     const infoOpen = !!feed.querySelector('.activity-info')?.open;
+    const timelineOpen = feed.querySelector('.activity-timeline')?.open === true;
+    const openEpisodes = new Set(
+      [...feed.querySelectorAll('.activity-episode[open]')].map((item) => item.dataset.episodeId),
+    );
     feed.replaceChildren();
     controls.sync();
-    if (activityFilter === 'agent') {
-      feed.append(el('h2', 'activity-feed-title', 'Assistant log'));
-      renderAgentLog(feed, current, { onCheckIns: () => showActivityFilter('checkins') });
-    } else if (activityFilter !== 'checkins') {
+    if (activityFilter === 'ai') {
+      feed.append(el('h2', 'activity-feed-title', 'AI activity'));
+      const checkins = deliveredCheckIns(snapshot);
+      const replies = (snapshot?.messages || [])
+        .filter((message) => message.role === 'assistant' && message.origin !== 'check_in')
+        .slice(-30)
+        .reverse();
+      if (!checkins.length && !hasHistory && !replies.length) {
+        const empty = el('div', 'workspace-empty-state');
+        empty.append(
+          el('h2', '', 'No AI activity yet.'),
+          el('p', '', 'Check-ins and their recorded outcomes will appear here.'),
+        );
+        feed.append(empty);
+      }
+      if (checkins.length) {
+        feed.append(el('h3', 'activity-section-title', 'Check-ins'));
+        for (const message of checkins) {
+          const item = el('article', 'activity-record');
+          item.append(
+            el('p', 'check-in-copy', message.text),
+            button('Reply', () => onReply(message)),
+          );
+          appendProvenance(item, message);
+          feed.append(item);
+        }
+      }
+      if (replies.length) {
+        feed.append(el('h3', 'activity-section-title', 'Conversation replies'));
+        for (const message of replies) {
+          const item = el('article', 'activity-record');
+          item.append(
+            el('p', 'check-in-copy', message.text),
+            button('Discuss', () => onDiscuss('About your reply: ' + message.text.slice(0, 200))),
+          );
+          appendProvenance(item, message);
+          feed.append(item);
+        }
+      }
+      if (hasHistory) {
+        feed.append(el('h3', 'activity-section-title', 'Check-in record'));
+        renderAgentLog(feed, current, { onCheckIns: () => showActivityFilter('ai') });
+      }
+    } else {
+      if (activityFilter === 'recorded') {
+        const hasTimeline = renderAdaptiveTimeline(snapshot);
+        if (hasTimeline) {
+          const timeline = el('details', 'activity-timeline');
+          timeline.open = timelineOpen;
+          timeline.append(el('summary', '', 'Show timeline and browser usage'), adaptiveTimeline);
+          feed.append(timeline);
+        }
+      }
       if (activityFilter === 'trash')
         feed.append(el('h2', 'activity-feed-title', 'Recently deleted'));
+      else feed.append(el('h2', 'activity-feed-title', 'Recorded activity'));
       if (records.length) {
         const info = el('details', 'activity-info activity-explanation');
         info.open = infoOpen;
@@ -574,7 +696,7 @@ export function createWorkspaceViews({
             '',
             activityFilter === 'trash'
               ? 'Restore observations within their seven-day retention period. Conversation messages are separate.'
-              : 'Deleting an observation does not stop sharing or mark a task complete. Pause sharing in Connections.',
+              : 'Deleting an observation does not stop sharing or mark a task complete. Pause recording in Permissions.',
           ),
         );
         feed.append(info);
@@ -592,11 +714,86 @@ export function createWorkspaceViews({
           ),
           ...(activityFilter === 'trash'
             ? []
-            : [button('Open connections', onConnections, 'button')]),
+            : [button('Open permissions', onConnections, 'button')]),
         );
         feed.append(empty);
       }
-      for (const session of records) {
+      let shownDay = '';
+      for (const record of records) {
+        if (record.day && record.day !== shownDay) {
+          shownDay = record.day;
+          const label = new Date(record.stamp * 1000).toLocaleDateString([], {
+            weekday: 'long',
+            month: 'short',
+            day: 'numeric',
+          });
+          feed.append(el('h3', 'activity-day-heading', label));
+        }
+        if (record.kind === 'episode') {
+          const episode = record;
+          const item = el('details', 'activity-record activity-episode');
+          item.dataset.episodeId = episode.id;
+          item.open = openEpisodes.has(episode.id);
+          const summary = el('summary', 'activity-record-heading');
+          const copy = el('span', 'activity-episode-copy');
+          copy.append(
+            el('strong', '', episode.title),
+            el('span', 'activity-record-time', formatSeenRange(episode.startedAt, episode.endedAt)),
+          );
+          summary.append(
+            copy,
+            el(
+              'span',
+              'activity-duration',
+              formatRecordedTime(episode.recordedSeconds) + ' recorded',
+            ),
+          );
+          item.append(
+            summary,
+            el(
+              'p',
+              'activity-record-time',
+              [episode.appName, websiteLabel(episode.origin)].filter(Boolean).join(' · ') ||
+                'Desktop activity',
+            ),
+          );
+          const forget = button('Forget this activity', () => {
+            confirm.hidden = false;
+            forget.hidden = true;
+            confirm.querySelector('button')?.focus();
+          });
+          const confirm = el('div', 'activity-forget-confirm');
+          confirm.hidden = true;
+          const notice = el('p', 'activity-record-time');
+          notice.setAttribute('role', 'status');
+          confirm.append(
+            el('p', '', 'Forget this activity and its derived context? Saved conversations stay.'),
+            button(
+              'Confirm forget',
+              async () => {
+                const activeButton = confirm.querySelector('button');
+                activeButton.disabled = true;
+                try {
+                  await onContextCommand?.('forget', { ids: [episode.id] });
+                } catch (error) {
+                  notice.textContent = error.message || 'Could not forget this activity.';
+                  activeButton.disabled = false;
+                }
+              },
+              'button',
+            ),
+            button('Cancel', () => {
+              confirm.hidden = true;
+              forget.hidden = false;
+              forget.focus();
+            }),
+          );
+          item.append(forget, confirm, notice);
+          feed.append(item);
+          continue;
+        }
+        const session = record;
+
         const item = el('article', 'activity-record');
         const name = el('div', 'activity-record-heading');
         name.append(
@@ -619,23 +816,6 @@ export function createWorkspaceViews({
           if (names.length)
             item.append(el('p', 'activity-relation', `May relate to ${names.join(', ')}`));
         }
-        feed.append(item);
-      }
-    } else {
-      if (!records.length) {
-        const empty = el('div', 'workspace-empty-state');
-        empty.append(
-          el('h2', '', 'No check-ins yet.'),
-          el('p', '', 'When eïlo checks in, its message will stay here.'),
-        );
-        feed.append(empty);
-      }
-      for (const message of records) {
-        const item = el('article', 'activity-record');
-        item.append(
-          el('p', 'check-in-copy', message.text),
-          button('Reply', () => onReply(message)),
-        );
         feed.append(item);
       }
     }

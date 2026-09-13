@@ -30,6 +30,7 @@ export function createItemControls({
   notice.hidden = true;
   container.prepend(notice);
   function inform(message, undo = null) {
+    const hadFocus = notice.contains(document.activeElement);
     notice.replaceChildren();
     notice.hidden = false;
     const copy = el('span', '', message);
@@ -62,6 +63,7 @@ export function createItemControls({
     );
     dismiss.setAttribute('aria-label', 'Dismiss message');
     notice.append(dismiss);
+    if (hadFocus) dismiss.focus({ preventScroll: true });
   }
   function managed(node) {
     node.dataset.manage = 'true';
@@ -87,26 +89,18 @@ export function createItemControls({
         const panel = el('div', 'item-menu');
         panel.setAttribute('role', 'menu');
         panel.setAttribute('aria-label', label);
-        panel.setAttribute('popover', 'manual');
         trigger.setAttribute('aria-expanded', 'true');
         wrap.append(panel);
         const finish = (focus = false) => {
-          if (panel.matches(':popover-open')) panel.hidePopover();
           panel.remove();
           trigger.setAttribute('aria-expanded', 'false');
           document.removeEventListener('pointerdown', outside, true);
-          document.removeEventListener('scroll', onScroll, true);
-          window.removeEventListener('resize', onResize);
           closeMenu = () => {};
           if (focus && trigger.isConnected) trigger.focus({ preventScroll: true });
         };
         const outside = (event) => {
           if (!wrap.contains(event.target)) finish();
         };
-        const onScroll = (event) => {
-          if (!panel.contains(event.target)) finish();
-        };
-        const onResize = () => finish();
         for (const item of items) {
           const action = managed(
             button(
@@ -142,25 +136,7 @@ export function createItemControls({
           }
           if (event.key === 'Tab') finish(true);
         });
-        // The top layer keeps menus clear of the widget's scroll and clipping boundaries.
-        panel.showPopover({ source: trigger });
-        const anchor = trigger.getBoundingClientRect(),
-          bounds = panel.getBoundingClientRect(),
-          margin = 8;
-        const left = Math.max(
-          margin,
-          Math.min(anchor.right - bounds.width, window.innerWidth - bounds.width - margin),
-        );
-        const below = anchor.bottom + 6,
-          top =
-            below + bounds.height <= window.innerHeight - margin
-              ? below
-              : Math.max(margin, anchor.top - bounds.height - 6);
-        panel.style.left = `${left}px`;
-        panel.style.top = `${top}px`;
         document.addEventListener('pointerdown', outside, true);
-        document.addEventListener('scroll', onScroll, true);
-        window.addEventListener('resize', onResize);
         closeMenu = finish;
         panel.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
       },
@@ -242,6 +218,7 @@ export function createItemControls({
     closeMenu();
     detail.replaceChildren();
     const state = editor;
+    detail.setAttribute('aria-label', state.task ? 'Edit ' + state.task.title : 'New goal');
     const form = el('form', 'goal-edit-form');
     form.dataset.editKey = state.key;
     const body = el('div', 'goal-detail-body goal-editor-body');
@@ -308,13 +285,27 @@ export function createItemControls({
     save.type = 'submit';
     footer.append(
       save,
-      button('Cancel', () => {
-        drafts.delete(state.key);
-        editor = null;
-        onRefresh();
-      }),
+      button(
+        'Cancel',
+        () => {
+          drafts.delete(state.key);
+          editor = null;
+          onRefresh();
+          (state.task
+            ? detail.querySelector('[data-goal-action="edit"]')
+            : container.querySelector('.goal-add')
+          )?.focus();
+        },
+        'button goal-cancel-edit',
+      ),
     );
     form.append(body, footer);
+    form.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || state.saving) return;
+      event.preventDefault();
+      event.stopPropagation();
+      form.querySelector('.goal-cancel-edit').click();
+    });
     detail.append(form);
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -438,6 +429,7 @@ export function createItemControls({
   return {
     beginEdit,
     renderEditor,
+    editingKey: () => editor?.key || null,
     goalOptions,
     goalEdit,
     goalFocus,

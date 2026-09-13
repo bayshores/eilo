@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.accountability import canonical_origin
 from app.runtime_auth import isolate_account
-from app.runtime_contract import MODEL, PROVIDER
+from app.runtime_contract import MODEL, PROVIDER, validate_provenance
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}\Z")
 
@@ -359,6 +359,20 @@ def dry_audit() -> dict[str, Any]:
     }
 
 
+def _provenance(event: dict[str, Any]) -> dict[str, Any]:
+    # The detached packet always contains a frozen conversation history, current
+    # task state, and a validated admitted observation. Values stay ephemeral.
+    return {
+        "version": 1,
+        "task_revision": event["task_state"]["revision"],
+        "sources": [
+            {"source": "conversation", "status": "used"},
+            {"source": "goals", "status": "used"},
+            {"source": "activity", "status": "used"},
+        ],
+    }
+
+
 def run_event(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
     """Run one detached event inference and return a non-persisted receipt."""
     from hermes_state import SessionDB
@@ -411,41 +425,73 @@ def run_event(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
         "event_id": event["event_id"],
         "decision": decision,
         "assistant_id": None,
+        "provenance": _provenance(event),
         "audit": {**audit, "persisted": False},
     }
 
 
 def _publication_metadata(publication: dict[str, Any]) -> dict[str, Any]:
-    return {
+    metadata = {
         "event_id": publication["event_id"],
         "task_revision": publication["task_revision"],
         "human_epoch": publication["human_epoch"],
         "decision": publication["decision"]["decision"],
         "publication_version": 2,
     }
+    # Pending receipts written before provenance existed remain find-only. Never
+    # invent a retrospective record or let this shape authorize a fresh append.
+    if "provenance" in publication:
+        metadata["provenance"] = publication["provenance"]
+    return metadata
 
 
-def validate_publication(value: Any) -> dict[str, Any]:
-    if not isinstance(value, dict) or set(value) != {
-        "session_id",
-        "event_id",
-        "task_revision",
-        "human_epoch",
-        "decision",
-    }:
+def validate_publication(value: Any, *, allow_legacy: bool = False) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) not in (
+        {
+            "session_id",
+            "event_id",
+            "task_revision",
+            "human_epoch",
+            "decision",
+            "provenance",
+        },
+        {
+            "session_id",
+            "event_id",
+            "task_revision",
+            "human_epoch",
+            "decision",
+        },
+    ):
+        raise InputError("invalid publication")
+    legacy = "provenance" not in value
+    if legacy and not allow_legacy:
         raise InputError("invalid publication")
     event_id = _identifier(value["event_id"], "event_id")
     from app.accountability import validate_decision
 
     decision = validate_decision(value["decision"], event_id)
+    task_revision = _nonnegative_int(value["task_revision"], "task_revision")
     if decision is None:
+        raise InputError("invalid publication")
+    if legacy:
+        return {
+            "session_id": _identifier(value["session_id"], "session_id"),
+            "event_id": event_id,
+            "task_revision": task_revision,
+            "human_epoch": _nonnegative_int(value["human_epoch"], "human_epoch"),
+            "decision": decision,
+        }
+    provenance = validate_provenance(value["provenance"])
+    if provenance is None or provenance["task_revision"] != task_revision:
         raise InputError("invalid publication")
     return {
         "session_id": _identifier(value["session_id"], "session_id"),
         "event_id": event_id,
-        "task_revision": _nonnegative_int(value["task_revision"], "task_revision"),
+        "task_revision": task_revision,
         "human_epoch": _nonnegative_int(value["human_epoch"], "human_epoch"),
         "decision": decision,
+        "provenance": provenance,
     }
 
 
@@ -538,12 +584,14 @@ def _read_event(path: str) -> dict[str, Any]:
         raise InputError("invalid event input") from None
 
 
-def _read_publication(path: str) -> dict[str, Any]:
+def _read_publication(path: str, *, allow_legacy: bool = False) -> dict[str, Any]:
     candidate = Path(path)
     try:
         if not candidate.is_file() or candidate.stat().st_size > 64 * 1024:
             raise InputError("invalid publication")
-        return validate_publication(json.loads(candidate.read_text(encoding="utf-8")))
+        return validate_publication(
+            json.loads(candidate.read_text(encoding="utf-8")), allow_legacy=allow_legacy
+        )
     except (OSError, UnicodeError, json.JSONDecodeError, InputError):
         raise InputError("invalid publication") from None
 
@@ -583,7 +631,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.dry_audit
                 else publish(_read_publication(args.publish))
                 if args.publish
-                else find_publication(_read_publication(args.find_publication))
+                else find_publication(_read_publication(args.find_publication, allow_legacy=True))
                 if args.find_publication
                 else run_event(_read_event(args.input), on_preview if args.stream else None)
             )

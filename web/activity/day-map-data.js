@@ -8,22 +8,34 @@ const WINDOW_PADDING_SECONDS = 60 * 60;
 const timeLabel = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
-  timeZone: 'UTC',
 });
 
 export const isTimestamp = (value) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= MAX_TIMESTAMP;
 
-export const dayKey = (stamp) =>
-  isTimestamp(stamp) ? new Date(stamp * 1000).toISOString().slice(0, 10) : null;
+export const dayKey = (stamp) => {
+  if (!isTimestamp(stamp)) return null;
+  const date = new Date(stamp * 1000);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+};
 
 export function parseDay(day) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return null;
-  const milliseconds = Date.parse(`${day}T00:00:00.000Z`);
-  if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString().slice(0, 10) !== day)
+  const [year, month, date] = day.split('-').map(Number);
+  const local = new Date(year, month - 1, date);
+  if (local.getFullYear() !== year || local.getMonth() !== month - 1 || local.getDate() !== date)
     return null;
-  return milliseconds / 1000;
+  return local.getTime() / 1000;
 }
+
+const nextDay = (stamp) => {
+  const date = new Date(stamp * 1000);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime() / 1000;
+};
 
 export function canonicalOrigin(value) {
   if (typeof value !== 'string' || !value.trim() || value.length > 280) return null;
@@ -56,7 +68,7 @@ export function formatSeenRange(startedAt, endedAt) {
   if (!isTimestamp(startedAt) || !isTimestamp(endedAt) || endedAt < startedAt) return 'Unavailable';
   const start = timeLabel.format(new Date(startedAt * 1000));
   const end = timeLabel.format(new Date(endedAt * 1000));
-  return start === end ? `${start} UTC` : `${start}–${end} UTC`;
+  return start === end ? start : start + '  – ' + end;
 }
 
 /** Validate only fields the map can truthfully display; retained time stays independent. */
@@ -103,6 +115,30 @@ export function normalizeEpisodes(episodes) {
     .slice(0, 50);
 }
 
+/** A shared, local-day ordered projection for the Activity list and its map. */
+export function recordedEpisodeRows(episodes, legacySessions = []) {
+  const modern = normalizeEpisodes(episodes);
+  const modernIds = new Set(modern.map((episode) => episode.id));
+  const legacy = Array.isArray(legacySessions)
+    ? legacySessions.filter(
+        (session) =>
+          session &&
+          typeof session.id === 'string' &&
+          !modernIds.has(session.id) &&
+          isTimestamp(session.start) &&
+          typeof session.observed_seconds === 'number' &&
+          Number.isFinite(session.observed_seconds) &&
+          session.observed_seconds >= 0,
+      )
+    : [];
+  return [
+    ...modern.map((episode) => ({ kind: 'episode', ...episode, stamp: episode.startedAt })),
+    ...legacy.map((session) => ({ kind: 'legacy', ...session, stamp: session.start })),
+  ]
+    .sort((left, right) => right.stamp - left.stamp || left.id.localeCompare(right.id))
+    .map((item) => ({ ...item, day: dayKey(item.stamp) }));
+}
+
 export function availableDays(episodes) {
   const days = new Set();
   for (const episode of episodes) {
@@ -120,17 +156,18 @@ export function availableDays(episodes) {
       count++
     ) {
       days.add(dayKey(cursor));
-      cursor += DAY_SECONDS;
+      cursor = nextDay(cursor);
     }
   }
   return [...days].sort().reverse();
 }
 
-/** Portions shown on one UTC day. The width describes a seen span, never recorded time. */
+/** Portions shown on one local day. The width describes a seen span, never recorded time. */
 export function daySegments(episodes, day) {
   const start = parseDay(day);
   if (start === null) return [];
-  const end = start + DAY_SECONDS;
+  const end = nextDay(start);
+  const span = end - start;
   return episodes
     .filter((episode) =>
       episode.startedAt === episode.endedAt
@@ -140,8 +177,8 @@ export function daySegments(episodes, day) {
     .map((episode) => {
       const clippedStart = Math.max(start, episode.startedAt);
       const clippedEnd = Math.min(end, episode.endedAt);
-      const left = ((clippedStart - start) / DAY_SECONDS) * 100;
-      const width = ((clippedEnd - clippedStart) / DAY_SECONDS) * 100;
+      const left = ((clippedStart - start) / span) * 100;
+      const width = ((clippedEnd - clippedStart) / span) * 100;
       return {
         ...episode,
         startOffset: clippedStart - start,

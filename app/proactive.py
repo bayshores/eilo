@@ -614,6 +614,11 @@ class ProactiveLoop:
                 ):
                     raise ValueError("Native event construction could not be verified.")
                 decision = validate_decision(value.get("decision"), event_id)
+                from app.runtime_contract import validate_provenance
+
+                provenance = validate_provenance(value.get("provenance"))
+                if provenance is None or provenance["task_revision"] != event["task_revision"]:
+                    decision = None
                 if decision:
                     allowed_ids = {
                         task["id"]
@@ -634,6 +639,7 @@ class ProactiveLoop:
                         "task_revision": event["task_revision"],
                         "human_epoch": event["human_epoch"],
                         "decision": decision,
+                        "provenance": provenance,
                     }
                     # This durable acceptance is the linearization point. Human work
                     # waits for the accepted append; inference itself stays preemptible.

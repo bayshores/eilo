@@ -33,7 +33,9 @@ export function mountOnboarding({
   openAccount,
   openSettings,
   applyWorkspace,
-  getSoundEnabled = () => false,
+  getSoundEnabled = () => true,
+  soundController = null,
+  onStarted = () => {},
   setSoundEnabled = () => {},
   isRecording = () => false,
 }) {
@@ -58,7 +60,7 @@ export function mountOnboarding({
   const columns = el('div', 'onboarding-columns');
   const chat = el('section', 'onboarding-chat');
   const intro = el('div', 'onboarding-intro');
-  const title = el('h1', '', 'What are you trying to accomplish?');
+  const title = el('h1', '', 'What would you like help getting started on?');
   const examples = el('div', 'onboarding-examples');
   const unsure = button('I’m not sure yet', 'text-button onboarding-unsure', () =>
     setDraft('I’m not sure yet. Help me choose one thing to start with.'),
@@ -104,7 +106,8 @@ export function mountOnboarding({
     previewFingerprint = '',
     invitationFingerprint = '',
     appliedRevision = null;
-  const sound = createInterfaceSound({ enabled: getSoundEnabled, muted: isRecording });
+  const sound =
+    soundController || createInterfaceSound({ enabled: getSoundEnabled, muted: isRecording });
   const support = mountOnboardingSupport({
     client,
     openSettings,
@@ -152,7 +155,7 @@ export function mountOnboarding({
     if (account() === 'unknown')
       return ['Account status is unavailable.', 'Check connection', 'refresh'];
     if (account() !== 'connected')
-      return ['Connect ChatGPT to create this workspace.', 'Connect ChatGPT', 'account'];
+      return ['Connect ChatGPT to talk with eïlo.', 'Connect ChatGPT', 'account'];
     if (view?.sending || view?.changing || snapshot.status === 'busy')
       return ['eïlo is updating your workspace.'];
     if (snapshot.recovery_pending)
@@ -178,11 +181,10 @@ export function mountOnboarding({
   }
   function renderPreview(onboarding) {
     const tasks = activeGoals(onboarding?.proposal);
-    const widgets = onboarding?.widgets || [];
+
     const fingerprint = signature({
       revision: onboarding?.revision,
       status: onboarding?.status,
-      widgets,
       tasks,
       focus: onboarding?.proposal?.focus_id,
       canAccept: canAccept(onboarding),
@@ -196,35 +198,17 @@ export function mountOnboarding({
     }
     const cards = el('div', 'onboarding-preview-cards');
     const focus = tasks.find((task) => task.id === onboarding.proposal.focus_id) || tasks[0];
-    widgets.forEach((widget) => {
-      if (widget === 'goals') {
-        const goals = el('section', 'onboarding-preview-card onboarding-preview-goals');
-        const list = el('ul', 'onboarding-goal-list');
-        goals.append(el('h3', '', 'Goals'));
-        tasks.forEach((task) => {
-          const item = el('li', 'onboarding-goal');
-          item.append(el('strong', '', task.title || 'Untitled goal'));
-          const details = [task.due_text, progress(task)].filter(Boolean).join(' · ');
-          if (details) item.append(el('span', '', details));
-          list.append(item);
-        });
-        goals.append(list);
-        cards.append(goals);
-      } else if (widget === 'progress') {
-        const node = card('progress', tasks.length > 1 ? focus.title : '');
-        node.append(el('strong', '', progress(focus) || '0 completed'));
-        cards.append(node);
-      } else if (widget === 'notes') cards.append(card('notes'));
-      else if (widget === 'today')
-        cards.append(card('today', focus.title || 'Your next step will appear here.'));
-      else if (widget === 'clock')
-        cards.append(
-          card('clock', new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })),
-        );
-    });
-    if (!cards.childElementCount) cards.append(card('today', focus.title || 'Your first goal'));
+    const goalCard = card('today');
+    goalCard.querySelector('h3').textContent = 'Your goal';
+    goalCard.append(el('p', 'onboarding-goal-title', focus.title));
+    const detail = [focus.due_text, progress(focus)].filter(Boolean).join(' · ');
+    if (detail) goalCard.append(el('p', 'context-caption', detail));
+    goalCard.append(
+      el('p', '', 'eïlo will help you find one small first step. You can change it as you go.'),
+    );
+    cards.append(goalCard);
     const accept = button(
-      'Use this workspace',
+      'Save goal & start',
       'button primary onboarding-accept',
       () => void acceptWorkspace(),
     );
@@ -250,7 +234,7 @@ export function mountOnboarding({
     if (!show) return;
     const source = onboarding.support_source;
     invitation.replaceChildren(
-      button('Set up support', 'button onboarding-support-open', () => {
+      button('Connect optional support', 'button onboarding-support-open', () => {
         sound.prepare();
         support.open(source);
       }),
@@ -310,6 +294,12 @@ export function mountOnboarding({
             if (page === 'home') dock.querySelector('.live-input')?.focus({ preventScroll: true });
           });
           pendingAccept = null;
+          const goals = activeGoals(next.onboarding.proposal);
+          onStarted(
+            goals.find((goal) => goal.id === next.onboarding.proposal?.focus_id)?.title ||
+              goals[0]?.title ||
+              'my goal',
+          );
           return;
         }
         pendingAccept = null;
@@ -355,8 +345,8 @@ export function mountOnboarding({
       shell.classList.toggle('has-proposal', Boolean(onboarding?.proposal?.tasks?.length));
       intro.classList.toggle('is-compact', Boolean(onboarding?.proposal?.tasks?.length));
       title.textContent = onboarding?.proposal?.tasks?.length
-        ? 'Let’s shape your workspace'
-        : 'What are you trying to accomplish?';
+        ? 'A place to start'
+        : 'What would you like help getting started on?';
       stale.hidden = !(onboarding?.status === 'draft' && onboarding?.proposal?.tasks?.length);
       if (!stale.hidden)
         stale.textContent = 'Your earlier workspace is visible while eïlo updates the plan.';
@@ -382,7 +372,7 @@ export function mountOnboarding({
       return false;
     },
     destroy() {
-      sound.destroy();
+      if (!soundController) sound.destroy();
       support.destroy();
       invitation.remove();
       moveDock(false);

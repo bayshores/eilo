@@ -129,6 +129,18 @@ class DriverStreamingTests(unittest.TestCase):
         self.assertEqual(receipt["decision"]["decision"], "ask")
         self.assertNotIn("event-1", seen)
         self.assertEqual(receipt["assistant_id"], None)
+        self.assertEqual(
+            receipt["provenance"],
+            {
+                "version": 1,
+                "task_revision": 2,
+                "sources": [
+                    {"source": "conversation", "status": "used"},
+                    {"source": "goals", "status": "used"},
+                    {"source": "activity", "status": "used"},
+                ],
+            },
+        )
         self.assertFalse(receipt["audit"]["persisted"])
         self.assertEqual(FakeDB.opened, [True])
 

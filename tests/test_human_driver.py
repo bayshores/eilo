@@ -188,6 +188,17 @@ class RunHumanTests(unittest.TestCase):
         self.assertEqual(receipt["proposal"]["kind"], "update")
         self.assertEqual(fake_db.tagged[1]["display_kind"], "eilo_human_proposal")
         self.assertEqual(fake_db.tagged[1]["display_metadata"]["request_id"], event["request_id"])
+        self.assertEqual(
+            fake_db.tagged[1]["display_metadata"]["provenance"],
+            {
+                "version": 1,
+                "task_revision": 7,
+                "sources": [
+                    {"source": "conversation", "status": "used"},
+                    {"source": "goals", "status": "used"},
+                ],
+            },
+        )
 
     def test_malformed_raw_response_is_tagged_but_not_proposed(self):
         event = human_driver.validate_input(fixture_input())
@@ -352,3 +363,79 @@ class FinalizationTests(unittest.TestCase):
         with patch.dict(sys.modules, {"hermes_state": types.SimpleNamespace(SessionDB=FakeDB)}):
             with self.assertRaises(human_driver.InputError):
                 human_driver.finalize_response(human_driver.validate_finalization(request))
+
+
+class ProvenanceTests(unittest.TestCase):
+    def test_public_projection_keeps_only_valid_published_categorical_provenance(self):
+        from app.runtime_contract import visible_messages
+
+        provenance = {
+            "version": 1,
+            "task_revision": 4,
+            "sources": [
+                {"source": "conversation", "status": "used"},
+                {"source": "work_context", "status": "unavailable"},
+            ],
+        }
+        record = {
+            "messages": [
+                {
+                    "id": 1,
+                    "role": "user",
+                    "content": "Help me return.",
+                    "display_metadata": {
+                        "lane": "eilo_human",
+                        "request_id": "request_human_001",
+                        "based_on_revision": 4,
+                    },
+                },
+                {
+                    "id": 2,
+                    "role": "assistant",
+                    "content": "raw",
+                    "display_kind": "eilo_human_proposal",
+                    "display_metadata": {
+                        "request_id": "request_human_001",
+                        "assistant_id": 2,
+                        "based_on_revision": 4,
+                        "published": True,
+                        "disposition": "chat",
+                        "public_reply": "Here is where you left off.",
+                        "provenance": provenance,
+                    },
+                },
+            ]
+        }
+        visible = visible_messages(record)
+        self.assertEqual(visible[-1]["provenance"], provenance)
+        record["messages"][1]["display_metadata"]["provenance"]["sources"][1]["detail"] = "raw"
+        self.assertNotIn("provenance", visible_messages(record)[-1])
+
+    def test_boolean_provenance_version_is_rejected(self):
+        from app.runtime_contract import validate_provenance
+
+        self.assertIsNone(
+            validate_provenance(
+                {
+                    "version": True,
+                    "task_revision": 4,
+                    "sources": [{"source": "conversation", "status": "used"}],
+                }
+            )
+        )
+
+    def test_read_tool_outcomes_never_identify_raw_sources(self):
+        from app.context_tools import ReadTools
+
+        tools = object.__new__(ReadTools)
+        tools.outcomes = {}
+        tools._record_outcome("eilo_read_work_context", {"status": "no_data"}, False)
+        tools._record_outcome("eilo_read_mail", {"status": "ok"}, False)
+        tools._record_outcome("eilo_read_mail", {"status": "ok"}, True)
+        self.assertEqual(
+            tools.provenance(),
+            [
+                {"source": "mail", "status": "used"},
+                {"source": "work_context", "status": "no_data"},
+            ],
+        )

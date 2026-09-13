@@ -65,6 +65,7 @@ class Chat:
         if args[0] == "--input" and callback and self.emit_preview:
             callback("Writing")
         path = Path(args[1])
+        packet = json.loads(await asyncio.to_thread(path.read_text))
         event_id = path.stem.removeprefix("event-")
         return (
             0,
@@ -77,6 +78,15 @@ class Chat:
                         "persisted": False,
                     },
                     "assistant_id": None,
+                    "provenance": {
+                        "version": 1,
+                        "task_revision": packet["task_state"]["revision"],
+                        "sources": [
+                            {"source": "conversation", "status": "used"},
+                            {"source": "goals", "status": "used"},
+                            {"source": "activity", "status": "used"},
+                        ],
+                    },
                     "decision": self.reply
                     or {"event_id": event_id, "decision": "quiet", "message": ""},
                 }

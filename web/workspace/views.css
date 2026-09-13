@@ -307,6 +307,27 @@
   max-width: 1100px;
   margin-inline: auto;
 }
+.activity-timeline {
+  margin: 0 0 18px;
+  border: 1px solid #ffffff12;
+  border-radius: 18px;
+  background: #24262b;
+  overflow: hidden;
+}
+.activity-timeline > summary {
+  min-height: 52px;
+  padding: 16px 19px;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+}
+.activity-timeline[open] > summary {
+  border-bottom: 1px solid #ffffff12;
+}
+.activity-timeline .activity-visuals {
+  padding: 18px;
+}
 .activity-usage-card {
   height: 250px;
   min-width: 0;
@@ -697,6 +718,15 @@
   font-size: 25px;
   font-weight: 500;
 }
+.activity-section-title {
+  margin: 26px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+.activity-feed-title + .activity-section-title {
+  margin-top: 0;
+}
 
 .activity-header-controls,
 .activity-checkin-control {
@@ -758,4 +788,64 @@
     width: 100%;
     justify-content: flex-start;
   }
+}
+
+.activity-day-heading {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.activity-episode > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.activity-episode > summary::-webkit-details-marker {
+  display: none;
+}
+.activity-episode-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.activity-episode-copy strong {
+  font-size: 15px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.activity-episode .activity-duration {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.activity-episode[open] {
+  border-color: color-mix(in srgb, var(--peach) 35%, transparent);
+}
+.activity-forget-confirm .button {
+  margin-right: 12px;
+}
+
+.activity-date {
+  margin-left: auto;
+  padding: 8px 12px;
+  border: 1px solid #ffffff20;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.activity-episode {
+  padding: 16px 20px;
+}
+.activity-episode .activity-record-time {
+  margin: 4px 0 0;
+}
+.activity-episode > summary::after {
+  content: '⌄';
+  color: var(--muted);
+  margin-left: 14px;
+}
+.activity-episode[open] > summary::after {
+  content: '⌃';
 }

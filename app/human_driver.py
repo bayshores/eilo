@@ -21,9 +21,10 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.chat_context_runtime import SYSTEM_MESSAGE, bind_summary_route, compress_chat, read_chat
 from app.context_tools import TOOL_NAMES, ReadTools, validate_bridge
 from app.runtime_auth import isolate_account
-from app.runtime_contract import MODEL, PROVIDER
+from app.runtime_contract import MODEL, PROVIDER, validate_provenance
 from app.tasks import bind_model_proposal
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}\Z")
@@ -298,6 +299,7 @@ def _runtime_and_agent(
         fallback_model=None,
         ephemeral_system_prompt=ephemeral_system_prompt,
     )
+    bind_summary_route(agent)
     schemas = list(getattr(agent, "tools", []) or [])
     names = {schema.get("function", schema).get("name") for schema in schemas}
     if read_tools is not None:
@@ -360,7 +362,19 @@ def _parse_proposal(text: Any, *, request_id: str, revision: int) -> dict[str, A
     return bind_model_proposal(text, request_id=request_id, revision=revision)
 
 
-def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
+def _provenance(revision: int, read_tools: ReadTools | None) -> dict[str, Any]:
+    # These baseline records are present in every normal human turn: the native
+    # conversation history and the server-owned task state were passed to Hermes.
+    sources = [
+        {"source": "conversation", "status": "used"},
+        {"source": "goals", "status": "used"},
+    ]
+    if read_tools is not None:
+        sources.extend(read_tools.provenance())
+    return {"version": 1, "task_revision": revision, "sources": sources}
+
+
+def run_human(event: dict[str, Any], on_preview=None, on_context=None) -> dict[str, Any]:
     """Persist one normal user row and one hidden-for-publication raw proposal row."""
     from hermes_state import SessionDB
 
@@ -383,6 +397,15 @@ def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
             ephemeral_system_prompt=base_policy,
             **runtime_options,
         )
+
+        def context_status(kind, message):
+            if on_context is not None:
+                if kind == "lifecycle" and "Compacting context" in message:
+                    on_context("compressing")
+                elif kind == "compacted":
+                    on_context("idle")
+
+        agent.status_callback = context_status
         stream_callback = None
         if on_preview is not None:
             from app.stream_text import JsonTextPreview
@@ -400,7 +423,7 @@ def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
 
         result = agent.run_conversation(
             event["text"],
-            system_message="You are eïlo, a personal accountability companion. Follow the current turn's explicit lane instructions and task state.",
+            system_message=SYSTEM_MESSAGE,
             conversation_history=history,
             persist_user_message=event["text"],
             persist_user_display_metadata={
@@ -410,8 +433,14 @@ def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
             },
             stream_callback=stream_callback,
         )
+        provenance = _provenance(event["task_state"]["revision"], read_tools)
         if read_tools:
             read_tools.close()
+        from app.chat_context_runtime import compression_status
+
+        context_outcome = compression_status(agent)
+        if on_context is not None and context_outcome != "idle":
+            on_context(context_outcome)
         if not isinstance(result, dict) or result.get("failed") or result.get("interrupted"):
             raise RuntimeError("human turn did not complete")
         active_session_id = db.resolve_resume_session_id(
@@ -453,6 +482,7 @@ def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
                 "request_id": event["request_id"],
                 "assistant_id": assistant_id,
                 "based_on_revision": event["task_state"]["revision"],
+                "provenance": provenance,
             },
         )
         if not tagged:
@@ -466,6 +496,7 @@ def run_human(event: dict[str, Any], on_preview=None) -> dict[str, Any]:
         "assistant_id": assistant_id,
         "user_id": user["_row_id"],
         "audit": audit,
+        "context_status": context_outcome,
     }
 
 
@@ -549,6 +580,7 @@ def finalize_response(finalization: dict[str, Any]) -> dict[str, Any]:
         if (
             not isinstance(metadata, dict)
             or metadata.get("request_id") != finalization["request_id"]
+            or ("provenance" in metadata and validate_provenance(metadata["provenance"]) is None)
             or not isinstance(raw, str)
         ):
             raise InputError("invalid finalization")
@@ -681,6 +713,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input")
     parser.add_argument("--finalize")
     parser.add_argument("--resolve-title")
+    parser.add_argument("--read-chat")
+    parser.add_argument("--compress-chat")
     parser.add_argument("--list-eilo-sessions", action="store_true")
     parser.add_argument("--initialize-history", action="store_true")
     parser.add_argument("--dry-audit", action="store_true")
@@ -692,6 +726,8 @@ def main(argv: list[str] | None = None) -> int:
                 bool(args.input),
                 bool(args.finalize),
                 bool(args.resolve_title),
+                bool(args.read_chat),
+                bool(args.compress_chat),
                 bool(args.dry_audit),
                 args.list_eilo_sessions,
                 args.initialize_history,
@@ -711,6 +747,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         output.flush()
 
+    def on_context(status):
+        output.write(json.dumps({"type": "context", "status": status}) + "\n")
+        output.flush()
+
     try:
         # Native diagnostics and proposal text never cross this process boundary.
         with (
@@ -719,7 +759,11 @@ def main(argv: list[str] | None = None) -> int:
             contextlib.redirect_stderr(sink),
         ):
             receipt = (
-                initialize_history()
+                read_chat(args.read_chat)
+                if args.read_chat
+                else compress_chat(args.compress_chat)
+                if args.compress_chat
+                else initialize_history()
                 if args.initialize_history
                 else list_eilo_sessions()
                 if args.list_eilo_sessions
@@ -729,7 +773,11 @@ def main(argv: list[str] | None = None) -> int:
                 if args.resolve_title
                 else finalize_response(_read_finalization(args.finalize))
                 if args.finalize
-                else run_human(_read_event(args.input), on_preview if args.stream else None)
+                else run_human(
+                    _read_event(args.input),
+                    on_preview if args.stream else None,
+                    on_context if args.stream else None,
+                )
             )
     except Exception:
         return 1

@@ -28,9 +28,6 @@ export function componentPatchPolicy(previous, next) {
   if (!next) return 'remove';
   return previous.id === next.id && previous.kind === next.kind ? 'patch' : 'replace';
 }
-export function shouldPreserveNoteDraft(draft, incomingText) {
-  return Boolean(draft && draft.sourceText === (incomingText || ''));
-}
 /** Return only DOM moves needed to reach an order, deferring a focused keyed card. */
 export function keyedMovePlan(current, desired, focusedId) {
   if (focusedId && current.indexOf(focusedId) !== desired.indexOf(focusedId)) return [];
@@ -182,32 +179,12 @@ function resolvedData(component, resources, getBinding) {
   const source = resources?.[component.binding.id];
   return component.binding.field ? source?.[component.binding.field] : source || component.items;
 }
-function patchNote(body, component, drafts, onAction) {
-  let textarea = body.querySelector('.adaptive-note');
-  const draft = drafts.get(component.id);
-  const incoming = component.text || '';
-  if (!textarea) {
-    textarea = create('textarea', 'note-input adaptive-note');
-    textarea.rows = 5;
-    textarea.placeholder = 'A thought for later…';
-    textarea.addEventListener('input', () => {
-      drafts.set(component.id, {
-        sourceText: textarea.dataset.sourceText || '',
-        value: textarea.value,
-      });
-      onAction({
-        id: ADAPTIVE_ACTIONS.noteDraft,
-        componentId: component.id,
-        draft: textarea.value,
-      });
-    });
-    body.replaceChildren(textarea);
-  }
-  const value = shouldPreserveNoteDraft(draft, incoming) ? draft.value : incoming;
-  if (textarea.value !== value) textarea.value = value;
-  if (value === incoming) drafts.delete(component.id);
-  textarea.dataset.sourceText = incoming;
-  textarea.setAttribute('aria-label', component.title);
+function patchNote(body, component) {
+  // Adaptive components describe observed or model-composed state. They are not
+  // personal notes; the ordinary Home Notes widget owns editable, saved text.
+  body.replaceChildren(
+    create('p', 'live-empty adaptive-note', component.text || 'No context supplied.'),
+  );
 }
 function patchCard(card, component, context) {
   card.className = `home-widget adaptive-card adaptive-card--${component.kind} adaptive-card--${component.emphasis}`;
@@ -250,8 +227,7 @@ export function renderContextWidget(content, component, context) {
   }
   content.querySelector('h2').textContent = component.title;
   const body = content.querySelector('.adaptive-card__body');
-  if (component.kind === 'note')
-    return patchNote(body, component, context.drafts, context.onAction);
+  if (component.kind === 'note') return patchNote(body, component);
   body.replaceChildren();
   if (component.kind === 'intention')
     body.append(create('p', 'live-empty', component.text || 'No context supplied.'));

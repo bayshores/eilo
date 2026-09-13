@@ -95,10 +95,15 @@ export function normalizeHomePreferences(raw = {}) {
       typeof value.name === 'string' && value.name.trim() && value.name.trim() !== 'You'
         ? value.name.slice(0, 40)
         : '',
-    pin: value.pin === true,
+    pin: typeof value.pin === 'boolean' ? value.pin : true,
     homeLayoutVersion: value.homeLayoutVersion === 2 ? 2 : 1,
     reducedMotion: value.reducedMotion === true,
-    soundEffects: value.soundEffects === true,
+    soundEffects: typeof value.soundEffects === 'boolean' ? value.soundEffects : true,
+    soundVolume:
+      typeof value.soundVolume === 'number' && Number.isFinite(value.soundVolume)
+        ? Math.max(0, Math.min(1, value.soundVolume))
+        : 0.5,
+    dailyGuidance: typeof value.dailyGuidance === 'boolean' ? value.dailyGuidance : true,
     accentColor: normalizeAccent(value.accentColor),
     widgetPins: Array.isArray(value.widgetPins)
       ? value.widgetPins

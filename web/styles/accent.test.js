@@ -6,7 +6,7 @@ import {
   createHomeStorage,
   HOME_STORAGE_KEYS,
 } from '../home/storage.js';
-import { accentChannels, readableAccent } from './accent.js';
+import { accentChannels, readableAccent, hexToHsv, hsvToHex } from './accent.js';
 
 test('accent preferences validate, preserve RGB, and survive storage reload', () => {
   for (const invalid of [null, {}, '#fff', '#123456ff', 'red', 'url(x)', 123])
@@ -38,4 +38,12 @@ test('even extreme RGB choices keep accent labels legible on dark panels', () =>
     );
     assert.ok((luminance + 0.05) / (0.05 + 0.046) >= 4.5, color);
   }
+});
+
+test('the single color editor preserves exact RGB values through its hue plane', () => {
+  for (const color of ['#fac399', '#00ff8c', '#0012b5', '#000000', '#ffffff', '#a04bf3']) {
+    const { h, s, v } = hexToHsv(color);
+    assert.equal(hsvToHex(h, s, v), color);
+  }
+  assert.equal(hsvToHex(360, 1, 1), '#ff0000');
 });

@@ -197,7 +197,7 @@ class LocalChat:
         # ponytail: this local append briefly blocks the loop so a permission change
         # cannot interleave; move to a shared transaction owner if native writes grow.
         operation = find_publication if lookup else publish
-        return operation(validate_publication(publication))
+        return operation(validate_publication(publication, allow_legacy=lookup))
 
     async def wait_for_state(self, after: str | None) -> dict:
         if after == self.revision:
@@ -240,6 +240,18 @@ class LocalChat:
             else None,
             "accountability": self.proactive.snapshot(),
             "reply_stream": self.reply_stream,
+            "chat_context": {
+                **(self.native_record.get("chat_context") or {}),
+                "can_compress": bool(
+                    (self.native_record.get("chat_context") or {}).get("can_compress")
+                    and not self.busy
+                    and not self.blocked
+                    and not self.meta.get("pending_turn")
+                    and not self.meta.get("pending_publication")
+                ),
+                "status": (self.meta.get("context_compaction") or {}).get("status", "idle"),
+                "error": (self.meta.get("context_compaction") or {}).get("error"),
+            },
             "adaptive": adaptive,
             "capture_status": adaptive["capture_status"],
             "current_work_context": adaptive["current_work_context"],
@@ -256,6 +268,7 @@ class LocalChat:
         executable: Path | None = None,
         human_context: str | None = None,
         on_preview=None,
+        on_context=None,
     ) -> tuple[int, str, str]:
         started = time.perf_counter()
         # Credentials come from Hermes's private home, never inherited provider variables.
@@ -318,6 +331,14 @@ class LocalChat:
                                     "first_preview_ms",
                                     round((time.perf_counter() - started) * 1000, 3),
                                 )
+                    elif frame.get("type") == "context" and frame.get("status") in {
+                        "compressing",
+                        "compressed",
+                        "idle",
+                        "failed",
+                    }:
+                        if on_context is not None:
+                            on_context(frame["status"])
                     elif frame.get("type") == "result" and isinstance(frame.get("result"), dict):
                         receipt = frame["result"]
                     else:
@@ -366,45 +387,24 @@ class LocalChat:
     async def refresh(self, observation: dict | None = None) -> None:
         if not self.meta.get("started"):
             self.messages = []
+            self.native_record = {}
             return
-        if not self.meta.get("session_id"):
-            code, out, _ = await self.command(
-                ["--resolve-title", self.meta["title"]], launcher="hermes-human"
-            )
-            try:
-                resolved = json.loads(out) if code == 0 else {}
-                if resolved.get("session_title") != self.meta["title"]:
-                    raise ValueError("unverified title lookup")
-                self.meta["session_id"] = resolved.get("session_id")
-            except (TypeError, ValueError) as exc:
-                raise ChatError(
-                    "The saved conversation could not be located safely. It has not been replaced."
-                ) from exc
-            if not self.meta["session_id"]:
-                self.messages = []
-                return
-        selector = ["--session-id", self.meta["session_id"]]
         code, out, _ = await self.command(
-            ["sessions", "export", "--format", "jsonl", "--redact", "--yes", *selector, "-"],
-            observation=observation,
+            ["--read-chat", self.meta["title"]], launcher="hermes-human", observation=observation
         )
         if code:
             raise ChatError(
                 "The saved conversation could not be read from Hermes. It has not been replaced."
             )
         try:
-            records = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
-            if not self.meta.get("session_id"):
-                records = [r for r in records if r.get("title") == self.meta["title"]]
-            if not records:
+            record = json.loads(out)
+            if not record:
                 if self.meta.get("session_id"):
                     raise ValueError("missing session")
-                self.messages = []
                 return
-            if len(records) != 1:
-                raise ValueError("ambiguous session")
-            record = records[0]
-            audit_session(record, self.meta.get("session_id"))
+            if record.get("title") != self.meta["title"]:
+                raise ValueError("unexpected chat")
+            audit_session(record, record["id"])
             self.native_record = record
             self.messages = visible_messages(record, self.proactive.state["events"])
             self.reconcile_pending()
@@ -454,6 +454,9 @@ class LocalChat:
             await self.refresh()
             await self.recover_publication()
             await self.proactive.recover_publications()
+            if (self.meta.get("context_compaction") or {}).get("status") == "compressing":
+                self.meta["context_compaction"]["status"] = "interrupted"
+                self.save_meta()
             if self.meta_path == META and self.meta.get("workspace_import_version", 0) < 2:
                 code, out, _ = await self.command(["--list-eilo-sessions"], launcher="hermes-human")
                 if code:
@@ -856,20 +859,38 @@ class LocalChat:
                     self.reply_stream = {"id": request_id, "text": value, "status": "writing"}
                     self.changed()
 
+            def context_status(status):
+                if self.meta.get("request_id") == request_id:
+                    previous = (self.meta.get("context_compaction") or {}).get("status")
+                    if previous != status:
+                        self.meta["context_compaction"] = {"status": status, "source": "automatic"}
+                        self.save_meta()
+                        self.changed()
+
             code, out, err = await self.command(
                 ["--input", str(path), "--stream"],
                 launcher="hermes-human",
                 timeout=210,
                 observation=timing["native_process"],
                 on_preview=preview,
+                on_context=context_status,
             )
             if code:
                 await self.refresh()
                 await self.recover_publication()
                 if self.meta.get("pending_turn"):
-                    self.error = runtime_error(err)
+                    if (self.meta.get("context_compaction") or {}).get("status") in {
+                        "compressing",
+                        "failed",
+                    }:
+                        self.meta["context_compaction"]["status"] = "failed"
+                        self.error = "Context could not be summarized. Try Summarize now or start a new chat; your saved messages are available."
+                    else:
+                        self.error = runtime_error(err)
             else:
                 receipt = json.loads(out)
+                if receipt.get("context_status") in {"compressed", "failed"}:
+                    context_status(receipt["context_status"])
                 audit = receipt.get("audit", {})
                 if (
                     audit.get("model") != MODEL
@@ -914,6 +935,8 @@ class LocalChat:
         except Exception:
             self.error = "The local connection failed. Reopen the app to check saved messages; no automatic retry was sent."
         finally:
+            if (self.meta.get("context_compaction") or {}).get("status") == "compressing":
+                self.meta["context_compaction"]["status"] = "failed"
             path.unlink(missing_ok=True)
             if source_turn:
                 if source_turn.run["status"] == "running":
@@ -941,47 +964,106 @@ class LocalChat:
         )
 
     async def read_catalog_conversation(self, conversation: dict) -> dict:
-        """Read and audit a proposed destination before changing the active pointer."""
         if not conversation.get("started"):
             return {}
-        session_id = conversation.get("session_id")
         code, out, _ = await self.command(
-            ["--resolve-title", conversation["title"]], launcher="hermes-human"
+            ["--read-chat", conversation["title"]], launcher="hermes-human"
         )
         try:
-            resolved = json.loads(out) if code == 0 else {}
-            if resolved.get("session_title") != conversation["title"] or not resolved.get(
-                "session_id"
-            ):
-                raise ValueError("unverified native title")
-            session_id = resolved["session_id"]
-        except (ValueError, TypeError) as exc:
-            raise ChatError(
-                "This chat could not be located in Hermes. Your current conversation is still open."
-            ) from exc
-        code, out, _ = await self.command(
-            [
-                "sessions",
-                "export",
-                "--format",
-                "jsonl",
-                "--redact",
-                "--yes",
-                "--session-id",
-                session_id,
-                "-",
-            ]
-        )
-        try:
-            records = [json.loads(line) for line in out.splitlines() if line.startswith("{")]
-            if code or len(records) != 1:
+            record = json.loads(out)
+            if code or record.get("title") != conversation["title"]:
                 raise ValueError("unreadable native session")
-            audit_session(records[0], session_id)
-            return records[0]
+            audit_session(record, record["id"])
+            return record
         except (ValueError, TypeError, KeyError) as exc:
             raise ChatError(
                 "This chat could not be safely reopened. Your current conversation is still open."
             ) from exc
+
+    async def compress_context(self, body: dict) -> dict:
+        async with self.lock:
+            if not isinstance(body, dict) or set(body) != {
+                "action",
+                "request_id",
+                "conversation_id",
+                "based_on_revision",
+            }:
+                raise CatalogError("Invalid context command.")
+            request_id = body["request_id"]
+            if (
+                body["action"] != "compress"
+                or not isinstance(request_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{12,80}", request_id)
+            ):
+                raise CatalogError("Invalid context command.")
+            if request_id in self.meta.get("accepted_context_requests", []):
+                return self.snapshot()
+            if (
+                not self.meta.get("session_id")
+                or body["conversation_id"] != self.meta["session_id"]
+            ):
+                raise CatalogError("The chat changed. Reopen context details.", 409)
+            if body["based_on_revision"] != self.revision:
+                raise CatalogError(
+                    "Context changed. Check the refreshed details and try again.", 409
+                )
+            if (
+                self.busy
+                or self.meta.get("pending")
+                or self.meta.get("pending_turn")
+                or self.meta.get("pending_publication")
+            ):
+                raise CatalogError("Wait for this reply before summarizing.", 409)
+            if self.blocked:
+                raise ChatError(self.error or "Recover this conversation before summarizing.")
+            check_config()
+            candidate = deepcopy(self.meta)
+            candidate["accepted_context_requests"] = (
+                candidate.get("accepted_context_requests", []) + [request_id]
+            )[-100:]
+            candidate["context_compaction"] = {
+                "request_id": request_id,
+                "status": "compressing",
+                "source": "manual",
+            }
+            self.commit_meta(candidate)
+            self.proactive.invalidate()
+            self.task = asyncio.create_task(
+                self.run_compaction(), name="user-requested-context-summary"
+            )
+            self.task.add_done_callback(lambda _: self.context.resume_after_human())
+            self.changed()
+            return self.snapshot()
+
+    async def run_compaction(self) -> None:
+        try:
+            await self.proactive.wait_for_preempted_event()
+            async with self.native_lock:
+                code, out, _ = await self.command(
+                    ["--compress-chat", self.meta["title"]], launcher="hermes-human", timeout=210
+                )
+                result = json.loads(out) if code == 0 else {}
+                await self.refresh()
+                if result.get("session_id") != self.meta.get("session_id") or result.get(
+                    "status"
+                ) not in {"compressed", "unchanged", "failed"}:
+                    raise ChatError(
+                        "The summary could not be confirmed. Your saved chat is available."
+                    )
+                self.meta["context_compaction"]["status"] = result["status"]
+        except asyncio.CancelledError:
+            # The durable running receipt becomes interrupted on restart; no replay.
+            raise
+        except Exception:
+            self.meta["context_compaction"]["status"] = "failed"
+            self.meta["context_compaction"]["error"] = (
+                "Couldn’t confirm the summary. Check context before trying again."
+            )
+            with contextlib.suppress(ChatError):
+                await self.refresh()
+        finally:
+            self.save_meta()
+            self.changed()
 
     async def control_catalog(self, body: dict) -> dict:
         async with self.lock:

@@ -8,21 +8,25 @@ import {
   normalizeEpisodes,
   packLane,
   projectSegments,
+  recordedEpisodeRows,
   visibleTimeWindow,
   visibleLanes,
   windowTicks,
 } from './day-map-data.js';
 
 const stamp = (value) => Date.parse(value) / 1000;
+const localStamp = (year, month, day, hour = 0, minute = 0) =>
+  new Date(year, month - 1, day, hour, minute).getTime() / 1000;
 
-test('splits one seen span across UTC days without deriving recorded time from the span', () => {
+test('splits one seen span across local days without deriving recorded time from the span', () => {
+  const start = localStamp(2026, 9, 10, 23, 50);
   const episodes = normalizeEpisodes([
     {
       id: 'crossing',
       title: 'Review notes',
       source_id: 'browser',
-      started_at: stamp('2026-09-10T23:50:00Z'),
-      ended_at: stamp('2026-09-11T00:10:00Z'),
+      started_at: start,
+      ended_at: start + 20 * 60,
       duration_seconds: 73,
     },
   ]);
@@ -36,13 +40,14 @@ test('splits one seen span across UTC days without deriving recorded time from t
 });
 
 test('uses a bounded morning window and preserves a whole-day span', () => {
+  const morningStart = localStamp(2026, 9, 11, 8);
   const morning = daySegments(
     normalizeEpisodes([
       {
         id: 'morning',
         source_id: 'browser',
-        started_at: stamp('2026-09-11T08:00:00Z'),
-        ended_at: stamp('2026-09-11T09:00:00Z'),
+        started_at: morningStart,
+        ended_at: morningStart + 60 * 60,
         duration_seconds: 11,
       },
     ]),
@@ -187,9 +192,9 @@ test('requires a literal canonical origin and keeps a reordered selected lane vi
   );
 });
 
-test('includes bounded intermediate days and treats a midnight endpoint as exclusive unless it is a point', () => {
-  const start = stamp('2026-09-01T12:00:00Z');
-  const midnight = stamp('2026-09-03T00:00:00Z');
+test('includes bounded intermediate local days and treats a midnight endpoint as exclusive unless it is a point', () => {
+  const start = localStamp(2026, 9, 1, 12);
+  const midnight = localStamp(2026, 9, 3);
   const [point, span] = normalizeEpisodes([
     {
       id: 'span',
@@ -216,7 +221,7 @@ test('includes bounded intermediate days and treats a midnight endpoint as exclu
       id: 'long',
       source_id: 'desktop',
       started_at: start,
-      ended_at: stamp('2026-12-01T12:00:00Z'),
+      ended_at: localStamp(2026, 12, 1, 12),
       duration_seconds: 4,
     },
   ]);
@@ -224,7 +229,7 @@ test('includes bounded intermediate days and treats a midnight endpoint as exclu
 });
 
 test('keeps zero-length observations as points with a separate hit area', () => {
-  const at = stamp('2026-09-11T12:00:00Z');
+  const at = localStamp(2026, 9, 11, 12);
   const [episode] = normalizeEpisodes([
     { id: 'point', source_id: 'desktop', started_at: at, ended_at: at, duration_seconds: 0 },
   ]);
@@ -254,4 +259,32 @@ test('rejects malformed identifiers, timestamps, and negative recorded duration'
   assert.equal(episodes.length, 1);
   assert.equal(episodes[0].recordedSeconds, 42);
   assert.ok(Math.abs(daySegments(episodes, '2026-09-11')[0].width - 100 / 24) < 1e-9);
+});
+
+test('lists modern episodes first-class without duplicating a matching legacy bridge id', () => {
+  const at = localStamp(2026, 9, 11, 9);
+  const rows = recordedEpisodeRows(
+    [
+      {
+        id: 'modern',
+        title: 'Draft',
+        source_id: 'desktop',
+        started_at: at,
+        ended_at: at + 60,
+        duration_seconds: 12,
+      },
+    ],
+    [
+      { id: 'modern', start: at + 120, observed_seconds: 99 },
+      { id: 'legacy', start: at - 60, observed_seconds: 8 },
+    ],
+  );
+  assert.deepEqual(
+    rows.map((row) => [row.id, row.kind]),
+    [
+      ['modern', 'episode'],
+      ['legacy', 'legacy'],
+    ],
+  );
+  assert.equal(rows[0].day, '2026-09-11');
 });

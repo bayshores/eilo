@@ -1,3 +1,4 @@
+import { createInlineDialog } from '../workspace/inline-dialog.js';
 import { mountChromeSetup } from '../activity/setup.js';
 import { mountDesktopSetup } from '../activity/desktop-setup.js';
 import { refreshSetupHealth } from '../activity/setup-health.js';
@@ -40,6 +41,7 @@ export function mountOnboardingSupport({
   openSettings: _openSettings = () => {},
 }) {
   const dialog = el('dialog', 'onboarding-support');
+  const openInline = createInlineDialog(dialog);
   const body = el('section', 'onboarding-support__body');
   const status = el('p', 'onboarding-support__status');
   status.setAttribute('role', 'status');
@@ -426,7 +428,7 @@ export function mountOnboardingSupport({
       phase = source ? 'connect' : 'source';
       generation += 1;
       setStatus('');
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) openInline();
       render();
     },
     update(next) {

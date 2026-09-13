@@ -140,6 +140,10 @@ def register(app: web.Application, chat: LocalChat) -> None:
                 chat.changed()
         return web.json_response(chat.snapshot())
 
+    async def chat_context(request: web.Request) -> web.Response:
+        return web.json_response(await chat.compress_context(await request.json()), status=202)
+
+    app.router.add_post("/api/chat/context", chat_context)
     app.router.add_get("/api/state", state)
     app.router.add_get("/api/workspace/catalog", catalog)
     app.router.add_post("/api/workspace/catalog", catalog)

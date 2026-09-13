@@ -284,6 +284,14 @@ export function createHomeClient({
   }
   return {
     canManage,
+    compressContext() {
+      return control('/api/chat/context', {
+        action: 'compress',
+        request_id: requestId(),
+        conversation_id: snapshot?.conversation_id,
+        based_on_revision: snapshot?.revision,
+      });
+    },
     onboardingCommand(action, request = requestId(), revision = snapshot?.onboarding?.revision) {
       return control('/api/onboarding/commands', {
         action,

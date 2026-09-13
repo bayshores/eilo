@@ -1,3 +1,4 @@
+import { createInlineDialog } from './workspace/inline-dialog.js';
 import './styles/focus.js';
 import { applyAccent, createAccentSelector } from './styles/accent.js';
 import {
@@ -12,6 +13,7 @@ import {
   projectLayout,
   updateLayout,
   previewMove,
+  previewWidgetAddition,
   resizeWithinHome,
   layoutTransferHash,
   readLayoutTransfer,
@@ -86,6 +88,7 @@ const scroller = $('.board-scroll');
 const rail = $('.nav-rail');
 const gallery = $('.gallery');
 const detail = $('.detail-dialog');
+const openInlineDetail = createInlineDialog(detail);
 const elements = new Map();
 const homeStorage = createHomeStorage();
 const transferred =
@@ -153,6 +156,7 @@ let adaptivePreviewMode =
   new URLSearchParams(location.search).get('adaptive-preview') === '1';
 let adaptiveHome = null;
 let homePage = 0;
+let placement = null;
 let contextInput = null;
 let contextRenderVersion = 0;
 const widgetTitle = (widget) => adaptiveHome?.component(widget)?.title || TITLES[widget.type];
@@ -164,9 +168,17 @@ const live =
         onSettingsSection: (id) => adaptiveHome?.selectSettings(id),
         dialog: detail,
         getSoundEnabled: () => prefs.soundEffects,
+        getPreferences: () => prefs,
+        setDailyGuidance: (enabled) => {
+          prefs.dailyGuidance = enabled === true;
+          writeStorage(PREFS_KEY, prefs);
+          live?.refreshPreferences();
+        },
         setSoundEnabled: (enabled) => {
           prefs.soundEffects = enabled === true;
-          return writeStorage(PREFS_KEY, prefs);
+          const saved = writeStorage(PREFS_KEY, prefs);
+          live?.refreshPreferences();
+          return saved;
         },
         applyWorkspace: (setup) => {
           const next = applyOnboardingLayout(state, setup);
@@ -206,6 +218,7 @@ const live =
     : null;
 function writeStorage(key, value) {
   const saved = homeStorage.write(key, value);
+  if (key === PREFS_KEY) window.dispatchEvent(new Event('eilo-preferences-changed'));
   if (!saved) showStorageWarning();
   return saved;
 }
@@ -214,6 +227,7 @@ function showStorageWarning() {
   $('.storage-warning').textContent = homeStorage.message;
 }
 function saveLayout() {
+  if (placement) return;
   const restored = new Set(state.widgets.map((widget) => widget.componentId).filter(Boolean));
   const dismissed = prefs.dismissedContextWidgets.filter((id) => !restored.has(id));
   if (dismissed.length !== prefs.dismissedContextWidgets.length) {
@@ -242,7 +256,7 @@ function toast(message, undo = false) {
   announce(message);
 }
 $('.toast-undo').addEventListener('click', () => {
-  if (!undoState) return;
+  if (placement || !undoState) return;
   finishLandings();
   state = undoState;
   undoState = null;
@@ -299,6 +313,7 @@ function changeHomePage(base, transform) {
   };
 }
 function previewHomeMove(base, action) {
+  if (placement?.id === action.id) return placementPreview(base, action);
   return changeHomePage(base, (local) => previewMove(local, action));
 }
 function commit(action, message) {
@@ -317,10 +332,11 @@ function commit(action, message) {
   state = next;
   saveLayout();
   renderBoard();
-  if (message) toast(message, true);
+  if (message && !placement) toast(message, true);
   return true;
 }
 function resizeToHome(base, id, w, h) {
+  if (placement?.id === id) return placementPreview(base, { id, w, h });
   return changeHomePage(base, (local) =>
     resizeWithinHome(local, { id, w, h, mode, rows: rowBudget }),
   );
@@ -452,7 +468,7 @@ function updateGeometry() {
   if (width <= 0 || scroller.clientHeight <= 0) return false;
   mode = width >= 960 ? 'wide' : width >= 640 ? 'compact' : 'stacked';
   gap = mode === 'stacked' ? 16 : 20;
-  rowBudget = mode !== 'stacked' && scroller.clientHeight >= 490 ? 4 : 2;
+  rowBudget = placement?.rows ?? (mode !== 'stacked' && scroller.clientHeight >= 490 ? 4 : 2);
   rowHeight = Math.min(
     132,
     Math.max(1, Math.floor((scroller.clientHeight - (rowBudget - 1) * gap - 4) / rowBudget)),
@@ -545,9 +561,11 @@ function renderBoard() {
   $('.overflow-toggle').hidden = true;
   $('.add-toggle').hidden = false;
   $('.app-window').classList.toggle('editing', editing);
+  renderPlacement(layout);
   if (menuId && !ids.has(menuId)) closeWidgetMenu();
 }
 function removeWidget(id) {
+  if (placement) return;
   const widget = state.widgets.find((item) => item.id === id);
   if (!widget) return;
   closeWidgetMenu();
@@ -564,6 +582,7 @@ function removeWidget(id) {
   $('.edit-toggle').focus();
 }
 function setEditing(value) {
+  if (!value && placement) finishPlacement(false);
   cancelHeldPress();
   if (resizeDrag) finishResize(false);
   if (drag) finishPointerMove(false);
@@ -584,10 +603,17 @@ function setEditing(value) {
       : 'Home layout saved. Editing finished.',
   );
 }
-$('.edit-toggle').addEventListener('click', () => setEditing(!editing));
+$('.edit-toggle').addEventListener('pointerdown', () => {
+  if (placement && keyboardMove) finishKeyboardMove(true);
+});
+$('.edit-toggle').addEventListener('click', () => {
+  if (placement) finishPlacement(true);
+  else setEditing(!editing);
+});
 $('.app-window').addEventListener('pointerdown', (event) => {
   if (
     !editing ||
+    placement ||
     event.button !== 0 ||
     !event.isPrimary ||
     drag ||
@@ -646,32 +672,29 @@ const galleryController = createWidgetGallery({
     }
     const component = adaptiveHome?.components().find((item) => contextWidgetId(item.id) === type);
     const id = component ? contextWidgetId(component.id) : `${type}-${crypto.randomUUID()}`;
-    const before = state;
-    if (
-      !commit({
-        type: 'add',
-        widgetType: component ? 'context' : type,
-        size,
+    $('.toast').hidden = true;
+    clearTimeout(toastTimer);
+    placement = {
+      before: state,
+      undo: undoState,
+      id,
+      page: homePage,
+      rows: rowBudget,
+      widget: {
         id,
+        type: component ? 'context' : type,
+        size,
         ...(component ? { componentId: component.id } : {}),
-      })
-    )
-      return null;
-    if (elements.get(id)?.hidden) {
-      state = placeOnHome(state, id);
-      saveLayout();
-      renderBoard();
-    }
-    homePage = Math.max(
-      0,
-      homePages(state).findIndex((page) => page.some((item) => item.id === id)),
-    );
+      },
+    };
+    state = previewWidgetAddition(placement.before, placement.widget, {
+      mode,
+      rows: rowBudget,
+      page: homePage,
+    });
     renderBoard();
-    undoState = before;
-    toast(`${TITLES[type]} added to Home.`, true);
-    const element = elements.get(id);
-    element?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-    return element?.querySelector('.move-widget') || null;
+    announce('Move or resize the widget, then choose Place. Escape cancels.');
+    return elements.get(id)?.querySelector('.move-widget') || null;
   },
 });
 $('.add-toggle').addEventListener('click', () => galleryController.open());
@@ -699,6 +722,7 @@ nextPage.className = 'home-page-arrow';
 nextPage.innerHTML = icon('arrow-right');
 nextPage.setAttribute('aria-label', 'Next widgets');
 function turnWidgetPage(step) {
+  if (placement) return;
   cancelHeldPress();
   if (keyboardMove) finishKeyboardMove(false);
   closeWidgetMenu();
@@ -725,6 +749,76 @@ tidyButton.addEventListener('click', () => {
 $('.edit-toggle').before(tidyButton);
 $('.overflow-toggle').addEventListener('click', () => showDetail('overflow'));
 
+const placementCancel = document.createElement('button');
+placementCancel.className = 'button placement-cancel';
+placementCancel.textContent = 'Cancel';
+placementCancel.hidden = true;
+placementCancel.addEventListener('click', () => finishPlacement(false));
+$('.edit-toggle').before(placementCancel);
+const placementImpact = document.createElement('p');
+placementImpact.className = 'placement-impact';
+placementImpact.setAttribute('role', 'status');
+placementImpact.hidden = true;
+$('.home-header').append(placementImpact);
+
+function placementPreview(base, action) {
+  const item = projectHomeLayout(base, mode).find((item) => item.id === placement.id);
+  return previewWidgetAddition(placement.before, placement.widget, {
+    mode,
+    rows: rowBudget,
+    page: placement.page,
+    x: action.x ?? item.x,
+    y: action.y ?? item.y,
+    w: action.w ?? item.w,
+    h: action.h ?? item.h,
+  });
+}
+function renderPlacement(layout) {
+  $('.app-window').classList.toggle('placing-widget', Boolean(placement));
+  placementCancel.hidden = !placement;
+  placementImpact.hidden = !placement;
+  $('.add-toggle').disabled = Boolean(placement);
+  tidyButton.disabled = Boolean(placement);
+  for (const button of pageDots.querySelectorAll('button')) button.disabled = Boolean(placement);
+  if (placement) {
+    previousPage.disabled = true;
+    nextPage.disabled = true;
+  }
+  for (const [id, element] of elements) {
+    element.inert = Boolean(placement && id !== placement.id);
+    element.querySelector('.widget-content').inert = Boolean(placement);
+    element.classList.toggle('placement-candidate', placement?.id === id);
+  }
+  if (!placement) return;
+  $('.edit-toggle').textContent = 'Place';
+  $('.save-state').textContent = '';
+  const ids = new Set(layout.map((item) => item.id));
+  const moved =
+    homePages(placement.before)[placement.page]?.filter((item) => !ids.has(item.id)) || [];
+  const message = moved.length
+    ? 'Moves to another page: ' + moved.map(widgetTitle).join(', ')
+    : 'All widgets fit';
+  if (placementImpact.textContent !== message) placementImpact.textContent = message;
+}
+function finishPlacement(keep) {
+  if (!placement) return;
+  if (drag) finishPointerMove(keep);
+  if (resizeDrag) finishResize(keep);
+  if (keyboardMove) finishKeyboardMove(keep);
+  const pending = placement;
+  placement = null;
+  if (keep) undoState = pending.before;
+  else {
+    state = pending.before;
+    undoState = pending.undo;
+    homePage = pending.page;
+  }
+  setEditing(false);
+  if (keep) toast('Widget placed.', true);
+  else announce('Placement cancelled.');
+  $('.add-toggle').focus();
+}
+
 function closeWidgetMenu() {
   if (menuId)
     elements.get(menuId)?.querySelector('.widget-options').setAttribute('aria-expanded', 'false');
@@ -742,7 +836,21 @@ function toggleWidgetMenu(id, trigger) {
   menuId = id;
   trigger.setAttribute('aria-expanded', 'true');
   const menu = $('.widget-menu');
-  menu.innerHTML = '<h3>Widget</h3>';
+  menu.replaceChildren();
+  scroller.append(menu);
+  const title = document.createElement('h2');
+  title.textContent = widgetTitle(widget) + ' options';
+  const close = document.createElement('button');
+  close.textContent = 'Close';
+  close.setAttribute('aria-label', 'Close widget options');
+  close.addEventListener('click', () => {
+    closeWidgetMenu();
+    elements.get(id)?.querySelector('.widget-options').focus();
+  });
+  const header = document.createElement('div');
+  header.className = 'inline-options-heading';
+  header.append(title, close);
+  menu.append(header);
   const resizeAction = document.createElement('button');
   resizeAction.textContent = 'Resize with arrow keys';
   resizeAction.addEventListener('click', () => {
@@ -794,12 +902,7 @@ function toggleWidgetMenu(id, trigger) {
   remove.addEventListener('click', () => removeWidget(id));
   menu.append(remove);
   menu.hidden = false;
-  const bounds = trigger.getBoundingClientRect();
-  menu.style.left =
-    Math.max(10, Math.min(bounds.right - menu.offsetWidth, innerWidth - menu.offsetWidth - 10)) +
-    'px';
-  menu.style.top =
-    Math.max(10, Math.min(bounds.bottom + 7, innerHeight - menu.offsetHeight - 10)) + 'px';
+  scroller.scrollTop = 0;
   menu.querySelector('button').focus();
 }
 $('.widget-menu').addEventListener('keydown', (event) => {
@@ -807,6 +910,7 @@ $('.widget-menu').addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     event.preventDefault();
     const id = menuId;
+    event.stopPropagation();
     closeWidgetMenu();
     elements.get(id)?.querySelector('.widget-options').focus();
   } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -883,8 +987,8 @@ function finishKeyboardMove(keep) {
   elements.get(id)?.classList.remove('keyboard-moving');
   elements.get(id)?.querySelector('.move-widget').removeAttribute('aria-pressed');
   renderBoard();
-  if (keep && changed) toast('Widget moved.', true);
-  else announce(keep ? 'Widget placed.' : 'Move cancelled.');
+  if (keep && changed && !placement) toast('Widget moved.', true);
+  else announce(keep ? (placement ? 'Position previewed.' : 'Widget placed.') : 'Move cancelled.');
 }
 function startPointerMove(event, id) {
   if (!editing || event.button !== 0 || drag || resizeDrag) return;
@@ -1075,7 +1179,7 @@ function finishResize(keep) {
     saveLayout();
   }
   renderBoard();
-  if (changed) toast(keep ? 'Widget resized.' : 'Resize cancelled.', keep);
+  if (changed && !placement) toast(keep ? 'Widget resized.' : 'Resize cancelled.', keep);
   scheduleRailHide();
 }
 function snapDragCell(value, previous, limit) {
@@ -1182,8 +1286,9 @@ function finishPointerMove(keep) {
     }
     renderBoard();
     landWidget(finished);
-    if (keep && changed) toast('Widget moved.', true);
-    else announce(keep ? 'Widget placed.' : 'Move cancelled.');
+    if (keep && changed && !placement) toast('Widget moved.', true);
+    else
+      announce(keep ? (placement ? 'Position previewed.' : 'Widget placed.') : 'Move cancelled.');
   }
   scheduleRailHide();
 }
@@ -1213,6 +1318,12 @@ document.addEventListener(
   'keydown',
   (event) => {
     if (event.key === 'Escape') {
+      if (placement && !drag && !resizeDrag && !keyboardMove) {
+        event.preventDefault();
+        event.stopPropagation();
+        finishPlacement(false);
+        return;
+      }
       cancelHeldPress();
       if (drag || resizeDrag) {
         event.preventDefault();
@@ -1350,9 +1461,27 @@ function closeAccount() {
 }
 $('.account-trigger').addEventListener('click', () => {
   accountOpen = !accountOpen;
+  const host = document.querySelector('.workspace-page:not([hidden])') || scroller;
+  host.append($('#account-menu'));
+  host.scrollTop = 0;
   $('#account-menu').hidden = !accountOpen;
   $('.account-trigger').setAttribute('aria-expanded', String(accountOpen));
   if (accountOpen) $('#account-menu button').focus();
+});
+const accountClose = document.createElement('button');
+accountClose.textContent = 'Close';
+accountClose.setAttribute('aria-label', 'Close account options');
+accountClose.addEventListener('click', () => {
+  closeAccount();
+  $('.account-trigger').focus();
+});
+$('#account-menu').prepend(accountClose);
+$('#account-menu').addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeAccount();
+  $('.account-trigger').focus();
 });
 document.addEventListener('pointerdown', (event) => {
   if (!event.target.closest('.widget-menu,.widget-options')) closeWidgetMenu();
@@ -1420,7 +1549,7 @@ function showDetail(type) {
   detail.dataset.detail = type;
   detail.classList.remove('live-conversation-dialog');
   if (live?.renderDetail(type, title, body)) {
-    detail.showModal();
+    openInlineDetail();
     return;
   }
   if (type === 'overflow') {
@@ -1527,7 +1656,7 @@ function showDetail(type) {
     title.textContent = 'Your home, your way';
     body.innerHTML = `<p>Choose Edit home, then change one widget.</p><details><summary>Keyboard controls</summary><p>Focus a widget’s move handle and press Space. Use arrow keys to move it, Enter to place it, or Escape to cancel.</p></details><details><summary>About Home</summary><p class="muted">Your layout is saved in this browser. ${live ? 'Describe commitments and changes in your conversation to update the information shown here.' : 'This prototype uses sample data and a visual conversation preview.'}</p></details>`;
   }
-  detail.showModal();
+  openInlineDetail();
 }
 function renderProfile() {
   $('.account-trigger').textContent = Array.from(prefs.name)[0]?.toUpperCase() || 'ë';
@@ -1536,7 +1665,7 @@ function renderProfile() {
 $('.detail-close').addEventListener('click', () => detail.close());
 detail.addEventListener('close', () => {
   if (live?.ownsConversationFocus()) return;
-  if (!detailReturnFocus?.isConnected) return;
+  if (!detailReturnFocus?.isConnected || detailReturnFocus.closest('[hidden]')) return;
   if (detailReturnFocus.closest('.nav-rail')) setRail(true);
   detailReturnFocus.focus();
 });
@@ -1622,8 +1751,60 @@ function createGeneralSettings() {
   soundInput.addEventListener('change', () => {
     prefs.soundEffects = soundInput.checked;
     writeStorage(PREFS_KEY, prefs);
+    live.refreshPreferences();
   });
-  section.querySelector('.motion-setting').parentElement.after(soundOption);
+  const soundControls = document.createElement('div');
+  soundControls.className = 'sound-settings-controls';
+  const volume = document.createElement('input');
+  volume.type = 'range';
+  volume.min = '0';
+  volume.max = '1';
+  volume.step = '0.05';
+  volume.value = String(prefs.soundVolume);
+  volume.setAttribute('aria-label', 'Interface sound volume');
+  volume.addEventListener('input', () => {
+    prefs.soundVolume = Number(volume.value);
+    writeStorage(PREFS_KEY, prefs);
+    live.refreshPreferences();
+  });
+  const testSound = document.createElement('button');
+  testSound.type = 'button';
+  testSound.className = 'button';
+  testSound.textContent = 'Play test sound';
+  const soundStatus = document.createElement('span');
+  soundStatus.setAttribute('role', 'status');
+  testSound.addEventListener('click', () => {
+    soundStatus.textContent =
+      prefs.soundEffects && prefs.soundVolume > 0
+        ? ''
+        : 'Turn on interface sounds and raise the volume to test.';
+    void live.sound.playTest().then((played) => {
+      if (played) soundStatus.textContent = 'Test sound played.';
+      else if (prefs.soundEffects && prefs.soundVolume > 0)
+        soundStatus.textContent =
+          'Sound is unavailable right now. Try again when the microphone is off.';
+    });
+  });
+  soundControls.append(volume, testSound, soundStatus);
+  const guidance = document.createElement('label');
+  guidance.className = 'check-option';
+  const guidanceInput = document.createElement('input');
+  guidanceInput.type = 'checkbox';
+  guidanceInput.checked = prefs.dailyGuidance;
+  guidance.append(guidanceInput, document.createTextNode('Show a daily return point'));
+  guidanceInput.addEventListener('change', () => {
+    prefs.dailyGuidance = guidanceInput.checked;
+    writeStorage(PREFS_KEY, prefs);
+    live.refreshPreferences();
+  });
+  section
+    .querySelector('.motion-setting')
+    .parentElement.after(soundOption, soundControls, guidance);
+  window.addEventListener('eilo-preferences-changed', () => {
+    soundInput.checked = prefs.soundEffects;
+    volume.value = String(prefs.soundVolume);
+    guidanceInput.checked = prefs.dailyGuidance;
+  });
   const speechMode = document.querySelector('.speech-method select');
   if (speechMode) {
     section.querySelector('.speech-preference').append(speechMode);
@@ -1669,6 +1850,19 @@ function createGeneralSettings() {
   section
     .querySelector('.settings-checkins')
     .addEventListener('click', () => live.showPage('activity', { activityTab: 'overview' }));
+  const appearance = document.createElement('details');
+  const appearanceTitle = document.createElement('summary');
+  appearanceTitle.textContent = 'Appearance';
+  appearance.append(appearanceTitle, section.querySelector('.accent-selector'));
+  const profile = document.createElement('details');
+  const profileTitle = document.createElement('summary');
+  profileTitle.textContent = 'Your name';
+  profile.append(profileTitle, section.querySelector('.profile-form'));
+  section.append(appearance, profile);
+  namePrompt.addEventListener('click', () => {
+    profile.open = true;
+    section.querySelector('.profile-form input').focus();
+  });
   return section;
 }
 function updateContextGallery() {
@@ -1725,7 +1919,7 @@ if (live) {
     onComposition: syncAutomaticWidgets,
     onError: (message) => toast(message),
     onOpenConnections: (source) =>
-      live.showPage('connections', { connectionId: source === 'browser' ? 'activity' : undefined }),
+      source === 'browser' ? showDetail('browser-setup') : live.showPage('connections'),
     onOpenActivity: () => live.showPage('activity'),
     onTalk: () => live.focusConversation(),
   });

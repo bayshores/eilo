@@ -1,6 +1,11 @@
+import contextlib
+import io
+import json
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from app import event_driver
@@ -43,6 +48,15 @@ def publication(event_id="event-1", message="Are you still working on this?"):
             "task_revision": 3,
             "human_epoch": 7,
             "decision": {"event_id": event_id, "decision": "ask", "message": message},
+            "provenance": {
+                "version": 1,
+                "task_revision": 3,
+                "sources": [
+                    {"source": "conversation", "status": "used"},
+                    {"source": "goals", "status": "used"},
+                    {"source": "activity", "status": "used"},
+                ],
+            },
         }
     )
 
@@ -93,6 +107,85 @@ class EventPublicationTests(unittest.TestCase):
         self.assertEqual(FakeDB.rows, before)
         self.assertEqual(FakeDB.opened[-2:], [True, True])
 
+    def test_malformed_provenance_is_rejected_before_publication(self):
+        raw = {
+            "session_id": "session-root",
+            "event_id": "event-1",
+            "task_revision": 3,
+            "human_epoch": 7,
+            "decision": {"event_id": "event-1", "decision": "ask", "message": "Check in?"},
+            "provenance": {
+                "version": 1,
+                "task_revision": 3,
+                "sources": [{"source": "activity", "status": "used", "raw_id": "forbidden"}],
+            },
+        }
+        with self.assertRaises(event_driver.InputError):
+            event_driver.validate_publication(raw)
+        self.assertEqual(FakeDB.rows, [])
+
+    def test_legacy_pending_publication_is_lookup_only(self):
+        legacy = {
+            "session_id": "session-root",
+            "event_id": "event-legacy",
+            "task_revision": 3,
+            "human_epoch": 7,
+            "decision": {
+                "event_id": "event-legacy",
+                "decision": "ask",
+                "message": "Resume this?",
+            },
+        }
+        with self.assertRaises(event_driver.InputError):
+            event_driver.validate_publication(legacy)
+        normalized = event_driver.validate_publication(legacy, allow_legacy=True)
+        FakeDB.rows = [
+            {
+                "id": 1,
+                "session_id": "session-tip",
+                "role": "assistant",
+                "content": event_driver._publication_content(normalized),
+                "display_kind": "eilo_decision",
+                "display_metadata": event_driver._publication_metadata(normalized),
+            }
+        ]
+        found = event_driver.find_publication(normalized)
+        self.assertEqual(found["assistant_id"], 1)
+        self.assertEqual(len(FakeDB.rows), 1)
+
+    def test_cli_find_publication_accepts_legacy_receipt_without_append(self):
+        legacy = {
+            "session_id": "session-root",
+            "event_id": "event-legacy-cli",
+            "task_revision": 3,
+            "human_epoch": 7,
+            "decision": {
+                "event_id": "event-legacy-cli",
+                "decision": "ask",
+                "message": "Resume this?",
+            },
+        }
+        normalized = event_driver.validate_publication(legacy, allow_legacy=True)
+        FakeDB.rows = [
+            {
+                "id": 1,
+                "session_id": "session-tip",
+                "role": "assistant",
+                "content": event_driver._publication_content(normalized),
+                "display_kind": "eilo_decision",
+                "display_metadata": event_driver._publication_metadata(normalized),
+            }
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy.json"
+            path.write_text(json.dumps(legacy))
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = event_driver.main(["--find-publication", str(path)])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(output.getvalue())["assistant_id"], 1)
+        self.assertEqual(len(FakeDB.rows), 1)
+
     def test_invalid_publication_fails_before_a_database_open_or_append(self):
         raw = {
             "session_id": "session-root",
@@ -100,6 +193,11 @@ class EventPublicationTests(unittest.TestCase):
             "task_revision": 3,
             "human_epoch": 7,
             "decision": {"event_id": "event-1", "decision": "quiet", "message": "not quiet"},
+            "provenance": {
+                "version": 1,
+                "task_revision": 3,
+                "sources": [{"source": "activity", "status": "used"}],
+            },
         }
         with self.assertRaises(event_driver.InputError):
             event_driver.validate_publication(raw)

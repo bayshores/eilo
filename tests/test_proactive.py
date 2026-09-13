@@ -486,6 +486,7 @@ class FakeChat:
         if args == ["--sample"]:
             return 1, "", ""
         path = Path(args[1])
+        packet = json.loads(await asyncio.to_thread(path.read_text))
         event_id = path.stem.removeprefix("event-")
         return (
             0,
@@ -503,6 +504,15 @@ class FakeChat:
                         "message": "How is the notes review going?",
                     },
                     "assistant_id": None,
+                    "provenance": {
+                        "version": 1,
+                        "task_revision": packet["task_state"]["revision"],
+                        "sources": [
+                            {"source": "conversation", "status": "used"},
+                            {"source": "goals", "status": "used"},
+                            {"source": "activity", "status": "used"},
+                        ],
+                    },
                 }
             ),
             "",

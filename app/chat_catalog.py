@@ -24,6 +24,8 @@ CONVERSATION_KEYS = (
     "pending_turn",
     "pending_publication",
     "workflow_run",
+    "context_compaction",
+    "accepted_context_requests",
 )
 _ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,79}$")
 _NATIVE_TITLE_RE = re.compile(r"^eilo-ui-[0-9a-f]{32}$")
@@ -68,6 +70,8 @@ def _conversation_defaults(
         "pending_turn": None,
         "pending_publication": None,
         "workflow_run": None,
+        "context_compaction": None,
+        "accepted_context_requests": [],
     }
 
 
@@ -168,6 +172,13 @@ def ensure_catalog(meta: dict[str, Any]) -> dict[str, Any]:
         }
         _activate(result, chat)
         return result
+    # Existing chat libraries predate context controls. Upgrade only the exact
+    # previous shape; unknown or malformed state must still fail validation.
+    previous_keys = set(CONVERSATION_KEYS) - {"context_compaction", "accepted_context_requests"}
+    for chat in existing.get("chats", []) if isinstance(existing.get("chats"), list) else []:
+        conversation = chat.get("conversation") if isinstance(chat, dict) else None
+        if isinstance(conversation, dict) and set(conversation) == previous_keys:
+            conversation.update(context_compaction=None, accepted_context_requests=[])
     _validate_catalog(existing)
     _sync_active_from_top_level(result)
     return result

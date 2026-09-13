@@ -175,3 +175,31 @@ test('recorded-time labels are compact and never invent duration from invalid in
     '0m',
   ]);
 });
+
+test('recording summary does not turn missing grants or failed transport into ready state', async () => {
+  const { recordingSummary } = await import('./tracking-data.js');
+  const snapshot = {
+    adaptive: {
+      policy: { enabled: true, desktop_enabled: true },
+      capture_status: { desktop: { enabled: true, status: 'permission_required' } },
+    },
+  };
+  assert.equal(
+    recordingSummary({ connection: 'connected', snapshot }),
+    'Recording needs attention',
+  );
+  snapshot.adaptive.capture_status.desktop.status = 'disconnected';
+  assert.equal(
+    recordingSummary({ connection: 'connected', snapshot }),
+    'Recording needs attention',
+  );
+  snapshot.adaptive.capture_status.desktop.status = 'sampling';
+  snapshot.adaptive.capture_status.desktop.last_event_at = Date.now() / 1000;
+  assert.equal(recordingSummary({ connection: 'connected', snapshot }), 'Recording: Desktop');
+  snapshot.adaptive.policy.enabled = false;
+  assert.equal(recordingSummary({ connection: 'connected', snapshot }), 'Recording paused');
+  assert.equal(
+    recordingSummary({ connection: 'offline', snapshot }),
+    'Recording status unavailable',
+  );
+});

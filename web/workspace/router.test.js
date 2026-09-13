@@ -151,3 +151,28 @@ test('Settings focuses the shared heading while Connections uses its manager hea
   assert.equal(headings.get('.connections-manager h2').focusCalls, 1);
   assert.deepEqual(headings.get('.connections-manager h2').focusOptions, { preventScroll: true });
 });
+
+test('Talk changes shared chrome without losing the workspace route or Home controls', () => {
+  const h = harness();
+  const elements = new Map([
+    ['.home-header h1', { textContent: '', focus() {} }],
+    ['.add-toggle', { hidden: false }],
+    ['.edit-toggle', { hidden: false }],
+  ]);
+  h.documentRef.querySelector = (key) => elements.get(key) || null;
+  const router = createWorkspaceRouter({ ...h });
+  router.showPage('goals');
+  router.updateNavigation('goals', { talking: true });
+  assert.equal(h.documentRef.title, 'eïlo — Talk');
+  assert.equal(h.windowRef.location.hash, '#goals');
+  assert.deepEqual(h.windowRef.history.pushes, ['/home/?demo=1#goals']);
+  assert.equal(elements.get('.home-header h1').textContent, 'Talk');
+  assert.equal(elements.get('.add-toggle').hidden, true);
+  router.updateNavigation('goals');
+  assert.equal(elements.get('.home-header h1').textContent, 'Goals');
+  router.updateNavigation('home', { talking: true });
+  assert.equal(elements.get('.edit-toggle').hidden, true);
+  router.updateNavigation('home');
+  assert.equal(elements.get('.edit-toggle').hidden, false);
+  assert.equal(elements.get('.add-toggle').hidden, false);
+});

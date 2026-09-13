@@ -1,0 +1,66 @@
+<!doctype html>
+<html data-source="live"
+  ><head
+    ><meta charset="utf-8" /><!-- styles -->
+    <style>
+      html,body {overflow:auto;height:auto}
+      body {padding:24px;display:block}
+      .app-window {display:block;height:auto;min-height:0;overflow:visible}
+      #cases {display:flex;flex-wrap:wrap;gap:24px;align-items:start}
+      .case {border:1px solid #aaa;padding:8px;flex:none}
+      .case h3 {font:14px sans-serif;margin:0 0 8px}
+      .widget {position:relative;transform:none;transition:none}
+      #results {white-space:pre-wrap;padding:20px;font:14px monospace}
+    </style></head
+  ><body
+    ><h1>Home layout regression fixtures</h1>
+    <p>Real renderers and production styles; synthetic content only.</p>
+    <button id="check">Check geometry</button>
+    <select id="font"
+      ><option value="default">Default type</option
+      ><option value="plex">IBM Plex</option></select
+    >
+    <pre id="results"></pre><div class="app-window"><div id="cases"></div></div>
+    <script type="module">
+      import {createLiveWidgetRenderer} from '/home/live-widgets.js';
+      const sizes = [260,334,460,680].flatMap(w=>[160,190,195,196,234,280,300,340,341,360,361,420].map(h=>[w,h]));
+      const titles = ['', 'Finish the opening paragraph', 'Complete practice problems from the NeetCode roadmap and review the explanation with a very long task title that wraps across several lines'];
+      const usage = {timezone:'UTC',scope:'retained_sessions',total_observed_seconds:24600,
+       days:[0,1,2,3,4,5,6].map(i=>({date:new Date(Date.now()-(6-i)*86400000).toISOString().slice(0,10),observed_seconds:i===6?3600:3500})),
+       sites:[{origin:'https://docs.google.com',observed_seconds:10200},{origin:'https://figma.com',observed_seconds:7800},{origin:'https://github.com',observed_seconds:4200},{origin:'https://notion.so',observed_seconds:2400}]};
+      const reports=[];
+      for(const type of ['today','usage']) for(const [width,height] of sizes) for(const title of (type==='today'?titles:['populated'])) {
+       const section = document.createElement('section'); section.className='case';
+       const label = type+' '+width+'×'+height+' '+(title ? title==='populated'?'four sites':'goal '+title.length:'no goal');
+       section.append(Object.assign(document.createElement('h3'),{textContent:label}));
+       const card=document.createElement('article');card.className='widget home-widget';card.dataset.type=type;card.dataset.h=height<=240?'2':'3';
+       card.style.width=width+'px';card.style.height=height+'px';
+       const content=document.createElement('div');content.className='widget-content';card.append(content);section.append(card);document.querySelector('#cases').append(section);
+       const task=title?{id:'fixture',title,status:'active'}:null;
+       const snapshot={tasks:task?[task]:[],integrations:{},accountability:{observed_activity:{usage}}};
+       const renderer=createLiveWidgetRenderer({getCurrent:()=>({snapshot,connection:'connected'}),getData:()=>({supported:true,focus:task,open:task?[task]:[]}),talk:()=>{document.querySelector('#results').textContent='Action activated';},openDetail:()=>{document.querySelector('#results').textContent='Detail activated';}});
+       renderer.renderBody({type},content);reports.push({label,card,content,type});
+      }
+      function check(){
+       const failures=[];
+       for(const {label,card,content,type} of reports){
+        const cr=card.getBoundingClientRect();
+        if (type === 'today' && content.querySelectorAll('button').length !== 4) failures.push(label+': missing action');
+        if (type === 'usage' && content.querySelector('.usage-layout').hidden) failures.push(label+': fixture must contain recorded data');
+        const buttons=[...content.querySelectorAll('button')].filter(b=>b.getClientRects().length);
+        for(const b of buttons){
+         const r=b.getBoundingClientRect();
+         if(r.left<cr.left-1||r.right>cr.right+1||r.top<cr.top-1||r.bottom>cr.bottom+1)failures.push(label+': clipped '+b.textContent);
+         for(const other of buttons){if(other===b)break;const q=other.getBoundingClientRect();if(Math.min(r.right,q.right)-Math.max(r.left,q.left)>1&&Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top)>1)failures.push(label+': overlapping '+b.textContent+' / '+other.textContent);}
+        }
+        const children=[...content.children].filter(el=>el.getClientRects().length);
+        for(let i=1;i<children.length;i++){const a=children[i-1].getBoundingClientRect(),b=children[i].getBoundingClientRect();if(a.bottom>b.top+1)failures.push(label+': content rows overlap');}
+       }
+       document.querySelector('#results').textContent=JSON.stringify({cases:reports.length,failures},null,2);
+      }
+      document.querySelector('#check').onclick=check;
+      document.querySelector('#font').onchange=e=>{document.documentElement.dataset.typography=e.target.value;document.fonts.ready.then(check);};
+      await document.fonts.ready;check();
+    </script></body
+  ></html
+>

@@ -12,6 +12,7 @@ class Element {
   }
   append(...children) {
     this.children.push(...children);
+    for (const child of children) child.parentElement = this;
   }
   replaceChildren(...children) {
     this.children = children;
@@ -22,12 +23,16 @@ class Element {
   addEventListener(name, listener) {
     this.listeners[name] = listener;
   }
-  showModal() {
+  show() {
     this.open = true;
   }
   close() {
     this.open = false;
   }
+  querySelector(selector) {
+    return this.all().find((node) => node.tag === selector) || null;
+  }
+  focus() {}
   all() {
     return this.children.flatMap((child) => [child, ...child.all()]);
   }
@@ -58,7 +63,11 @@ const deferred = () => {
 test('check-in switch keeps the requested transition visible and restores confirmed state after failure', async (t) => {
   const previousDocument = globalThis.document;
   const previousWindow = globalThis.window;
-  globalThis.document = { createElement: (tag) => new Element(tag), body: new Element('body') };
+  globalThis.document = {
+    querySelector: () => null,
+    createElement: (tag) => new Element(tag),
+    body: new Element('body'),
+  };
   globalThis.window = {};
   t.after(() => {
     globalThis.document = previousDocument;
@@ -123,7 +132,11 @@ test('setup phases keep the header stable and show details only on request', asy
   const previousDocument = globalThis.document,
     previousWindow = globalThis.window;
   const body = new Element('body');
-  globalThis.document = { createElement: (tag) => new Element(tag), body };
+  globalThis.document = {
+    querySelector: () => null,
+    createElement: (tag) => new Element(tag),
+    body,
+  };
   let reads = 0,
     grants = 0;
   globalThis.window = {

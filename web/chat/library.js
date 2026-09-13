@@ -306,8 +306,11 @@ export function mountChatLibrary(
   };
   const closeMenuEscape = (event) => {
     if (event.key === 'Escape' && menuId) {
+      event.preventDefault();
+      event.stopPropagation();
+      const focus = 'menu-' + menuId;
       menuId = '';
-      render();
+      render(focus);
     }
   };
   document.addEventListener('pointerdown', closeMenuOutside, true);
@@ -316,7 +319,7 @@ export function mountChatLibrary(
     root.replaceChildren();
     const main = create('div', 'chat-library__main');
     const header = create('header', 'chat-library__header');
-    header.append(create('h1', '', 'Chats'));
+    header.append(create('h2', '', 'History'));
     const actions = create('div', 'chat-library__header-actions');
     const selectedProject = projectId && catalog?.projects.find((item) => item.id === projectId);
     const newProject = button(

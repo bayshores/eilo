@@ -142,6 +142,15 @@ class ContextAccountabilityTests(unittest.IsolatedAsyncioTestCase):
                             "persisted": False,
                         },
                         "assistant_id": None,
+                        "provenance": {
+                            "version": 1,
+                            "task_revision": value["task_state"]["revision"],
+                            "sources": [
+                                {"source": "conversation", "status": "used"},
+                                {"source": "goals", "status": "used"},
+                                {"source": "activity", "status": "used"},
+                            ],
+                        },
                         "decision": {
                             "event_id": value["event_id"],
                             "decision": self.decision,

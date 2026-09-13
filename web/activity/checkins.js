@@ -1,3 +1,4 @@
+import { createInlineDialog } from '../workspace/inline-dialog.js';
 import { checkinView, checkinTime } from './checkin-data.js';
 
 const el = (tag, cls, text) => {
@@ -17,6 +18,7 @@ export function mountCheckinCenter(host, { onToggle, onConnect, onDiscuss }) {
   let current = null,
     pendingTarget = null;
   const settings = el('dialog', 'detail-dialog checkin-dialog');
+  const openInline = createInlineDialog(settings);
   const settingsHeading = el('header', 'dialog-heading');
   const title = el('h2', '', 'Check-ins');
   title.id = 'checkin-settings-title';
@@ -51,7 +53,7 @@ export function mountCheckinCenter(host, { onToggle, onConnect, onDiscuss }) {
   knob.setAttribute('aria-hidden', 'true');
   control.append(controlText, toggle, knob);
   const open = () => {
-    if (!settings.open) settings.showModal();
+    if (!settings.open) openInline();
     void refreshDelivery();
   };
   const trigger = button('', open, 'icon-button checkin-settings-trigger');
@@ -175,7 +177,7 @@ export function mountCheckinCenter(host, { onToggle, onConnect, onDiscuss }) {
       feedback.textContent = error?.message || 'Could not save check-ins. Try again.';
       feedback.hidden = false;
       announcement.textContent = 'Check-ins could not be saved.';
-      if (!settings.open) settings.showModal();
+      if (!settings.open) openInline();
     } finally {
       pendingTarget = null;
       update(current);

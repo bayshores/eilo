@@ -22,18 +22,19 @@ export function createWorkspaceRouter({
   const route = (page) =>
     `${windowRef.location.pathname}${windowRef.location.search}${page === 'home' ? '' : `#${page}`}`;
 
-  function updateNavigation(page) {
+  function updateNavigation(page, { talking = false } = {}) {
     const document = documentRef;
     const heading = document.querySelector('.home-header h1');
     const pageName = {
       home: 'Home',
       goals: 'Goals',
       activity: 'Activity',
-      connections: 'Settings',
+      connections: 'Permissions',
       settings: 'Settings',
       chats: 'Chats',
       projects: 'Projects',
-    }[page];
+      talk: 'Talk',
+    }[talking ? 'talk' : page === 'connections' ? 'settings' : page];
     if (heading) {
       heading.textContent = pageName;
       heading.tabIndex = -1;
@@ -41,13 +42,12 @@ export function createWorkspaceRouter({
     document.title = `eïlo — ${pageName}`;
     document.querySelector('.app-window')?.setAttribute('aria-label', `eïlo ${pageName}`);
     const headline = document.querySelector('.home-header p');
-    const showStatus = page === 'home' && Boolean(headline?.textContent);
+    const showStatus = !talking && page === 'home' && Boolean(headline?.textContent);
     headline?.toggleAttribute('hidden', !showStatus);
     document.querySelector('.home-context')?.toggleAttribute('hidden', !showStatus);
     for (const item of document.querySelectorAll('.nav-item')) {
       const active =
-        item.dataset.detail ===
-        (page === 'projects' ? 'chats' : page === 'connections' ? 'settings' : page);
+        item.dataset.detail === (talking ? 'talk' : page === 'connections' ? 'settings' : page);
       item.classList.toggle('active', active);
       item.toggleAttribute('aria-current', active);
       if (active) item.setAttribute('aria-current', 'page');
@@ -55,7 +55,7 @@ export function createWorkspaceRouter({
     for (const selector of ['.edit-toggle', '.add-toggle', '.save-state', '.overflow-toggle']) {
       const item = document.querySelector(selector);
       if (!item) continue;
-      item.hidden = page !== 'home' || selector === '.overflow-toggle';
+      item.hidden = talking || page !== 'home' || selector === '.overflow-toggle';
     }
     return heading;
   }
@@ -105,5 +105,5 @@ export function createWorkspaceRouter({
     windowRef.removeEventListener('hashchange', onHistoryChange);
   }
 
-  return { showPage, restorePage, start, dispose };
+  return { showPage, restorePage, updateNavigation, start, dispose };
 }
