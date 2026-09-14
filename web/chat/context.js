@@ -1,6 +1,23 @@
 const formatter = new Intl.NumberFormat('en-US');
+const compactFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
 const safeNumber = (value) => Number.isFinite(value) && value >= 0;
 const displayNumber = (value) => (safeNumber(value) ? formatter.format(value) : '—');
+const categoryColors = {
+  system_prompt: 'var(--chat-context-system)',
+  tool_definitions: 'var(--chat-context-tools)',
+  rules: 'var(--chat-context-rules)',
+  skills: 'var(--chat-context-skills)',
+  mcp: 'var(--chat-context-mcp)',
+  subagent_definitions: 'var(--chat-context-subagents)',
+  memory: 'var(--chat-context-memory)',
+  conversation: 'var(--chat-context-conversation)',
+  used: 'var(--accent-color)',
+  available: 'var(--chat-context-free)',
+  reserve: 'var(--chat-context-reserve)',
+};
 
 /** Converts optional runtime metadata into display-safe context facts. */
 export function contextPresentation(chatContext, { connected = true } = {}) {
@@ -11,9 +28,23 @@ export function contextPresentation(chatContext, { connected = true } = {}) {
   const usedTokens = live && safeNumber(value.used_tokens) ? value.used_tokens : null;
   const known = windowTokens !== null && usedTokens !== null;
   const progress = known ? Math.min(100, (usedTokens / windowTokens) * 100) : 0;
+  const categories =
+    live && Array.isArray(value.breakdown?.categories)
+      ? value.breakdown.categories
+          .filter(
+            (item) =>
+              item &&
+              typeof item.id === 'string' &&
+              typeof item.label === 'string' &&
+              item.label.length <= 40 &&
+              safeNumber(item.tokens) &&
+              item.tokens > 0,
+          )
+          .slice(0, 8)
+      : [];
   return {
     known,
-    percentText: known ? `${Math.round(progress)}%` : '—',
+    percentText: known ? `${Math.round(progress * 10) / 10}%` : '—',
     used: known ? displayNumber(usedTokens) : '—',
     remaining: known ? displayNumber(Math.max(0, windowTokens - usedTokens)) : '—',
     total: windowTokens === null ? '—' : displayNumber(windowTokens),
@@ -25,10 +56,48 @@ export function contextPresentation(chatContext, { connected = true } = {}) {
     input: live ? displayNumber(value.usage?.input_tokens) : '—',
     output: live ? displayNumber(value.usage?.output_tokens) : '—',
     progress,
+    windowTokens,
+    usedTokens,
+    thresholdTokens:
+      live && safeNumber(value.threshold_tokens) && value.threshold_tokens > 0
+        ? Math.min(value.threshold_tokens, windowTokens || value.threshold_tokens)
+        : null,
+    categories,
     canCompress: live && Boolean(value.can_compress),
     status: live && typeof value.status === 'string' ? value.status : 'unavailable',
     error: live && typeof value.error === 'string' ? value.error : '',
   };
+}
+
+/** Fits estimated category weights to the measured total and names all remaining space. */
+export function contextBreakdownModel(facts) {
+  if (!facts?.known || !facts.windowTokens || facts.usedTokens === null) return [];
+  const weight = facts.categories.reduce((total, category) => total + category.tokens, 0);
+  let assigned = 0;
+  const categories = weight
+    ? facts.categories.map((category, index) => {
+        const remaining = Math.max(0, facts.usedTokens - assigned);
+        const tokens =
+          index === facts.categories.length - 1
+            ? remaining
+            : Math.min(remaining, Math.round((facts.usedTokens * category.tokens) / weight));
+        assigned += tokens;
+        return { ...category, tokens };
+      })
+    : facts.usedTokens
+      ? [{ id: 'used', label: 'Used context', tokens: facts.usedTokens }]
+      : [];
+  const threshold =
+    facts.compressionEnabled !== false && facts.thresholdTokens
+      ? facts.thresholdTokens
+      : facts.windowTokens;
+  const available = Math.max(0, threshold - facts.usedTokens);
+  const reserve = Math.max(0, facts.windowTokens - Math.max(threshold, facts.usedTokens));
+  return [
+    ...categories.filter((category) => category.tokens > 0),
+    ...(available ? [{ id: 'available', label: 'Available', tokens: available }] : []),
+    ...(reserve ? [{ id: 'reserve', label: 'Auto-summary reserve', tokens: reserve }] : []),
+  ];
 }
 
 const make = (tag, className, value) => {
@@ -41,6 +110,76 @@ const focusByKey = (root, key) =>
   [...root.querySelectorAll('[data-context-focus]')].find(
     (node) => node.dataset.contextFocus === key,
   );
+
+const displayShare = (tokens, total) => {
+  const share = total ? (tokens / total) * 100 : 0;
+  return share > 0 && share < 0.1 ? '<0.1%' : `${Math.round(share * 10) / 10}%`;
+};
+
+function createBreakdown(facts) {
+  const overview = make('div', 'chat-context__overview');
+  const heading = make('div', 'chat-context__heading');
+  heading.append(
+    make('span', 'chat-context__eyebrow', 'Context orbit'),
+    make('strong', 'chat-context__total', `${facts.used} / ${facts.total} tokens`),
+  );
+  overview.append(heading);
+  const body = make('div', 'chat-context__visual');
+  const donut = make('div', 'chat-context__donut');
+  const segments = contextBreakdownModel(facts);
+  let cursor = 0;
+  const stops = segments.map((segment) => {
+    const start = cursor;
+    cursor = Math.min(100, cursor + (segment.tokens / facts.windowTokens) * 100);
+    return `${categoryColors[segment.id] || categoryColors.used} ${start}% ${cursor}%`;
+  });
+  if (cursor < 100) stops.push(`${categoryColors.available} ${cursor}% 100%`);
+  donut.style.setProperty('--chat-context-breakdown', `conic-gradient(${stops.join(', ')})`);
+  const center = make('span', 'chat-context__donut-center');
+  center.append(make('strong', '', facts.percentText), make('span', '', 'used'));
+  donut.append(center);
+  donut.setAttribute('role', 'img');
+  donut.setAttribute(
+    'aria-label',
+    `Context window ${facts.percentText} used. ${segments
+      .map((segment) => `${segment.label} ${displayShare(segment.tokens, facts.windowTokens)}`)
+      .join(', ')}.`,
+  );
+  const legend = make('ul', 'chat-context__legend');
+  legend.setAttribute('aria-label', 'Estimated context usage by category');
+  for (const segment of segments) {
+    const item = make('li', 'chat-context__legend-item');
+    item.style.setProperty(
+      '--chat-context-category-color',
+      categoryColors[segment.id] || categoryColors.used,
+    );
+    item.append(
+      make('span', 'chat-context__swatch'),
+      make('span', 'chat-context__category', segment.label),
+      make(
+        'span',
+        'chat-context__category-value',
+        `${compactFormatter.format(segment.tokens)} · ${displayShare(
+          segment.tokens,
+          facts.windowTokens,
+        )}`,
+      ),
+    );
+    legend.append(item);
+  }
+  body.append(donut, legend);
+  overview.append(body);
+  if (!facts.categories.length) {
+    overview.append(
+      make(
+        'p',
+        'chat-context__breakdown-note',
+        'Category details will appear after the next reply.',
+      ),
+    );
+  }
+  return overview;
+}
 
 export function mountChatContext(host, { client } = {}) {
   if (!(host instanceof Element))
@@ -82,8 +221,9 @@ export function mountChatContext(host, { client } = {}) {
       facts.status === 'compressing'
         ? 'Summarizing…'
         : facts.known
-          ? `Context · ~${facts.percentText}`
+          ? `Context · ${facts.percentText}`
           : 'Context · —';
+    trigger.style.setProperty('--chat-context-progress', `${facts.progress}%`);
     trigger.setAttribute('aria-label', trigger.textContent + '. View chat context');
     trigger.disabled = view?.connection === 'loading';
     details.replaceChildren();
@@ -92,11 +232,11 @@ export function mountChatContext(host, { client } = {}) {
       panel === 'usage'
         ? `Chat totals: ${facts.input} input · ${facts.output} output tokens`
         : facts.known
-          ? `~${facts.used} / ${facts.total} tokens · ${facts.remaining} left`
+          ? `${facts.used} / ${facts.total} tokens · ${facts.remaining} left`
           : view?.connection !== 'connected'
             ? 'Reconnect to see context usage.'
             : 'Context usage updates after your next message.';
-    details.append(info);
+    details.append(panel === 'context' && facts.known ? createBreakdown(facts) : info);
     const controls = make('div', 'chat-context__actions');
     const button = (key, label, callback) => {
       const node = make('button', '', label);

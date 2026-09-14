@@ -1,6 +1,6 @@
 import { glassOffset, glassPose, mapSize } from './glass-math.js';
 const selector =
-  '.home-widget:not(.widget-preview):not(.drag-ghost), .live-composer, .goals-index, .goal-detail, .context-panel--embedded .context-panel__body, .activity-usage-card, .talk-history';
+  ".home-widget:not(.widget-preview):not(.drag-ghost), .live-composer, .goals-index, .goal-detail, .activity-usage-card, .talk-history, :root[data-source='live'] :is(.nav-rail, .header-actions .button, .activity-header-controls > .button, .activity-timeline, .activity-record)";
 const records = new Map();
 const hoverAllowed = matchMedia(
   '(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)',

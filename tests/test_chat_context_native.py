@@ -84,7 +84,18 @@ class NativeContextTests(unittest.TestCase):
                 )
             history = db.get_messages_as_conversation(self.sid)
             db.patch_session_model_config(
-                self.sid, {"_usage_anchor": capture_usage_anchor(5000, 100, history[:-1])}
+                self.sid,
+                {
+                    "_usage_anchor": capture_usage_anchor(5000, 100, history[:-1]),
+                    "_eilo_context_breakdown": {
+                        "version": 1,
+                        "message_count": len(history),
+                        "categories": [
+                            {"id": "system_prompt", "tokens": 1000},
+                            {"id": "conversation", "tokens": 4000},
+                        ],
+                    },
+                },
             )
         self.limits = patch.object(
             chat_context_runtime,
@@ -113,6 +124,10 @@ class NativeContextTests(unittest.TestCase):
         ]
         self.assertEqual(len(expected), 16)
         self.assertEqual(before["chat_context"]["used_tokens"], 5100)
+        self.assertEqual(
+            [category["label"] for category in before["chat_context"]["breakdown"]["categories"]],
+            ["System prompt", "Conversation"],
+        )
         with self.real_db(self.path) as db:
             history = db.get_messages_as_conversation(self.sid, include_row_ids=True)
             summary = {
@@ -136,6 +151,7 @@ class NativeContextTests(unittest.TestCase):
             expected_provenance,
         )
         self.assertIsNone(after["chat_context"]["used_tokens"])
+        self.assertIsNone(after["chat_context"]["breakdown"])
         self.assertNotIn("Synthetic summary", str(visible_messages(after)))
 
     def test_manual_command_commits_before_reporting_and_keeps_history(self):

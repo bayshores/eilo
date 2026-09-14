@@ -70,22 +70,27 @@ Trash. Trash is recoverable local goal state; it does not erase older native
 conversation history.
 
 Activity has **Recorded activity** and **AI activity** tabs. Recorded activity
-opens to the latest recorded local day, with a day selector for older records.
-Expand a session for its source, recorded time and forgetting control. **Show
-timeline and browser usage** opens optional visual detail. Session times are
-local; the existing seven-day usage aggregates remain explicitly UTC.
+opens to the latest recorded local day. Use the previous/next day controls for
+older or newer records. Each row already shows its title, source, local time and
+recorded duration. Select one row for its details and its available correction
+actions; on a wide window the detail sits beside the list, and on a compact
+window it appears below it. Press Escape or choose **Close** to return to the
+list. Browser usage remains available from the Browser usage widget on Home, so
+Activity can stay a short chronological record.
 
 AI activity contains conversation replies, delivered check-ins and recorded
 check-in outcomes. **What informed this?** shows the input categories actually
 supplied for a new reply, including unavailable source checks. Older replies may
 have no source-use receipt; the UI says so. It does not infer what influenced an
-individual sentence. **More** contains recoverable legacy observations. A compact
-**Talk to eïlo** button opens the existing conversation and keeps its draft.
+individual sentence. **Recently deleted** appears in Recorded activity only when
+recoverable legacy observations exist. A compact **Talk to eïlo** button opens
+the existing conversation and keeps its draft.
 
 The **Check-ins** switch stays in the Activity header. Its accessible label says
 whether it will turn check-ins on or off. The adjacent settings icon opens current
-status, desktop alerts and optional help. Turning alerts off does not pause the
-check-in engine. Opening these settings does not grant a permission.
+status, desktop alerts and optional help; **Manage activity** opens the source and
+permission route. Turning alerts off does not pause the check-in engine. Opening
+these settings does not grant a permission.
 
 Activity shows permitted observations separately from check-ins. An activity
 record can be moved to Trash or disconnected from a goal. Removing a goal link
@@ -120,6 +125,13 @@ a website segment for its recorded time. Activity shows website lanes with page
 titles and details on selection. These views fill as Chrome records activity;
 they do not measure total device screen time. Daily bars use UTC.
 
+The four status icons at the bottom right keep Desktop, Browser, Calendar, and
+Gmail health visible on every page. Hover or focus an icon for its current state;
+choose one to open Permissions and manage the connection.
+
+The eïlo orb moves from the navigation bar into the conversation when you open
+Talk. Choose Workspace or another page to return it to the navigation bar.
+
 Both are available from **Home → Add widgets** when they are not already on Home.
 The ordinary starter layout includes them; a workspace approved during first
 setup begins with only the chosen widgets. Your custom arrangement is kept.
@@ -128,7 +140,7 @@ Choose **Edit home → Tidy layout** to align cards while keeping their sizes, o
 
 **Settings → General → Interface sounds** controls short cues for sent messages and confirmed actions. New profiles start with sounds on; saved off choices stay off. **Interface sound volume**, **Play test sound**, and the header mute control make playback easy to check. Sounds stay silent during microphone recording and while the page is hidden. Desktop alerts remain separate.
 
-**Settings → General → Appearance → Accent color** offers Peach, Rose, Lavender, Sky, and Mint presets, plus a custom color picker and RGB values (0–255). Changes apply immediately and are saved locally in this browser or desktop app. Choose Peach to restore the original accent. Dark choices are lightened for text and filled controls to keep them readable.
+eïlo uses one monochrome dark appearance. There is no accent picker or Light-mode control.
 
 Until you save a name, **Add your name** on Home or Settings opens **General → Your name**. The field starts empty; the old “You” placeholder is treated as missing. Names are saved locally in this browser or desktop app.
 

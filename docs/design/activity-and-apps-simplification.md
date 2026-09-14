@@ -1,8 +1,27 @@
 # Activity and app setup simplification
 
-Design proposal. The broader Activity/Apps redesign remains a proposal; the Chrome setup correction below is implemented.
+The calm Activity pass below is implemented. The broader Apps redesign remains a proposal; the Chrome setup correction below is implemented.
 
 The foreground should stay quiet, Activity should remain readable, and source setup should be direct. Keep IBM Plex Sans, charcoal/peach, the configurable Home, and distinct Home/Goals/Activity purposes while reviewing the composition.
+
+## Implemented Activity quieting pass
+
+The default Recorded activity view now opens as a scanable list: a compact total,
+one visible source/time line per record, and older/newer day controls instead of a
+date menu. It no longer places a browser-usage disclosure, an explanation
+disclosure, a More menu, or a chevron on every record ahead of the list.
+
+Selecting one record opens the only detail surface: alongside the list at wide
+widths and below it on compact widths. That surface owns source facts, goal-link
+correction, Trash/Restore, and Forget. The destructive confirmation says that
+forgetting does not pause recording or mark a goal complete. Escape returns to
+the selected row. Recently deleted activity appears as a quiet direct link only
+when recovery is available. The Check-ins switch remains independent in the
+header, next to a direct Manage activity route.
+
+Browser-usage visualization remains available through Home's Browser usage
+widget. This Activity change neither grants collection/sharing permission nor
+changes retention, recovery, revision, or durable-write behavior.
 
 ## Latest correction: one browser permission and quiet pointer focus
 
@@ -38,7 +57,7 @@ The earlier site-grant instruction is superseded by the one-permission flow abov
 
 ## Design context
 
-- Activity opens to Overview, with five peer tabs: Overview, Agent log, Observed, Check-ins, and Trash. Before there are observations, its foreground contains a large waiting/setup panel, an automatic-check-in toggle, a second setup strip, latest observation/check timestamps, desktop-alert settings, three explanatory rules, and delivery limits. The page combines initial setup, day review, policy explanation, and diagnostics.
+- Before this pass, Activity's foreground combined a date menu, More menu, timeline disclosure, explanatory disclosure, and expandable rows with setup, policy explanation, and diagnostics. The implemented Recorded view now keeps the list first and confines secondary actions to its one selected-record surface.
 - Connections has three first-party source rows but emphasizes Add MCP, plus All/Apps/MCPs and search. The same switch treatment represents different source operations.
 - Calendar collection/sync and selected-event answer-sharing are independent; the source row must communicate that distinction.
 - Browser setup has substantive friction beyond layout. Native bridge registration removes a universal open-page requirement, while capture still needs a connected extension and host grant.
@@ -61,6 +80,8 @@ Perplexity's connection catalog, Basecamp activity, Stripe events, and ClickUp p
 ## Proposed experience
 
 ### Activity
+
+The implemented Recorded view above is the current baseline. The remaining ideas in this section are future review material, not claims about the present UI.
 
 The main job is to answer what eïlo observed and when it checked in. Use one chronological feed with an optional All activity / Check-ins / Observed filter. Keep those record types labeled and distinguishable; a unified view must not conflate observation with a delivered message or progress.
 

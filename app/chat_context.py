@@ -6,6 +6,18 @@ import importlib
 import math
 from typing import Any
 
+BREAKDOWN_KEY = "_eilo_context_breakdown"
+_CATEGORY_LABELS = {
+    "system_prompt": "System prompt",
+    "tool_definitions": "Tools",
+    "rules": "eïlo guidance",
+    "skills": "Skills",
+    "mcp": "MCP",
+    "subagent_definitions": "Subagents",
+    "memory": "Memory",
+    "conversation": "Conversation",
+}
+
 
 def _integer(value: Any, *, positive: bool = False) -> int | None:
     if isinstance(value, bool):
@@ -64,6 +76,78 @@ def _updated_at(record: dict) -> float | int | None:
     return None
 
 
+def capture_breakdown(
+    value: Any, *, message_count: int, rules: tuple[str, ...] = ()
+) -> dict | None:
+    """Keep only bounded numeric attribution from the live runtime."""
+    categories = _object(value).get("categories")
+    count = _integer(message_count)
+    if count is None or not isinstance(categories, list):
+        return None
+    tokens: dict[str, int] = {}
+    for item in categories:
+        item = _object(item)
+        category = item.get("id")
+        amount = _integer(item.get("tokens"), positive=True)
+        if category in _CATEGORY_LABELS and amount is not None and amount <= 10_000_000:
+            tokens[category] = amount
+    rule_tokens = sum((len(text) + 3) // 4 for text in rules if isinstance(text, str))
+    if rule_tokens:
+        tokens["rules"] = tokens.get("rules", 0) + rule_tokens
+    if not tokens:
+        return None
+    used = _integer(_object(value).get("context_used"), positive=True)
+    estimated = sum(tokens.values())
+    if used is not None and estimated:
+        assigned = 0
+        ordered = [category for category in _CATEGORY_LABELS if category in tokens]
+        for category in ordered:
+            remaining = max(0, used - assigned)
+            amount = (
+                remaining
+                if category == ordered[-1]
+                else min(remaining, round(used * tokens[category] / estimated))
+            )
+            tokens[category] = max(0, amount)
+            assigned += tokens[category]
+    return {
+        "version": 1,
+        "message_count": count,
+        "categories": [
+            {"id": category, "tokens": tokens[category]}
+            for category in _CATEGORY_LABELS
+            if tokens.get(category)
+        ],
+    }
+
+
+def _public_breakdown(value: Any, *, message_count: int, used_tokens: int | None) -> dict | None:
+    value = _object(value)
+    if (
+        value.get("version") != 1
+        or _integer(value.get("message_count")) != message_count
+        or used_tokens is None
+        or not isinstance(value.get("categories"), list)
+    ):
+        return None
+    categories = []
+    seen = set()
+    for item in value["categories"]:
+        item = _object(item)
+        category = item.get("id")
+        tokens = _integer(item.get("tokens"), positive=True)
+        if (
+            category not in _CATEGORY_LABELS
+            or category in seen
+            or tokens is None
+            or tokens > 10_000_000
+        ):
+            return None
+        seen.add(category)
+        categories.append({"id": category, "label": _CATEGORY_LABELS[category], "tokens": tokens})
+    return {"estimated": True, "categories": categories} if categories else None
+
+
 def public_context(
     record: Any,
     *,
@@ -91,6 +175,11 @@ def public_context(
     last_request = (
         _integer(anchor.get("prompt_tokens"), positive=True) if used is not None else None
     )
+    breakdown = _public_breakdown(
+        _object(record.get("model_config")).get(BREAKDOWN_KEY),
+        message_count=len(messages),
+        used_tokens=used,
+    )
     return {
         "window_tokens": window,
         "used_tokens": used,
@@ -106,4 +195,5 @@ def public_context(
         },
         "updated_at": _updated_at(record),
         "last_request_tokens": last_request,
+        "breakdown": breakdown,
     }

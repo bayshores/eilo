@@ -285,6 +285,8 @@ function runDesktop() {
           show: false,
           backgroundColor: '#191a1d',
           autoHideMenuBar: true,
+          // Home fills this space; macOS keeps its native traffic lights and drag behavior.
+          ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {}),
           icon: path.join(__dirname, 'assets', 'icon.png'),
           webPreferences: {
             preload: path.join(__dirname, 'preload.cjs'),

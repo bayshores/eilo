@@ -849,3 +849,230 @@
 .activity-episode[open] > summary::after {
   content: '⌃';
 }
+
+/* Activity is a chronological reading surface; one selected record owns the extra controls. */
+.workspace[data-page='activity'] .interface-mute {
+  display: none;
+}
+.activity-header-controls .activity-manage {
+  min-height: 40px;
+  padding: 8px 6px;
+  color: var(--muted);
+}
+.activity-header-controls .activity-manage:hover {
+  color: var(--ink);
+}
+.activity-day {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 14px;
+}
+.activity-day-label {
+  min-width: 104px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.activity-day-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+}
+.activity-day-button:hover:not(:disabled) {
+  background: #ffffff10;
+}
+.activity-day-button:disabled {
+  color: #ffffff30;
+}
+.activity-content {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+.activity-content.has-detail {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.36fr);
+}
+.activity-content > .activity-feed {
+  height: 100%;
+}
+.activity-feed-summary,
+.activity-feed-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 0 0 12px;
+}
+.activity-feed-heading {
+  justify-content: space-between;
+}
+.activity-feed-heading .activity-feed-title {
+  margin: 0;
+}
+.activity-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.activity-trash-link {
+  padding: 4px 0;
+  color: var(--muted);
+}
+.activity-observation {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid #ffffff10;
+}
+.activity-record-select {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 9px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+.activity-record-select:hover,
+.activity-observation.is-selected .activity-record-select {
+  background: #ffffff0c;
+}
+.activity-record-select:focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: -2px;
+}
+.activity-record-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+}
+.activity-record-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  font-weight: 500;
+}
+.activity-record-select .activity-record-time {
+  margin: 0;
+}
+.activity-record-select .activity-duration {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.activity-record-detail {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  align-self: stretch;
+  padding: 20px;
+  border: 1px solid #ffffff10;
+  border-radius: 18px;
+  background: #202226c9;
+  scrollbar-width: thin;
+}
+.activity-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.activity-detail-heading h2 {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.activity-detail-close {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+.activity-detail-facts {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0;
+}
+.activity-detail-fact {
+  display: grid;
+  gap: 3px;
+}
+.activity-detail-fact dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.activity-detail-fact dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.activity-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+.activity-detail-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.activity-forget-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+.activity-forget-confirm > p:first-child {
+  margin: 0;
+  flex-basis: 100%;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 820px) {
+  .activity-content.has-detail {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(180px, 1fr) auto;
+  }
+  .activity-record-detail {
+    max-height: min(42dvh, 360px);
+  }
+}
+
+@media (max-width: 520px) {
+  .activity-toolbar {
+    align-items: flex-start;
+  }
+  .activity-day {
+    margin-left: 0;
+  }
+  .activity-record-select {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .activity-record-select .activity-duration {
+    white-space: normal;
+    text-align: right;
+  }
+}

@@ -66,6 +66,13 @@ ancestors, unwraps synthetic summary carriers, and preserves eïlo publication
 metadata when native row IDs change. `chat_context.py` projects only validated
 numeric usage anchors and cached limits; it does not probe a provider.
 
+After a completed turn, the live runtime's category estimator is reduced to
+allowlisted category IDs and bounded token counts, normalized to the measured
+occupancy, and stored beside that session's usage anchor. The projection exposes
+the numeric breakdown only while its saved message count matches the active
+replay. It never publishes prompt text, tool schemas, skill content, memory, or
+provider configuration.
+
 The composer consumes `chat_context` in the existing state snapshot.
 `POST /api/chat/context` accepts only a revision-checked, idempotent compression
 request for the active conversation. A durable per-chat receipt precedes the

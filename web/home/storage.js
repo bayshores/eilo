@@ -80,13 +80,6 @@ function record(raw) {
     : {};
 }
 
-/** @param {unknown} value */
-export function normalizeAccent(value) {
-  return typeof value === 'string' && /^#[\da-f]{6}$/i.test(value)
-    ? value.toLowerCase()
-    : '#fac399';
-}
-
 /** @param {unknown} raw Read and sanitize the small, user-editable preferences shared by both Home modes. */
 export function normalizeHomePreferences(raw = {}) {
   const value = record(raw);
@@ -104,7 +97,6 @@ export function normalizeHomePreferences(raw = {}) {
         ? Math.max(0, Math.min(1, value.soundVolume))
         : 0.5,
     dailyGuidance: typeof value.dailyGuidance === 'boolean' ? value.dailyGuidance : true,
-    accentColor: normalizeAccent(value.accentColor),
     widgetPins: Array.isArray(value.widgetPins)
       ? value.widgetPins
           .filter((id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id))

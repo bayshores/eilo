@@ -34,6 +34,10 @@
 :root[data-source='live'] .app-window {
   background: transparent;
 }
+.app-window,
+.hero-gradient {
+  filter: grayscale(1);
+}
 .hero-gradient {
   position: fixed;
   inset: 0;
@@ -131,6 +135,8 @@
   border-radius: 9px;
 }
 :root[data-source='live'] .workspace .nav-rail {
+  position: relative;
+  isolation: isolate;
   height: auto;
   min-height: 0;
   max-height: calc(100dvh - 34px);
@@ -143,10 +149,30 @@
     inset 0 1px 0 #d8e3d817,
     0 8px 30px #030b143b;
 }
+:root[data-source='live'] .workspace .nav-rail::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  height: 104px;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--peach) 17%, transparent),
+    color-mix(in srgb, var(--peach) 6%, transparent) 45%,
+    transparent 100%
+  );
+  opacity: 0.72;
+  pointer-events: none;
+}
 :root[data-source='live'] .nav-rail > .wordmark {
   display: none;
 }
 :root[data-source='live'] .nav-items {
+  position: relative;
+  z-index: 1;
   gap: 5px;
   width: 100%;
 }
@@ -192,18 +218,48 @@
   background: color-mix(in srgb, var(--accent-color) 10%, #becdc61a);
 }
 :root[data-source='live'] .talk-entry {
-  margin-top: 7px;
-  height: 62px;
+  position: relative;
+  margin-top: 8px;
+  height: 84px;
   gap: 0;
+  overflow: visible;
+  background: transparent;
+}
+:root[data-source='live'] .talk-entry:hover,
+:root[data-source='live'] .talk-entry.active {
+  background: transparent;
 }
 .talk-entry-orb {
+  position: relative;
+  z-index: 1;
   display: block;
-  width: 42px;
-  height: 42px;
+  width: 74px;
+  height: 74px;
+  flex: 0 0 74px;
+  transform: translateY(5px);
   pointer-events: none;
 }
-.talk-entry-orb canvas {
-  filter: none;
+.talk-entry-orb .agent-orb {
+  transform: scale(1.18);
+}
+:root[data-source='live'] .workspace.conversation-active .talk-entry {
+  display: none;
+}
+:root[data-source='live'] .workspace.conversation-active .nav-rail::after {
+  opacity: 0;
+}
+.conversation-presence {
+  width: 132px;
+  height: 132px;
+  flex: 0 0 132px;
+  align-self: center;
+}
+@media (max-width: 700px), (max-height: 650px) {
+  .conversation-presence {
+    width: 96px;
+    height: 96px;
+    flex-basis: 96px;
+  }
 }
 .talk-actions {
   display: flex;
@@ -500,122 +556,6 @@
   }
 }
 
-.accent-selector {
-  width: 100%;
-  max-width: 360px;
-  margin: 0;
-  padding: 12px;
-  border: 0;
-  border-radius: 12px;
-  background: #0b171c55;
-  box-shadow: inset 0 1px 3px #0004;
-}
-.accent-selector legend {
-  font-size: 15px;
-  padding: 0 0 8px;
-  color: var(--ink);
-}
-.accent-plane {
-  position: relative;
-  height: 112px;
-  border-radius: 7px;
-  touch-action: none;
-  cursor: crosshair;
-  background:
-    linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent),
-    hsl(var(--hue, 26) 100% 50%);
-  box-shadow: inset 0 0 0 1px #ffffff12;
-}
-.accent-marker {
-  position: absolute;
-  width: 13px;
-  height: 13px;
-  border: 2px solid white;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 1px 4px #0008;
-  pointer-events: none;
-}
-.accent-plane input:focus-visible {
-  clip-path: none;
-  width: calc(100% - 20px);
-  height: 24px;
-  left: 10px;
-  top: auto;
-  bottom: 8px;
-  outline: 2px solid var(--peach);
-  accent-color: var(--peach);
-  z-index: 2;
-  background: #172a2d;
-}
-.accent-hue {
-  appearance: none;
-  display: block;
-  width: 100%;
-  height: 28px;
-  margin: 7px 0;
-  background: linear-gradient(90deg, red, #ff0, #0f0, #0ff, #00f, #f0f, red) center/100% 6px
-    no-repeat;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.accent-hue::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 18px;
-  border: 2px solid #e0e7df;
-  border-radius: 4px;
-  background: var(--accent-color);
-  box-shadow: 0 1px 4px #0008;
-}
-.accent-hue::-moz-range-thumb {
-  width: 9px;
-  height: 15px;
-  border: 2px solid #e0e7df;
-  border-radius: 4px;
-  background: var(--accent-color);
-}
-.accent-value {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-}
-.accent-swatch {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  box-shadow: inset 0 0 0 1px #ffffff24;
-}
-.accent-value .accent-hex {
-  min-width: 0;
-  width: 100%;
-  height: 36px;
-  padding: 7px 9px;
-  color: var(--ink);
-  background: #06151b66;
-  border: 1px solid #d5ddd215;
-  border-radius: 7px;
-  font-size: 14px;
-  text-transform: uppercase;
-}
-.accent-value .accent-hex[aria-invalid] {
-  border-color: #e4a89c;
-}
-.accent-value .accent-reset {
-  padding: 7px;
-  min-height: 36px;
-  font-size: 14px;
-}
-.accent-feedback:empty {
-  display: none;
-}
-.accent-feedback {
-  font-size: 13px;
-  margin-top: 8px;
-  color: #e4b6ac;
-}
-
 /* Revealing the rail does not move the workspace. */
 :root[data-source='live'] .workspace {
   grid-template-columns: 78px minmax(0, 1fr);
@@ -658,6 +598,11 @@
     padding: 5px;
     border-radius: 16px;
   }
+  :root[data-source='live'] .workspace .nav-rail::after {
+    inset: 0;
+    height: auto;
+    border-radius: 16px;
+  }
   :root[data-source='live'] .nav-items {
     flex-direction: row;
     justify-content: space-between;
@@ -670,10 +615,13 @@
   }
   :root[data-source='live'] .talk-entry {
     margin: 0;
+    height: 50px;
   }
   .talk-entry-orb {
-    width: 32px;
-    height: 32px;
+    width: 60px;
+    height: 60px;
+    flex-basis: 60px;
+    transform: translateY(-4px);
   }
   :root[data-source='live'] .workspace .nav-rail.is-hidden {
     transform: translateY(78px);
@@ -737,6 +685,9 @@
 }
 
 @media (max-width: 700px) {
+  :root[data-source='live'] .workspace.conversation-active .live-composer {
+    margin-right: 48px;
+  }
   .toast {
     bottom: 86px;
   }

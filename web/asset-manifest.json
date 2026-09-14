@@ -98,7 +98,6 @@
     "speech/input.js",
     "speech/mic-worklet.js",
     "speech/styles.css",
-    "styles/accent.js",
     "styles/base.css",
     "styles/focus.js",
     "styles/layout-consolidation.css",

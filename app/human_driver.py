@@ -436,7 +436,7 @@ def run_human(event: dict[str, Any], on_preview=None, on_context=None) -> dict[s
         provenance = _provenance(event["task_state"]["revision"], read_tools)
         if read_tools:
             read_tools.close()
-        from app.chat_context_runtime import compression_status
+        from app.chat_context_runtime import compression_status, save_context_breakdown
 
         context_outcome = compression_status(agent)
         if on_context is not None and context_outcome != "idle":
@@ -449,6 +449,14 @@ def run_human(event: dict[str, Any], on_preview=None, on_context=None) -> dict[s
         persisted = db.get_messages_as_conversation(
             active_session_id, repair_alternation=True, include_row_ids=True
         )
+        with contextlib.suppress(Exception):
+            save_context_breakdown(
+                db,
+                active_session_id,
+                agent,
+                persisted,
+                rules=(SYSTEM_MESSAGE, base_policy),
+            )
         users = [
             message
             for message in persisted

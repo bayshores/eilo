@@ -426,6 +426,9 @@ export function createItemControls({
     items.push({ label: 'Move to Trash', danger: true, run: () => runRecord(record, 'trash') });
     return menu(`Activity options for ${new URL(record.origin).hostname}`, items);
   }
+  function recordAction(record, action, label, cls = 'text-button') {
+    return managed(button(label, () => runRecord(record, action), cls));
+  }
   return {
     beginEdit,
     renderEditor,
@@ -434,6 +437,7 @@ export function createItemControls({
     goalEdit,
     goalFocus,
     goalPrimary,
+    recordAction,
     recordOptions,
     sync,
     managed,

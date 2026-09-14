@@ -1,10 +1,9 @@
 import * as THREE from './vendor/three/three.module.min.js';
-import { hexToHsv } from './styles/accent.js';
-import { normalizeAccent } from './home/storage.js';
 
-// Gradient and palette adapted from bayshores/hackdavis2026 at dcdf11d.
+// Gradient adapted from bayshores/hackdavis2026 at dcdf11d.
 // https://github.com/bayshores/hackdavis2026/blob/dcdf11d53c19dd17dbcbae59dc935ff30e1f65a9/components/bg/Grainient.tsx
-// Time stays at zero. Draw only when the window or accent changes.
+// Time stays at zero. Draw only when the window changes.
+const GRADIENT_COLOR = '#fac399';
 const fragmentShader = `precision highp float;
 uniform vec2 iResolution;
 uniform float iTime;
@@ -82,8 +81,20 @@ void main(){
 }
 `;
 
-function palette(hex) {
-  const { h, s, v } = hexToHsv(normalizeAccent(hex));
+function palette() {
+  const [r, g, b] = [1, 3, 5].map(
+    (start) => parseInt(GRADIENT_COLOR.slice(start, start + 2), 16) / 255,
+  );
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    delta = max - min;
+  let h = 0;
+  if (delta)
+    h =
+      60 *
+      (max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4);
+  const s = max ? delta / max : 0;
+  const v = max;
   const lightness = v * (1 - s / 2);
   const saturation =
     lightness === 0 || lightness === 1 ? 0 : (v - lightness) / Math.min(lightness, 1 - lightness);
@@ -98,8 +109,8 @@ function palette(hex) {
 }
 
 export function createHeroGradient(parent) {
-  function updateFallback(hex) {
-    const colors = palette(hex);
+  function renderPalette() {
+    const colors = palette();
     ['one', 'two', 'three'].forEach((name, i) =>
       parent.style.setProperty(
         '--gradient-' + name,
@@ -116,7 +127,7 @@ export function createHeroGradient(parent) {
       powerPreference: 'low-power',
     });
   } catch {
-    return { setAccent: updateFallback };
+    return { render: renderPalette };
   }
   const uniforms = Object.fromEntries(
     Object.entries({
@@ -198,10 +209,9 @@ export function createHeroGradient(parent) {
     { once: true },
   );
   return {
-    setAccent(hex) {
-      const colors = updateFallback(hex);
+    render() {
+      const colors = renderPalette();
       colors.forEach((color, i) => uniforms['uColor' + (i + 1)].value.fromArray(color));
-      canvas.dataset.accent = hex;
       ready = true;
       draw();
     },

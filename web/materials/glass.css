@@ -33,13 +33,36 @@
   background: transparent;
   color: var(--ink);
 }
-:root .live-composer.eilo-glass {
+:root .live-composer.eilo-glass,
+:root[data-source='live'] .workspace .nav-rail.eilo-glass {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-.eilo-glass:not(.widget):not(.adaptive-widget) {
+.eilo-glass:not(.widget):not(.adaptive-widget):not(.nav-rail) {
   position: relative;
+}
+:root[data-source='live'] .context-panel--embedded .context-panel__body {
+  background: #10121426;
+  backdrop-filter: blur(18px) brightness(1.15) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) brightness(1.15) saturate(1.12);
+}
+:root[data-source='live']
+  :is(
+    .goal-search input,
+    .goal-add,
+    .goal-filter[aria-pressed='true'],
+    .activity-date,
+    .general-settings .button,
+    .speech-preference select
+  ) {
+  border: 1px solid #ffffff18;
+  background: #1012145c;
+  box-shadow:
+    inset 0 1px #ffffff0d,
+    0 8px 20px #0002;
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
 }
 .eilo-glass::before {
   content: '';

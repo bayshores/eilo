@@ -402,6 +402,14 @@ test('main creates a sandboxed home window, hides on close, and stops only durin
   assert.equal(h.app.quitCalls, 1);
 });
 
+test('macOS merges Home into the titlebar while retaining native traffic lights', async () => {
+  const h = buildHarness({ platform: 'darwin' });
+  await drain();
+  await drain();
+  await drain();
+  assert.equal(h.windows[0].options.titleBarStyle, 'hiddenInset');
+});
+
 test('only the trusted main home frame flushes a pending check-in target', async () => {
   const h = buildHarness();
   await drain();

@@ -1,6 +1,5 @@
 import { createInlineDialog } from './workspace/inline-dialog.js';
 import './styles/focus.js';
-import { applyAccent, createAccentSelector } from './styles/accent.js';
 import {
   CATALOG,
   MODES,
@@ -102,7 +101,6 @@ const prefs = normalizeHomePreferences({
   ...homeStorage.read(PREFS_KEY, {}),
   ...transferred?.preferences,
 });
-applyAccent(prefs.accentColor);
 // Migrate the old window-sized board once; future custom placement stays untouched.
 if (createLiveHome && prefs.homeLayoutVersion < 2) {
   if (savedLayout && !transferred) {
@@ -1733,15 +1731,6 @@ function createGeneralSettings() {
   const section = document.createElement('section');
   section.className = 'general-settings';
   section.innerHTML = `<h2>General</h2><form class="profile-form"><label class="field">Your name<input type="text" maxlength="40" placeholder="Your name" autocomplete="given-name" required></label><button class="button">Save name</button><p class="settings-feedback" role="status"></p></form><label class="check-option"><input type="checkbox" class="pin-setting">Keep sidebar open</label><label class="check-option"><input type="checkbox" class="motion-setting">Reduce motion</label><label class="field speech-preference">Microphone mode</label><h3>Check-ins & alerts</h3><button class="button settings-checkins">Manage check-ins</button><details><summary>Keyboard controls</summary><p>In Edit home, focus a move handle and press Space. Use arrow keys to move, Enter to place, or Escape to cancel. Use arrow keys on a resize handle to change its size.</p></details>`;
-  section.querySelector('.profile-form').after(
-    createAccentSelector({
-      value: prefs.accentColor,
-      onChange: (color) => {
-        prefs.accentColor = color;
-        return writeStorage(PREFS_KEY, prefs);
-      },
-    }),
-  );
   const soundOption = document.createElement('label');
   soundOption.className = 'check-option';
   const soundInput = document.createElement('input');
@@ -1850,15 +1839,11 @@ function createGeneralSettings() {
   section
     .querySelector('.settings-checkins')
     .addEventListener('click', () => live.showPage('activity', { activityTab: 'overview' }));
-  const appearance = document.createElement('details');
-  const appearanceTitle = document.createElement('summary');
-  appearanceTitle.textContent = 'Appearance';
-  appearance.append(appearanceTitle, section.querySelector('.accent-selector'));
   const profile = document.createElement('details');
   const profileTitle = document.createElement('summary');
   profileTitle.textContent = 'Your name';
   profile.append(profileTitle, section.querySelector('.profile-form'));
-  section.append(appearance, profile);
+  section.append(profile);
   namePrompt.addEventListener('click', () => {
     profile.open = true;
     section.querySelector('.profile-form input').focus();

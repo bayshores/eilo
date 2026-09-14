@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { contextPresentation } from './context.js';
+import { contextBreakdownModel, contextPresentation } from './context.js';
 
 const estimate = (extra = {}) => ({
   window_tokens: 1000,
@@ -31,6 +31,39 @@ test('context presentation retains a safe estimate while compression is busy', (
   assert.equal(view.percentText, '1%');
   assert.equal(view.status, 'compressing');
   assert.equal(view.canCompress, true);
+});
+
+test('context presentation keeps useful precision for a large context window', () => {
+  assert.equal(
+    contextPresentation(estimate({ window_tokens: 272000, used_tokens: 3358 })).percentText,
+    '1.2%',
+  );
+  assert.equal(
+    contextPresentation(estimate({ window_tokens: 272000, used_tokens: 1489 })).percentText,
+    '0.5%',
+  );
+});
+
+test('context breakdown attributes used tokens and separates available space from reserve', () => {
+  const facts = contextPresentation(
+    estimate({
+      used_tokens: 100,
+      breakdown: {
+        categories: [
+          { id: 'system_prompt', label: 'System prompt', tokens: 30 },
+          { id: 'conversation', label: 'Conversation', tokens: 70 },
+          { id: 'bad', label: 'Bad', tokens: -1 },
+        ],
+      },
+    }),
+  );
+
+  assert.deepEqual(contextBreakdownModel(facts), [
+    { id: 'system_prompt', label: 'System prompt', tokens: 30 },
+    { id: 'conversation', label: 'Conversation', tokens: 70 },
+    { id: 'available', label: 'Available', tokens: 650 },
+    { id: 'reserve', label: 'Auto-summary reserve', tokens: 250 },
+  ]);
 });
 
 test('context presentation preserves summary state when occupancy is unavailable', () => {

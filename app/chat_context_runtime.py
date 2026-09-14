@@ -37,7 +37,10 @@ def read_chat(title):
                 **record,
                 "messages": active,
                 "model_config": {
-                    "_usage_anchor": db.get_session_model_config_value(sid, "_usage_anchor", None)
+                    "_usage_anchor": db.get_session_model_config_value(sid, "_usage_anchor", None),
+                    "_eilo_context_breakdown": db.get_session_model_config_value(
+                        sid, "_eilo_context_breakdown", None
+                    ),
                 },
             },
             **{k: limits[k] for k in ("window_tokens", "threshold_tokens")},
@@ -97,6 +100,38 @@ def read_chat(title):
                 "chat_context",
             )
         }
+
+
+def save_context_breakdown(db, session_id, agent, messages, *, rules=()):
+    """Persist numeric category estimates beside the usage anchor for the completed turn."""
+    from agent.context_breakdown import compute_session_context_breakdown
+    from agent.system_prompt import build_system_prompt_parts
+
+    from app.chat_context import BREAKDOWN_KEY, capture_breakdown
+
+    raw = compute_session_context_breakdown(agent, messages)
+    volatile = build_system_prompt_parts(agent).get("volatile", "")
+    match = re.search(r"<available_skills>.*?</available_skills>", volatile, re.DOTALL)
+    if match:
+        skill_tokens = (len(match.group(0)) + 3) // 4
+        categories = {
+            item.get("id"): dict(item)
+            for item in raw.get("categories", [])
+            if isinstance(item, dict)
+        }
+        system = categories.get("system_prompt")
+        if system:
+            system["tokens"] = max(0, int(system.get("tokens", 0)) - skill_tokens)
+        categories["skills"] = {"id": "skills", "tokens": skill_tokens}
+        raw = {**raw, "categories": list(categories.values())}
+    breakdown = capture_breakdown(
+        raw,
+        message_count=len(messages),
+        rules=tuple(rules),
+    )
+    if breakdown is not None:
+        db.patch_session_model_config(session_id, {BREAKDOWN_KEY: breakdown})
+    return breakdown
 
 
 def compress_chat(title):

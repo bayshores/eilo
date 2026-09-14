@@ -62,9 +62,11 @@ The ordinary starter Home uses warm surfaces and Continue, Help me start, and Ch
 
 Use familiar controls, alignment, and selected states to make interactions apparent. Home, Goals, Activity and Settings share the page gutters and header baseline; Talk keeps that frame. The orb identifies Talk in navigation and remains part of first setup. Keep populated messages and the composer free of decorative logos and extra branding bars; History stays within Talk. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
 
+Do not use thin line dividers as a section-separation component. Group related content with spacing, alignment, typography, material, shape, or a meaningful visual instead. Lines remain valid only when they encode data or define a control's necessary boundary; they must not be decorative separators between stacked content.
+
 Adding a Home widget starts an unsaved placement preview. Let the person drag and resize it, show which existing widgets would move to another page, and commit only with Place. Cancel or reload keeps the prior layout; confirmed placement supports Undo. Adaptive state cards display source-owned text read-only; ordinary Notes widgets remain editable.
 
-Routine chat status and context usage belong with the composer. Keep the estimated percentage in its toolbar; reveal exact counts and summary controls in a compact utility row below the message field. Do not turn the composer into a tabbed settings panel or a modal. Keep typing and the conversation available. App-owned detail and confirmation flows open inline; preserve explicit confirmation controls.
+Routine chat status and context usage belong with the composer. Keep the percentage and compact progress ring in its toolbar. Its inline detail shows the whole context window as an estimated, labeled category breakdown, including available space and the auto-summary reserve; omit categories that are not actually loaded. Keep exact counts and summary controls with that visual. Do not turn the composer into a tabbed settings panel or a modal. Keep typing and the conversation available. App-owned detail and confirmation flows open inline; preserve explicit confirmation controls.
 
 Keep the consequence of a permission or destructive action visible at the decision point. Progressive disclosure must not hide what information reaches the AI, merge independent permissions, imply that a setup step granted access, or replace a necessary recovery instruction with a generic error. Preserve user-written content and real source data; this rule governs product instructions and help.
 
@@ -114,5 +116,6 @@ draft and conversation instead of restarting guidance.
 
 Visible navigation and restrained interface sounds default on only where no
 preference exists. Explicit off choices persist. A saved permission is distinct
-from receipt of activity; the header reports actual transport health. Collection,
-AI sharing and alerts never gain consent from these presentation defaults.
+from receipt of activity. A persistent bottom-right status cluster reports Desktop,
+Browser, Calendar, and Gmail health and opens Permissions for management. Collection,
+AI sharing and alerts never gain consent from this presentation default.

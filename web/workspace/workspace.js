@@ -129,7 +129,7 @@ export function createLiveHome({
   talkEntry.setAttribute('aria-label', 'Talk to eïlo');
   talkEntry.setAttribute('aria-pressed', 'false');
   const talkOrb = node('span', 'talk-entry-orb');
-  talkEntry.append(talkOrb, node('span', 'nav-label', 'Talk'));
+  talkEntry.append(talkOrb);
   let threadOpen = false,
     desktopNotice = '';
   let stopDesktop = null,
@@ -191,11 +191,6 @@ export function createLiveHome({
   });
 
   const captureControls = node('div', 'capture-controls');
-  const captureStatus = action(
-    'Checking recording…',
-    () => showPage('connections'),
-    'text-button capture-status',
-  );
   const pauseCapture = action(
     'Pause recording',
     async () => {
@@ -229,19 +224,48 @@ export function createLiveHome({
   );
   const captureError = node('span', 'capture-error');
   captureError.setAttribute('role', 'status');
-  captureControls.append(captureStatus, pauseCapture, mute, captureError);
-  workspace.append(captureControls);
+  captureControls.append(pauseCapture, mute, captureError);
+  const connectionStatuses = node('div', 'connection-statuses');
+  connectionStatuses.setAttribute('role', 'group');
+  connectionStatuses.setAttribute('aria-label', 'Connection statuses');
+  const statusButtons = new Map();
+  for (const [id, label, icon] of [
+    ['desktop', 'Desktop', 'status-desktop'],
+    ['browser', 'Browser', 'status-browser'],
+    ['calendar', 'Calendar', 'status-calendar'],
+    ['gmail', 'Gmail', 'status-gmail'],
+  ]) {
+    const button = action(
+      '',
+      () => showPage('settings', { settingsSection: 'sources' }),
+      'connection-status',
+    );
+    button.innerHTML = `<svg aria-hidden="true"><use href="#${icon}"></use></svg>`;
+    button.dataset.connection = id;
+    button.dataset.label = label;
+    statusButtons.set(id, button);
+    connectionStatuses.append(button);
+  }
+  workspace.append(captureControls, connectionStatuses);
   function updateCaptureControls() {
     const policy = current.snapshot?.adaptive?.policy;
     const tracking = selectTracking(current);
     const configured = policy?.enabled && (policy.desktop_enabled || policy.browser_enabled);
     const legacy = current.snapshot?.accountability?.activity?.state === 'active';
-    captureStatus.textContent = recordingSummary(current);
-    captureStatus.title =
-      tracking.rows
-        .filter((row) => ['desktop', 'browser'].includes(row.id))
-        .map((row) => row.name + ': ' + row.status)
-        .join(' · ') + (policy?.ai_enabled ? ' · AI sharing on' : ' · AI sharing off');
+    connectionStatuses.title = recordingSummary(current);
+    const rows = new Map(tracking.rows.map((row) => [row.id, row]));
+    for (const [id, button] of statusButtons) {
+      const row = rows.get(id) || {
+        name: button.dataset.label,
+        status: 'Unavailable',
+        detail: '',
+        tone: 'attention',
+      };
+      const summary = `${row.name}: ${row.status}${row.detail ? `. ${row.detail}` : ''}`;
+      button.dataset.tone = row.tone;
+      button.title = summary;
+      button.setAttribute('aria-label', `${summary}. Manage connection`);
+    }
     pauseCapture.hidden = !tracking.online || !(configured || legacy);
     mute.textContent = getSoundEnabled() ? 'Mute sounds' : 'Sounds off';
     mute.setAttribute(
@@ -502,8 +526,11 @@ export function createLiveHome({
   }
 
   function placeOrb() {
-    const target =
-      onboarding?.active && threadOpen ? workspace.querySelector('.onboarding-orb') : talkOrb;
+    const target = threadOpen
+      ? onboarding?.active
+        ? workspace.querySelector('.onboarding-orb')
+        : dock.querySelector('.conversation-presence')
+      : talkOrb;
     if (!target) {
       orbElement.remove();
       presence?.pause(true);
@@ -661,7 +688,7 @@ export function createLiveHome({
       log.setAttribute('aria-live', 'polite');
       log.tabIndex = 0;
       log.addEventListener('scroll', rememberPresentation, { passive: true });
-      thread.append(log);
+      thread.append(node('div', 'conversation-presence'), log);
       const form = node('form', 'live-composer');
       const label = node('label', 'sr-only', 'Message eïlo');
       label.htmlFor = 'live-message-input';

@@ -10,7 +10,7 @@ const FLAGS = [
   'ai_enabled',
 ];
 const SETTINGS_DESCRIPTIONS = {
-  general: 'Appearance, sidebar, microphone, and alerts.',
+  general: 'Sidebar, microphone, and alerts.',
   overview: 'Your current work and the widgets on Home.',
   sources: 'Choose what activity to collect and what your AI can use.',
   connections: 'Connect and manage your apps and services.',

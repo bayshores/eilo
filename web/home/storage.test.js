@@ -68,7 +68,6 @@ test('normalizers accept only bounded profile and note fields', () => {
       soundEffects: true,
       soundVolume: 0.5,
       dailyGuidance: true,
-      accentColor: '#fac399',
       widgetPins: [],
       dismissedContextWidgets: [],
     },
@@ -81,7 +80,6 @@ test('normalizers accept only bounded profile and note fields', () => {
     soundEffects: true,
     soundVolume: 0.5,
     dailyGuidance: true,
-    accentColor: '#fac399',
     widgetPins: [],
     dismissedContextWidgets: [],
   });
@@ -124,4 +122,10 @@ test('defaults are helpful but explicit off preferences survive', () => {
   assert.equal(value.soundVolume, 0);
   assert.equal(normalizeHomePreferences({ soundVolume: Infinity }).soundVolume, 0.5);
   assert.equal(normalizeHomePreferences({ soundVolume: 5 }).soundVolume, 1);
+});
+
+test('legacy theme and custom accent preferences are ignored', () => {
+  const preferences = normalizeHomePreferences({ theme: 'light', accentColor: '#00ff8c' });
+  assert.equal('theme' in preferences, false);
+  assert.equal('accentColor' in preferences, false);
 });

@@ -1,7 +1,10 @@
 import sys
 import types
+import unittest
+from unittest.mock import patch
 
-from app.chat_context import public_context, runtime_context
+from app.chat_context import capture_breakdown, public_context, runtime_context
+from app.chat_context_runtime import save_context_breakdown
 
 
 def _install_anchor(monkeypatch, callback):
@@ -25,7 +28,17 @@ def test_anchor_context_uses_hermes_estimator_and_keeps_cumulative_usage_separat
     result = public_context(
         {
             "messages": messages,
-            "model_config": {"_usage_anchor": {"prompt_tokens": 90}},
+            "model_config": {
+                "_usage_anchor": {"prompt_tokens": 90},
+                "_eilo_context_breakdown": {
+                    "version": 1,
+                    "message_count": 1,
+                    "categories": [
+                        {"id": "system_prompt", "tokens": 20},
+                        {"id": "conversation", "tokens": 80},
+                    ],
+                },
+            },
             "input_tokens": 1000,
             "output_tokens": 50,
             "last_active": 123.5,
@@ -45,6 +58,13 @@ def test_anchor_context_uses_hermes_estimator_and_keeps_cumulative_usage_separat
         "usage": {"input_tokens": 1000, "output_tokens": 50},
         "updated_at": 123.5,
         "last_request_tokens": 90,
+        "breakdown": {
+            "estimated": True,
+            "categories": [
+                {"id": "system_prompt", "label": "System prompt", "tokens": 20},
+                {"id": "conversation", "label": "Conversation", "tokens": 80},
+            ],
+        },
     }
 
 
@@ -87,3 +107,106 @@ def test_runtime_context_accepts_only_supplied_or_resolved_limits():
         "window_tokens": None,
         "threshold_tokens": None,
     }
+
+
+def test_breakdown_capture_keeps_known_numbers_and_adds_current_eilo_guidance():
+    result = capture_breakdown(
+        {
+            "categories": [
+                {"id": "system_prompt", "tokens": 100, "color": "private"},
+                {"id": "rules", "tokens": 20},
+                {"id": "conversation", "tokens": 80},
+                {"id": "unknown", "tokens": 999},
+            ]
+        },
+        message_count=4,
+        rules=("12345",),
+    )
+
+    assert result == {
+        "version": 1,
+        "message_count": 4,
+        "categories": [
+            {"id": "system_prompt", "tokens": 100},
+            {"id": "rules", "tokens": 22},
+            {"id": "conversation", "tokens": 80},
+        ],
+    }
+
+
+def test_breakdown_capture_fits_estimated_categories_to_provider_usage():
+    result = capture_breakdown(
+        {
+            "context_used": 100,
+            "categories": [
+                {"id": "system_prompt", "tokens": 30},
+                {"id": "conversation", "tokens": 10},
+            ],
+        },
+        message_count=2,
+    )
+
+    assert result["categories"] == [
+        {"id": "system_prompt", "tokens": 75},
+        {"id": "conversation", "tokens": 25},
+    ]
+
+
+def test_runtime_saves_only_the_sanitized_numeric_breakdown(monkeypatch):
+    agent_module = types.ModuleType("agent")
+    breakdown_module = types.ModuleType("agent.context_breakdown")
+    breakdown_module.compute_session_context_breakdown = lambda agent, messages: {
+        "context_used": 100,
+        "categories": [
+            {"id": "system_prompt", "label": "ignored", "tokens": 30},
+            {"id": "conversation", "color": "ignored", "tokens": 70},
+        ],
+    }
+    monkeypatch.setitem(sys.modules, "agent", agent_module)
+    monkeypatch.setitem(sys.modules, "agent.context_breakdown", breakdown_module)
+
+    class DB:
+        def patch_session_model_config(self, session_id, patch):
+            self.saved = (session_id, patch)
+
+    db = DB()
+    result = save_context_breakdown(db, "session-1", object(), [{}, {}])
+
+    assert sum(category["tokens"] for category in result["categories"]) == 100
+    assert db.saved == ("session-1", {"_eilo_context_breakdown": result})
+
+
+class ContextBreakdownPersistenceTests(unittest.TestCase):
+    def test_completed_turn_saves_only_sanitized_numeric_categories(self):
+        agent_module = types.ModuleType("agent")
+        breakdown_module = types.ModuleType("agent.context_breakdown")
+        system_prompt_module = types.ModuleType("agent.system_prompt")
+        breakdown_module.compute_session_context_breakdown = lambda agent, messages: {
+            "context_used": 100,
+            "categories": [
+                {"id": "system_prompt", "label": "ignored", "tokens": 60},
+                {"id": "conversation", "color": "ignored", "tokens": 70},
+            ],
+        }
+        system_prompt_module.build_system_prompt_parts = lambda agent: {
+            "volatile": "<available_skills>1234</available_skills>"
+        }
+
+        class DB:
+            def patch_session_model_config(self, session_id, saved):
+                self.saved = (session_id, saved)
+
+        db = DB()
+        with patch.dict(
+            sys.modules,
+            {
+                "agent": agent_module,
+                "agent.context_breakdown": breakdown_module,
+                "agent.system_prompt": system_prompt_module,
+            },
+        ):
+            result = save_context_breakdown(db, "session-1", object(), [{}, {}])
+
+        self.assertEqual(sum(category["tokens"] for category in result["categories"]), 100)
+        self.assertIn("skills", {category["id"] for category in result["categories"]})
+        self.assertEqual(db.saved, ("session-1", {"_eilo_context_breakdown": result}))
