@@ -34,17 +34,13 @@
 :root[data-source='live'] .app-window {
   background: transparent;
 }
-.app-window,
-.hero-gradient {
-  filter: grayscale(1);
-}
 .hero-gradient {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   overflow: hidden;
-  opacity: 0.4;
+  opacity: 0.34;
   background: linear-gradient(
     140deg,
     var(--gradient-one, #b8a393),
@@ -149,24 +145,6 @@
     inset 0 1px 0 #d8e3d817,
     0 8px 30px #030b143b;
 }
-:root[data-source='live'] .workspace .nav-rail::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 0;
-  height: 104px;
-  border-radius: 0 0 16px 16px;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--peach) 17%, transparent),
-    color-mix(in srgb, var(--peach) 6%, transparent) 45%,
-    transparent 100%
-  );
-  opacity: 0.72;
-  pointer-events: none;
-}
 :root[data-source='live'] .nav-rail > .wordmark {
   display: none;
 }
@@ -244,9 +222,6 @@
 }
 :root[data-source='live'] .workspace.conversation-active .talk-entry {
   display: none;
-}
-:root[data-source='live'] .workspace.conversation-active .nav-rail::after {
-  opacity: 0;
 }
 .conversation-presence {
   width: 132px;
@@ -596,11 +571,6 @@
     height: 62px;
     transform: none;
     padding: 5px;
-    border-radius: 16px;
-  }
-  :root[data-source='live'] .workspace .nav-rail::after {
-    inset: 0;
-    height: auto;
     border-radius: 16px;
   }
   :root[data-source='live'] .nav-items {

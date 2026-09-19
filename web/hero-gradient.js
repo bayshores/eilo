@@ -3,7 +3,7 @@ import * as THREE from './vendor/three/three.module.min.js';
 // Gradient adapted from bayshores/hackdavis2026 at dcdf11d.
 // https://github.com/bayshores/hackdavis2026/blob/dcdf11d53c19dd17dbcbae59dc935ff30e1f65a9/components/bg/Grainient.tsx
 // Time stays at zero. Draw only when the window changes.
-const GRADIENT_COLOR = '#fac399';
+const GRADIENT_COLORS = ['#c1a287', '#5b3325', '#35171a'];
 const fragmentShader = `precision highp float;
 uniform vec2 iResolution;
 uniform float iTime;
@@ -81,32 +81,7 @@ void main(){
 }
 `;
 
-function palette() {
-  const [r, g, b] = [1, 3, 5].map(
-    (start) => parseInt(GRADIENT_COLOR.slice(start, start + 2), 16) / 255,
-  );
-  const max = Math.max(r, g, b),
-    min = Math.min(r, g, b),
-    delta = max - min;
-  let h = 0;
-  if (delta)
-    h =
-      60 *
-      (max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4);
-  const s = max ? delta / max : 0;
-  const v = max;
-  const lightness = v * (1 - s / 2);
-  const saturation =
-    lightness === 0 || lightness === 1 ? 0 : (v - lightness) / Math.min(lightness, 1 - lightness);
-  return [
-    [h + 15, Math.min(1, saturation + 0.1), 0.72],
-    [h - 35, Math.min(1, saturation + 0.05), 0.42],
-    [h + 30, Math.min(1, saturation + 0.05), 0.62],
-  ].map(([hue, sat, light]) => {
-    const color = new THREE.Color().setHSL((((hue % 360) + 360) % 360) / 360, sat, light);
-    return color.toArray().map((channel) => Math.round(channel * 255) / 255);
-  });
-}
+const palette = () => GRADIENT_COLORS.map((color) => new THREE.Color(color).toArray());
 
 export function createHeroGradient(parent) {
   function renderPalette() {
