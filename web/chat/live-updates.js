@@ -121,6 +121,7 @@ export function createLiveUpdates({
       stream: state.snapshot?.accountability?.check_in_stream,
       visible: visible(),
       suppressReplies: isConversationOpen(),
+      deferReplies: isConversationOpen() && state.snapshot?.reply_stream?.status === 'writing',
     });
     render();
   }

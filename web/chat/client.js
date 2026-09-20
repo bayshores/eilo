@@ -302,6 +302,42 @@ export function createHomeClient({
     homeCommand(action, fields = {}, revision) {
       return adaptiveControl('/api/home/commands', action, fields, revision);
     },
+    async requestReturn(reason, localDay) {
+      // A welcome-back request never marks the normal composer as sending. A local
+      // draft is an opt-out only: the service never treats false as proof of no draft.
+      if (
+        connection !== 'connected' ||
+        !homeData(snapshot).supported ||
+        snapshot?.status === 'busy' ||
+        sending ||
+        changing ||
+        !['daily', 'absence'].includes(reason)
+      )
+        return false;
+      abortPoll();
+      const pending = new AbortController();
+      const deadline = schedule(() => pending.abort(), 15000);
+      try {
+        const next = await request('/api/return/briefing', {
+          body: {
+            request_id: requestId(),
+            reason,
+            local_day: localDay,
+            draft_present: Boolean(draft || localPending),
+          },
+          signal: pending.signal,
+        });
+        accept(next);
+        return next;
+      } catch {
+        // A background catch-up may decline or lose a local bridge. Preserve the
+        // regular conversation and let the next ordinary poll continue silently.
+        return false;
+      } finally {
+        unschedule(deadline);
+        queue(0, true);
+      }
+    },
     contextCommand(action, fields = {}, revision) {
       return adaptiveControl('/api/context/commands', action, fields, revision);
     },

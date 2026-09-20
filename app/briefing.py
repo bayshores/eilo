@@ -37,6 +37,7 @@ class Briefing:
         self.chat = chat
         self.mail = GoogleMail(root, chat.calendar, on_change=self.sources_changed)
         self.current = None
+        self.return_turns = set()
         previous = chat.meta.get("workflow_run")
         if previous and previous.get("status") == "running":
             previous.update(
@@ -56,12 +57,34 @@ class Briefing:
             self.chat.reply_stream = None
             if self.chat.busy:
                 self.chat.task.cancel()
+        for return_turn in tuple(getattr(self, "return_turns", ())):
+            if not return_turn.valid():
+                return_turn.invalidated = True
+                if return_turn.on_invalidated is not None:
+                    return_turn.on_invalidated()
         self.chat.changed()
 
     async def open(self, request_id):
         turn = SourceTurn(self, request_id)
         self.current = turn
         await turn.open()
+        return turn
+
+    async def open_return(self, delivery_id, on_invalidated=None):
+        """Open a shorter, non-presentational capability for one automatic return."""
+        turn = SourceTurn(
+            self,
+            delivery_id,
+            report=False,
+            on_invalidated=on_invalidated,
+            limits={"calls": 8, "threads": 2, "context": 24_000, "mail_days": 14, "seconds": 150},
+        )
+        self.return_turns.add(turn)
+        try:
+            await turn.open()
+        except BaseException:
+            self.return_turns.discard(turn)
+            raise
         return turn
 
     async def cancel(self, request_id):
@@ -76,14 +99,24 @@ class Briefing:
     async def close(self):
         if self.current:
             await self.current.close()
+        for turn in tuple(self.return_turns):
+            await turn.close()
         await self.mail.close()
 
 
 class SourceTurn:
-    def __init__(self, owner, request_id):
+    def __init__(self, owner, request_id, *, report=True, limits=None, on_invalidated=None):
         self.owner, self.mail, self.chat = owner, owner.mail, owner.chat
         self.context = getattr(self.chat, "context", None)
         self.id = request_id
+        self.report = report
+        self.on_invalidated = on_invalidated
+        limits = limits or {}
+        self.max_calls = limits.get("calls", MAX_CALLS)
+        self.max_threads = limits.get("threads", MAX_THREADS)
+        self.max_context = limits.get("context", MAX_CONTEXT)
+        self.max_mail_days = limits.get("mail_days", 90)
+        self.max_seconds = limits.get("seconds", 180)
         self.token = secrets.token_urlsafe(32)
         self.started = time.monotonic()
         self.permission = self.mail.permission_stamp()
@@ -157,10 +190,12 @@ class SourceTurn:
                 "permission_changed",
                 403,
             )
-        if time.monotonic() - self.started > 180:
+        if time.monotonic() - self.started > self.max_seconds:
             raise CalendarError("This source check reached its time limit.", "time_limit", 408)
 
     def emit(self):
+        if not self.report:
+            return
         self.run["sources_checked"] = len(self.source_ids)
         self.chat.meta["workflow_run"] = deepcopy(self.run)
         self.chat.save_meta()
@@ -230,11 +265,11 @@ class SourceTurn:
 
     async def read(self, name, args):
         self.check()
-        if name not in TOOL_NAMES or self.calls >= MAX_CALLS:
+        if name not in TOOL_NAMES or self.calls >= self.max_calls:
             raise CalendarError("Source check limit reached.", "limit", 400)
         self.calls += 1
         self.touched = True
-        if self.chat.meta.get("pending_turn"):
+        if self.report and self.chat.meta.get("pending_turn"):
             self.chat.meta["pending_turn"]["source_used"] = True
             self.chat.save_meta()
         if name == "eilo_sources":
@@ -251,8 +286,8 @@ class SourceTurn:
                     for k, v in available["calendar"].items()
                     if k != "account_label" or available["calendar"]["enabled"]
                 },
-                "mail_default_window_days": 30,
-                "mail_max_read_threads_per_turn": MAX_THREADS,
+                "mail_default_window_days": min(30, self.max_mail_days),
+                "mail_max_read_threads_per_turn": self.max_threads,
                 "work_context": self._work_context_status(),
                 "limitations": "Only connected, enabled sources can be checked. These tools cannot send messages, edit Calendar, or create tasks.",
             }
@@ -322,13 +357,11 @@ class SourceTurn:
             query = args.get("query", "")
             if (
                 type(days) is not int
-                or not 1 <= days <= 90
+                or not 1 <= days <= self.max_mail_days
                 or not isinstance(query, str)
                 or len(query) > 1024
             ):
-                raise CalendarError(
-                    "Mail search window must be 1 to 90 days.", "invalid_request", 400
-                )
+                raise CalendarError("Mail search window is unavailable.", "invalid_request", 400)
             since = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y/%m/%d")
             bounded_query = (
                 f"({query}) " if query.strip() else ""
@@ -375,7 +408,7 @@ class SourceTurn:
                 not account
                 or not isinstance(thread_id, str)
                 or thread_id not in self.discovered.get(identity, set())
-                or self.thread_reads >= MAX_THREADS
+                or self.thread_reads >= self.max_threads
             ):
                 return self.gap(
                     "read",
@@ -490,7 +523,7 @@ class SourceTurn:
 
     def pack(self, data, detail, link=None, label=None):
         size = len(json.dumps(data, ensure_ascii=False))
-        if self.context_size + size > MAX_CONTEXT:
+        if self.context_size + size > self.max_context:
             self.had_gaps = True
             self.step(
                 "limit",
@@ -558,3 +591,6 @@ class SourceTurn:
         self.discovered.clear()
         if self.owner.current is self:
             self.owner.current = None
+        turns = getattr(self.owner, "return_turns", None)
+        if turns is not None:
+            turns.discard(self)

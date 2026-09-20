@@ -175,6 +175,7 @@ export function createUpdateQueue({
     stream = null,
     visible = false,
     suppressReplies = false,
+    deferReplies = false,
   } = {}) {
     if (!text(nextConversationId)) return snapshot();
     const safeMessages = Array.isArray(messages) ? messages : [];
@@ -190,7 +191,10 @@ export function createUpdateQueue({
       const canonical = join(key, message.event_id ? `message:${message.id}` : null);
       if (firstPresentation) continue;
       const kind = updateKind(message);
-      if (kind === 'reply' && suppressReplies) {
+      // A direct reply can arrive before a visible human stream settles. Keep it
+      // unacknowledged through that handoff so closing the dock mid-stream still
+      // gives the completed answer an in-app overlay.
+      if (kind === 'reply' && suppressReplies && !deferReplies) {
         mark(canonical);
         forget(canonical);
         continue;

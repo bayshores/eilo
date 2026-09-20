@@ -48,6 +48,8 @@ from app.onboarding import (
 from app.paths import META, ROOT, RUNTIME
 from app.persistence import write_private
 from app.proactive import ProactiveLoop
+from app.return_loop import ReturnLoop
+from app.return_loop import initial_state as initial_return_state
 from app.runtime_contract import (
     MODEL,
     PROVIDER,
@@ -119,6 +121,7 @@ class LocalChat:
             helper=RUNTIME
             / "eilo-activity-helper/eilo-activity-helper.app/Contents/MacOS/EiloActivityHelper",
         )
+        self.returns = ReturnLoop(self)
         self.connections = Connections(
             self, ROOT if meta_path == META else meta_path.parent / "calendar"
         )
@@ -164,6 +167,7 @@ class LocalChat:
             "pending_turn": None,
             "pending_publication": None,
             "tasks": tasks,
+            "return_briefing": initial_return_state(),
             "onboarding": initial_onboarding(tasks),
         }
 
@@ -186,6 +190,7 @@ class LocalChat:
     def context_changed(self) -> None:
         self.proactive.context_changed()
         self.briefing.sources_changed()
+        self.returns.invalidate()
 
     def publish_check_in(self, publication, *, lookup=False):
         """Keep the short native commit in the same turn as authority validation."""
@@ -198,6 +203,16 @@ class LocalChat:
         # cannot interleave; move to a shared transaction owner if native writes grow.
         operation = find_publication if lookup else publish
         return operation(validate_publication(publication, allow_legacy=lookup))
+
+    def publish_return(self, publication, *, lookup=False):
+        """Keep one automatic return append inside the same native profile guard."""
+        expected = (self.meta_path.parent / "hermes").resolve()
+        if Path(os.environ.get("HERMES_HOME", "")).resolve() != expected:
+            raise ChatError("The native publication store is outside this eilo profile.")
+        from app.return_driver import find_publication, publish, validate_publication
+
+        operation = find_publication if lookup else publish
+        return operation(validate_publication(publication))
 
     async def wait_for_state(self, after: str | None) -> dict:
         if after == self.revision:
@@ -239,6 +254,7 @@ class LocalChat:
             if pending
             else None,
             "accountability": self.proactive.snapshot(),
+            "return_briefing": self.returns.snapshot(),
             "reply_stream": self.reply_stream,
             "chat_context": {
                 **(self.native_record.get("chat_context") or {}),
@@ -406,7 +422,9 @@ class LocalChat:
                 raise ValueError("unexpected chat")
             audit_session(record, record["id"])
             self.native_record = record
-            self.messages = visible_messages(record, self.proactive.state["events"])
+            self.messages = visible_messages(
+                record, self.proactive.state["events"], self.returns.state["events"]
+            )
             self.reconcile_pending()
             self.meta["session_id"] = record["id"]
             self.last_audit = {
@@ -454,6 +472,7 @@ class LocalChat:
             await self.refresh()
             await self.recover_publication()
             await self.proactive.recover_publications()
+            await self.returns.recover_publications()
             if (self.meta.get("context_compaction") or {}).get("status") == "compressing":
                 self.meta["context_compaction"]["status"] = "interrupted"
                 self.save_meta()
@@ -517,6 +536,7 @@ class LocalChat:
             self.error = None
             self.reply_stream = None
             self.proactive.on_human(text, request_id)
+            self.returns.on_human(text, request_id)
             self.context.on_human(text)
             catalog = self.meta["chat_catalog"]
             active = next(c for c in catalog["chats"] if c["id"] == catalog["active_chat_id"])
@@ -562,6 +582,7 @@ class LocalChat:
             return self.snapshot()
 
     async def serial_human_turn(self, text: str, began: float, timing: dict) -> None:
+        await self.returns.wait_for_preempted_event()
         await self.proactive.wait_for_preempted_event()
         async with self.native_lock:
             await self.run_turn(text, began, timing)
@@ -571,6 +592,7 @@ class LocalChat:
         write_private(self.meta_path, candidate)
         self.meta = candidate
         self.proactive.state = self.meta["accountability"]
+        self.returns.state = self.meta["return_briefing"]
         self.proactive.ledger.state = self.meta
         self.proactive.ledger.journal = self.meta["activity_journal"]
 
@@ -752,6 +774,8 @@ class LocalChat:
             candidate["onboarding"], candidate["tasks"] = setup, tasks
             self.commit_meta(candidate)
             self.proactive.invalidate()
+            self.returns.invalidate()
+            await self.returns.wait_for_preempted_event()
             self.changed()
             return self.snapshot()
 
@@ -776,6 +800,8 @@ class LocalChat:
                 source={"kind": "control"},
             )
             self.proactive.on_human("", request_id)
+            self.returns.on_human("", request_id)
+            await self.returns.wait_for_preempted_event()
             await self.proactive.wait_for_preempted_event()
             candidate = deepcopy(self.meta)
             candidate["tasks"] = updated
@@ -805,6 +831,8 @@ class LocalChat:
             if self.busy or self.meta.get("pending_publication"):
                 raise TaskConflict("Wait for the current reply before changing activity records.")
             self.proactive.on_human("", request_id)
+            self.returns.on_human("", request_id)
+            await self.returns.wait_for_preempted_event()
             await self.proactive.wait_for_preempted_event()
             # Sampling can continue while a cancelled event settles. Preserve those samples.
             journal = ledger.plan_control(action, session_id, request_id, based_on_revision)
@@ -1028,6 +1056,7 @@ class LocalChat:
             }
             self.commit_meta(candidate)
             self.proactive.invalidate()
+            self.returns.invalidate()
             self.task = asyncio.create_task(
                 self.run_compaction(), name="user-requested-context-summary"
             )
@@ -1037,6 +1066,7 @@ class LocalChat:
 
     async def run_compaction(self) -> None:
         try:
+            await self.returns.wait_for_preempted_event()
             await self.proactive.wait_for_preempted_event()
             async with self.native_lock:
                 code, out, _ = await self.command(
@@ -1090,6 +1120,8 @@ class LocalChat:
             self.changed()
             try:
                 self.proactive.invalidate()
+                self.returns.invalidate()
+                await self.returns.wait_for_preempted_event()
                 await self.proactive.wait_for_preempted_event()
                 async with self.native_lock:
                     record = await self.read_catalog_conversation(planned)
@@ -1100,7 +1132,9 @@ class LocalChat:
                         candidate[key] = deepcopy(planned.get(key))
                     if record:
                         candidate["session_id"] = record["id"]
-                    messages = visible_messages(record, self.proactive.state["events"])
+                    messages = visible_messages(
+                        record, self.proactive.state["events"], self.returns.state["events"]
+                    )
                     pending = candidate.get("pending_message")
                     if pending:
                         anchor = pending.get("after_message_id")
@@ -1132,6 +1166,7 @@ class LocalChat:
         await self.context_capture.close()
         await self.context.aclose()
         await self.connections.close()
+        await self.returns.close()
         await self.proactive.close()
         self.changed()
         if self.task is not None and not self.task.done():

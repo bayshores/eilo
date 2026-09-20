@@ -74,7 +74,29 @@ def validate_provenance(value: object) -> dict | None:
     return {"version": 1, "task_revision": value["task_revision"], "sources": clean}
 
 
-def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
+def validate_return_decision(value: object, delivery_id: str) -> dict | None:
+    """Validate one automatic-return receipt before it reaches native history."""
+    if not isinstance(value, dict) or set(value) != {"delivery_id", "decision", "message"}:
+        return None
+    if value.get("delivery_id") != delivery_id or value.get("decision") not in {"deliver", "quiet"}:
+        return None
+    message = value.get("message")
+    if (
+        not isinstance(message, str)
+        or len(message) > 1_200
+        or any(ord(char) < 32 and char not in "\\n\\t" for char in message)
+    ):
+        return None
+    if value["decision"] == "quiet" and message:
+        return None
+    if value["decision"] == "deliver" and not message.strip():
+        return None
+    return {"delivery_id": delivery_id, "decision": value["decision"], "message": message.strip()}
+
+
+def visible_messages(
+    record: dict, events: dict | None = None, returns: dict | None = None
+) -> list[dict]:
     """Project audited native history into the small public message shape."""
     messages = []
     current_event = None
@@ -82,6 +104,39 @@ def visible_messages(record: dict, events: dict | None = None) -> list[dict]:
     current_human_revision = None
     for message in record.get("messages", []):
         metadata = message.get("display_metadata") or {}
+        if message.get("role") == "assistant" and message.get("display_kind") == "eilo_return":
+            delivery_id = metadata.get("delivery_id") if isinstance(metadata, dict) else None
+            delivery = (returns or {}).get(delivery_id, {})
+            accepted = (
+                delivery.get("status") == "delivered"
+                and metadata.get("publication_version") == 1
+                and metadata.get("return_key") == delivery.get("return_key")
+                and metadata.get("reason") == delivery.get("reason")
+                and metadata.get("local_day") == delivery.get("local_day")
+                and metadata.get("task_revision") == delivery.get("task_revision")
+                and metadata.get("human_epoch") == delivery.get("human_epoch")
+                and metadata.get("decision") == "deliver"
+            )
+            try:
+                raw_decision = json.loads(message.get("content", "")) if accepted else None
+            except (TypeError, ValueError):
+                raw_decision = None
+            decision = validate_return_decision(raw_decision, delivery_id)
+            if decision and decision["decision"] == "deliver":
+                projected = {
+                    "id": str(message["id"]),
+                    "role": "assistant",
+                    "text": decision["message"],
+                    "origin": "return",
+                    "return_id": delivery_id,
+                }
+                provenance = validate_provenance(metadata.get("provenance"))
+                if provenance is not None and provenance["task_revision"] == delivery.get(
+                    "task_revision"
+                ):
+                    projected["provenance"] = provenance
+                messages.append(projected)
+            continue
         if message.get("display_kind") == "eilo_observation":
             current_event = metadata.get("event_id") if isinstance(metadata, dict) else None
             current_human = None

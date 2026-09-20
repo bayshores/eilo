@@ -62,6 +62,39 @@ test('direct replies already seen in open chat do not replay as an overlay later
   const later = queue.reconcile({ conversationId: 'one', messages: [reply], visible: true });
   assert.equal(later.active, null);
 });
+test('a reply arriving while the dock is still streaming stays eligible if it closes before settlement', () => {
+  const store = memory(),
+    queue = createUpdateQueue(store),
+    reply = { id: 'streamed-reply', role: 'assistant', text: 'Finished after the dock closed.' };
+  queue.reconcile({ conversationId: 'one', messages: [], visible: false, suppressReplies: true });
+  queue.reconcile({
+    conversationId: 'one',
+    messages: [reply],
+    visible: false,
+    suppressReplies: true,
+    deferReplies: true,
+  });
+  assert.equal(queue.snapshot().active, null);
+  assert.deepEqual(queue.snapshot().queued, [
+    {
+      id: 'message:streamed-reply',
+      text: 'Finished after the dock closed.',
+      status: 'complete',
+      kind: 'reply',
+    },
+  ]);
+  const uncovered = queue.reconcile({
+    conversationId: 'one',
+    messages: [reply],
+    visible: true,
+    suppressReplies: false,
+  });
+  assert.equal(uncovered.active?.id, 'message:streamed-reply');
+  assert.equal(uncovered.active?.text, 'Finished after the dock closed.');
+  queue.markDisplayed(uncovered.active.id);
+  assert.deepEqual(store.values.get('one'), ['message:streamed-reply']);
+});
+
 test('only one update is active and dismiss advances once', () => {
   const queue = createUpdateQueue(memory());
   queue.reconcile({ conversationId: 'one', messages: [], visible: true });

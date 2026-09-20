@@ -113,16 +113,24 @@ daily planning ritual or widget arrangement precedes ordinary use.
 A daily return briefing is on by default. On the first connected Home visit of
 a local day, or after at least four hours away, it expands the conversation only
 when no draft, pending reply or break is active. A blocked first visit does not
-trigger delayed guidance after work clears. Dismissal persists for the local day. The opening is currently a
-local projection of saved goal and date state, not an automatic model turn or
-new mailbox read. Exact ISO goal dates may be identified as passed; ambiguous
-wording is shown for confirmation without inventing a deadline. A passed date offers
-**Finished**, **Still want to**, **Drop goal**, and **Not now**; keeping it opens the
-real goal editor with a calendar date separate from the person's timing note. It uses confirmed task state and
-only explicitly linked next-step context. Calendar information requires a current
-connected cache (under fifteen minutes old); this UI performs no new AI source
-read. Its next-step and dismissal choices remain optional. Dismissal applies across chats
-for the local day, and the user can turn guidance off. Short returns retain the
+trigger delayed guidance after work clears. Dismissal persists for the local day.
+
+An eligible return starts one detached, read-only catch-up for that conversation,
+day, and reason. It can use the saved conversation and goals, plus Calendar,
+Gmail, and work context only when each source is already connected and enabled
+for answers. A grounded return can still help when there is no open goal; an active
+break is the only task state that suppresses it. The browser cannot grant a source or
+assert that a draft is absent;
+a draft is only an opt-out. The worker never writes a user message, changes a
+task, or retries an interrupted inference. Before a native assistant message is
+appended, the service checks the current conversation, task revision, human
+activity epoch, break state, and source permission again.
+
+Exact ISO goal dates may be identified as passed; ambiguous wording is shown for
+confirmation without inventing a deadline. A passed date offers **Finished**,
+**Still want to**, **Drop goal**, and **Not now**; keeping it opens the goal editor
+rather than silently changing timing. The compact goal and event cards remain
+visible while the catch-up arrives in the conversation. Short returns retain the
 draft and conversation instead of restarting guidance.
 
 Visible navigation and restrained interface sounds default on only where no

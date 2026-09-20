@@ -115,6 +115,7 @@ export function mountUnifiedWorkspace({
   const briefing = node('section', 'unified-briefing');
   briefing.setAttribute('aria-label', 'Welcome-back briefing');
   const prompt = node('p', 'unified-prompt'),
+    briefingStatus = node('span', 'unified-briefing-status'),
     actions = node('div', 'unified-replies');
   const completed = button('Finished', () => changeGoal('complete'));
   const keep = button('Still want to', () => {
@@ -141,7 +142,7 @@ export function mountUnifiedWorkspace({
     'text-button unified-later',
   );
   actions.append(completed, keep, drop, start, later);
-  briefing.append(prompt, actions);
+  briefing.append(prompt, briefingStatus, actions);
   dock.querySelector('.conversation-thread').prepend(briefing);
   const notice = node('div', 'unified-notice');
   notice.hidden = true;
@@ -166,6 +167,7 @@ export function mountUnifiedWorkspace({
     returnCheckPending = true,
     returnedAfterAbsence = false,
     lastChat = null,
+    returnRequestKey = '',
     destroyed = false,
     motion = null;
   const storeKey = 'eilo:unified-return:v1';
@@ -462,6 +464,9 @@ export function mountUnifiedWorkspace({
     toggle.querySelector('use').setAttribute('href', open ? '#arrow-down' : '#arrow-up');
     history.hidden = !open;
     prompt.textContent = data.prompt;
+    const preparingReturn = view.snapshot?.return_briefing?.phase === 'preparing';
+    briefingStatus.textContent = preparingReturn ? 'Putting together your catch-up...' : '';
+    briefingStatus.hidden = !preparingReturn;
     const empty = dock.querySelector('.conversation-empty-state .live-empty');
     if (empty)
       empty.textContent = data.task
@@ -494,6 +499,7 @@ export function mountUnifiedWorkspace({
     if (lastChat && lastChat !== chat) {
       dismissed = true;
       notice.hidden = true;
+      returnRequestKey = '';
       closeDetail(false);
     }
     lastChat = chat;
@@ -512,6 +518,7 @@ export function mountUnifiedWorkspace({
       view.connection === 'connected' &&
       returnCheckPending;
     const now = Date.now();
+    const returnReason = day !== lastDay ? 'daily' : 'absence';
     const offer =
       canCheckReturn &&
       !dismissed &&
@@ -541,6 +548,11 @@ export function mountUnifiedWorkspace({
     if (offer) {
       dismissed = false;
       setOpen(true, { focus: false });
+      const requestKey = [chat, day, returnReason].join(':');
+      if (returnRequestKey !== requestKey) {
+        returnRequestKey = requestKey;
+        void client.requestReturn?.(returnReason, day);
+      }
     }
     const key = page + ':' + isOpen();
     render();

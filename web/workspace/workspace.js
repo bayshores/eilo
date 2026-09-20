@@ -9,7 +9,11 @@ import { refreshSetupHealth } from '../activity/setup-health.js';
 import { createLiveUpdates } from '../chat/live-updates.js';
 import { mountSpeechInput } from '../speech/input.js';
 import { mountSpeechOutput } from '../speech/output.js';
-import { mountWorkflowProgress } from '../chat/workflow-progress.js';
+import {
+  loadWorkflowDismissals,
+  mountWorkflowProgress,
+  rememberWorkflowDismissal,
+} from '../chat/workflow-progress.js';
 import { mountBriefingSources } from '../connections/briefing-sources.js';
 import { mountConnectionsManager } from '../connections/manager.js';
 import { mountAccount } from '../connections/account.js';
@@ -138,7 +142,7 @@ export function createLiveHome({
     browserPanel = null,
     briefingSourcesPanel = null,
     workflowPanel = null;
-  let dismissedWorkflowRunId = '';
+  let dismissedWorkflowRunIds = new Set(loadWorkflowDismissals(storage));
   const workflowHost = node('div', 'workflow-progress-host');
   workflowHost.hidden = true;
   dock.append(workflowHost);
@@ -689,7 +693,7 @@ export function createLiveHome({
     }
   };
   function renderWorkflow(run) {
-    if (!run || dismissedWorkflowRunId === run.id) {
+    if (!run || dismissedWorkflowRunIds.has(run.id)) {
       clearWorkflow();
       return;
     }
@@ -702,7 +706,9 @@ export function createLiveHome({
           if (
             ['completed', 'partial', 'failed', 'cancelled', 'interrupted'].includes(finished.status)
           ) {
-            dismissedWorkflowRunId = finished.id;
+            dismissedWorkflowRunIds = new Set(
+              rememberWorkflowDismissal(storage, [...dismissedWorkflowRunIds], finished.id),
+            );
             clearWorkflow();
           }
         },

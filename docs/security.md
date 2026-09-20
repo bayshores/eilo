@@ -62,7 +62,20 @@ Desktop collection is separately off by default. The Swift helper handles app ac
 
 Every admitted event is tied to source, capture time, session and policy revision. The backend validates again before persistence and model input. Detailed activity is retained for 24 hours, work summaries for 30 days, and explicitly chosen notes/preferences independently. Content uses Fernet with a macOS Keychain-backed key; the full-text index is in memory. Explicit forgetting follows derivation links through summaries, learned preferences and compositions. Saved conversations use their separate existing deletion flow.
 
-The compatibility page bridge retains its nonce/lease/renewal and pause/closure behavior. Its legacy check-in path remains separate from the new isolated context-analysis path. New context observations do not enter native conversation history. Check-ins, source sharing, contextual inference and desktop notifications have separate controls.
+The compatibility page bridge retains its nonce/lease/renewal and pause/closure behavior.
+Its legacy check-in path remains separate from the new isolated context-analysis path.
+New context observations do not enter native conversation history. Check-ins, source
+sharing, contextual inference and desktop notifications have separate controls.
+
+Automatic return briefings use a distinct detached lane. A Home request is not a
+native user message, cannot change task state, and can only open the same ephemeral
+read bridge already used for source-aware answers. The service treats a browser draft
+as an opt-out, never as proof that no draft exists. Before publication it checks the
+current session, task revision, human epoch, current local day, break state, and source
+permission again.
+Only an exact committed return record is projected to the browser; raw source bodies,
+bridge tokens, and model diagnostics stay private. Interrupted work is marked stale
+or recovered by exact native lookup, never rerun automatically.
 
 ## Review checklist
 

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Invoke the constrained native automatic-return lane.
+set -eu
+EILO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$EILO_ROOT/scripts/lib/runtime.sh"
+eilo_initialize_profile
+cd "$EILO_WORKSPACE_HOME"
+exec "$EILO_PYTHON" "$EILO_ROOT/app/return_driver.py" "$@"

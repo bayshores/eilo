@@ -206,13 +206,20 @@ guidance on for unset values. Draft outboxes use local browser storage (migrated
 from the previous session store), with per-chat pending-request identities kept.
 Conversation-open and reading-position preferences contain no task authority.
 
-The daily return view in `web/home/daily-start.js` reads the existing committed
-goal projection and explicitly linked work context. Day dismissal is a local
-presentation choice across chats; it never changes goals or schedules. No
-background model call is introduced.
+The unified Home return detector owns only local timing, dismissal, absence
+tracking, and the draft guard. When it admits an eligible daily or long-absence
+visit, the return briefing API asks ReturnLoop for one bounded automatic catch-up.
+ReturnLoop creates a shorter non-presentational SourceTurn, starts return_driver.py
+as a detached reader of the existing native history, and revalidates conversation
+identity, task revision, human epoch, current local day, break state, and source
+policy immediately
+before an eilo_return record is appended. The lane has no native user row, no task
+mutation capability, no background retry, and no raw source body in browser state.
+The ordinary message projection shows only an accepted delivered return and its
+minimized provenance.
 
 Source-use receipts are bounded version-1 native display metadata authored by
-the human/event drivers. They retain only task revision, input category and
+the human, event, and return drivers. They retain only task revision, input category and
 provided/unavailable/no-data outcome. Raw source content remains transient.
 Published message projection validates the receipt; historical messages without
 one remain readable. Legacy pending event publication shapes are accepted only

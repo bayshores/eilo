@@ -229,6 +229,27 @@ test('invalid service schema never falls through to samples or enables send', as
   assert.equal(h.client.view.connection, 'offline');
   assert.equal(h.client.canSend(), false);
 });
+test('automatic return requests do not take over the composer and carry a draft opt-out', async () => {
+  const h = harness();
+  await h.ready();
+  h.client.setDraft('Keep this thought.');
+  h.replies.push(
+    response(snapshot({ revision: 'instance:return', return_briefing: { phase: 'idle' } })),
+  );
+  await h.client.requestReturn('daily', '2026-09-19');
+  assert.equal(h.calls.at(-1).path, '/api/return/briefing');
+  assert.deepEqual(JSON.parse(h.calls.at(-1).body), {
+    request_id: ID,
+    reason: 'daily',
+    local_day: '2026-09-19',
+    draft_present: true,
+  });
+  assert.equal(h.client.view.draft, 'Keep this thought.');
+  const count = h.calls.length;
+  await h.client.requestReturn('unsupported', '2026-09-19');
+  assert.equal(h.calls.length, count);
+});
+
 test('recovery uses saved publication endpoint, never resends a message', async () => {
   const h = harness();
   await h.ready(snapshot({ recovery_pending: true, can_send: false }));

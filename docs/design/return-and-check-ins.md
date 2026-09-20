@@ -1,10 +1,13 @@
 # Date-aware return conversation and daytime check-ins
 
-September 19, 2026. Status: selected third visual direction integrated locally;
-source-backed automatic model briefings and expanded daytime reasoning remain
-planned. The implemented opening uses saved goal/date state with existing
-conversation and task APIs. Source: direct user choices in the planning conversation.
-Recheck this record when the user changes the behavior or implementation begins.
+September 19, 2026. Status: the selected third visual direction and the
+source-backed automatic return lane are implemented locally. The opening uses saved
+goal/date state immediately, then can publish one separately validated assistant
+catch-up using only already-permitted Calendar, Gmail, and work-context reads. Existing
+consented activity/context check-ins remain the daytime follow-through path; the app
+does not add a background Gmail or Calendar poll merely to manufacture a nudge.
+Source: direct user choices in the planning conversation. Recheck this record when
+the user changes the behavior.
 
 ## Implemented first increment
 
@@ -17,10 +20,12 @@ Fresh Calendar data can be displayed locally; disconnected sources remain explic
 
 Verification used an isolated real-task fixture for completion/undo, draft
 persistence, message submission and detail focus restoration. Browser inspection
-covered wide, compact and narrow layouts and app reduced-motion. A native restart
-kept conversation, message and task hashes identical. No personal test message,
-model call, source grant or notification grant was made. The complete future
-source-backed catch-up and new daytime admission paths below are not implemented.
+covered wide, compact and narrow layouts and app reduced-motion. The automatic lane
+has focused isolated tests for exact input and publication validation, source limits,
+delivery deduplication, cancellation on a human message, goal/source staleness, quiet
+outcomes, recovery, and safe message projection. A native-provider run remains a
+separate manual integration check because fixtures do not prove an account, provider,
+Calendar, Gmail, work context, notification, or spoken delivery.
 
 ## Problem
 
@@ -112,17 +117,18 @@ Keep the user's expandable conversation dock within the unified surface.
 
 ## Current-code starting points
 
-A focused September 19 inspection found `web/home/daily-start.js` implements a
-local-day-aware Home card, not an assistant-initiated native conversation.
-`app/briefing.py` scopes source capabilities to a user-requested turn. Extending
-that lifecycle requires a deliberate automatic-trigger path with the same
-permission and cancellation checks; do not fake a user message.
-`web/workspace/router.js` owns page routing; `web/workspace/workspace.js` joins
-Home and Talk. `web/adaptive/motion.js` provides GSAP/Flip motion and cleanup,
-and `web/app.js` already combines app and OS reduced-motion preferences.
-These are inspection pointers, not a completed architecture review.
+The unified Home detector now owns timing, absence, dismissal, and draft guards,
+then asks the local return briefing route for an eligible automatic catch-up.
+The return loop owns request deduplication, cancellation, staleness, and exact
+recovery; the return driver reads frozen native history through a shorter read-only
+source bridge and never records a user row. A lack of open goals does not suppress a
+grounded catch-up; an active break does. The briefing module owns that bridge and
+invalidates it when source policy changes. The workspace router owns page routing,
+and the shared adaptive motion modules preserve app and OS reduced-motion preferences.
+These are implementation pointers, not a claim that a local fixture proves
+native-provider delivery.
 
-## Proposed build sequence
+## Original build sequence and ongoing manual checks
 
 ### 0. Select the unified workspace design
 

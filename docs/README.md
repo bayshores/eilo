@@ -24,5 +24,5 @@ Start with the root [README](../README.md), then use the document that matches
 your task. Historical notes are evidence, not a replacement for code, tests, or
 the current product boundary.
 
-For the next planned return experience and proactive follow-through, see
-[Date-aware return conversation and daytime check-ins](design/return-and-check-ins.md).
+For the implemented return experience, existing daytime check-ins, and their
+design record, see [Date-aware return conversation and daytime check-ins](design/return-and-check-ins.md).

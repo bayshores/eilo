@@ -332,6 +332,19 @@
   line-height: 1.36;
   color: #eee8e2;
 }
+.unified-briefing-status {
+  display: block;
+  margin: -8px 0 16px;
+  color: #c7aea0;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  animation: unified-return-pulse 1.7s ease-in-out infinite;
+}
+@keyframes unified-return-pulse {
+  50% {
+    opacity: 0.58;
+  }
+}
 .unified-replies {
   display: flex;
   flex-wrap: wrap;
@@ -782,6 +795,44 @@
   padding: 8px;
   margin-inline: -8px;
   width: calc(100% + 16px);
+}
+
+/* The expanded dock is a conversation first. The day strip stays readable,
+   but it gives enough vertical room to follow an actual exchange. */
+@media (min-width: 701px) {
+  :root[data-source='live'] .workspace.unified-context-visible {
+    gap: 8px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible > .unified-summary {
+    gap: 8px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card {
+    min-height: 104px;
+    height: 104px;
+    padding: 10px 13px;
+    border-radius: 20px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-copy {
+    gap: 2px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-title {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-meta {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-eyebrow,
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-state {
+    font-size: 11px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible > .conversation-dock {
+    min-height: clamp(390px, 54dvh, 620px);
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .conversation-dock .live-messages {
+    max-height: none;
+  }
 }
 
 /* When someone opens chat, the brief remains visible as a compact context strip.

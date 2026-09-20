@@ -9,6 +9,37 @@ const RUN_STATUSES = new Set([
 const STEP_STATUSES = new Set(['pending', 'running', 'completed', 'failed', 'skipped']);
 const TERMINAL_STATUSES = new Set(['completed', 'partial', 'failed', 'cancelled', 'interrupted']);
 
+const WORKFLOW_DISMISSAL_KEY = 'eilo:dismissed-workflow-runs:v1';
+const WORKFLOW_DISMISSAL_CAP = 100;
+
+const savedRunId = (value) =>
+  typeof value === 'string' && value.trim() && value.length <= 160 ? value : '';
+
+/** Presentation-only receipts keep completed source runs from returning after restart. */
+export function loadWorkflowDismissals(storage = null) {
+  try {
+    const saved = JSON.parse(storage?.getItem(WORKFLOW_DISMISSAL_KEY) || '[]');
+    return Array.isArray(saved)
+      ? [...new Set(saved.map(savedRunId).filter(Boolean))].slice(-WORKFLOW_DISMISSAL_CAP)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberWorkflowDismissal(storage = null, current = [], runId) {
+  const id = savedRunId(runId);
+  const prior = Array.isArray(current) ? current.map(savedRunId).filter(Boolean) : [];
+  const next = id ? [...new Set([...prior.filter((value) => value !== id), id])] : prior;
+  const retained = next.slice(-WORKFLOW_DISMISSAL_CAP);
+  try {
+    storage?.setItem(WORKFLOW_DISMISSAL_KEY, JSON.stringify(retained));
+  } catch {
+    /* A current session can still keep its dismissed card out of the way. */
+  }
+  return retained;
+}
+
 const permittedSourceUrl = (value) => {
   try {
     const url = new URL(value);

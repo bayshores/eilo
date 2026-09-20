@@ -126,6 +126,26 @@ def register(app: web.Application, chat: LocalChat) -> None:
         except TaskError as exc:
             return web.json_response({"error": str(exc)}, status=400)
 
+    async def return_briefing(request: web.Request) -> web.Response:
+        body = await request.json()
+        if (
+            not isinstance(body, dict)
+            or set(body) != {"request_id", "reason", "local_day", "draft_present"}
+            or not isinstance(body["request_id"], str)
+            or not REQUEST_ID.fullmatch(body["request_id"])
+            or body["reason"] not in {"daily", "absence"}
+            or not isinstance(body["local_day"], str)
+            or not isinstance(body["draft_present"], bool)
+        ):
+            return web.json_response({"error": "Invalid return briefing request."}, status=400)
+        await chat.returns.request(
+            body["request_id"],
+            body["reason"],
+            body["local_day"],
+            draft_present=body["draft_present"],
+        )
+        return web.json_response(chat.snapshot(), status=202)
+
     async def recover(request: web.Request) -> web.Response:
         if await request.json() != {}:
             return web.json_response({"error": "Invalid recovery request."}, status=400)
@@ -136,6 +156,7 @@ def register(app: web.Application, chat: LocalChat) -> None:
                 await chat.refresh()
                 await chat.recover_publication()
                 await chat.proactive.recover_publications()
+                await chat.returns.recover_publications()
                 chat.error, chat.blocked = None, False
                 chat.changed()
         return web.json_response(chat.snapshot())
@@ -144,6 +165,7 @@ def register(app: web.Application, chat: LocalChat) -> None:
         return web.json_response(await chat.compress_context(await request.json()), status=202)
 
     app.router.add_post("/api/chat/context", chat_context)
+    app.router.add_post("/api/return/briefing", return_briefing)
     app.router.add_get("/api/state", state)
     app.router.add_get("/api/workspace/catalog", catalog)
     app.router.add_post("/api/workspace/catalog", catalog)

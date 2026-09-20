@@ -20,17 +20,20 @@ Home offers **Continue**, **Help me start**, and **Change plan**. Help me start
 prepares an editable message; sending it asks for a small next step without
 silently changing your goal. An existing draft is never replaced.
 
-On the first visit of the day, and after at least four hours away, the inline return
-point uses the chosen saved goal, an explicitly linked return point when available,
-and a recently synced upcoming Calendar event when available. It waits when you have
-a draft, a pending reply, or an active break. **Not now** dismisses it for the day
-across chats. **Turn off daily guidance** disables future return points. The preference
-is also in Settings → General. It does not open over a conversation or move keyboard
-focus. When an exact goal date has passed, choose **Finished**, **Still want to**,
-**Drop goal**, or **Not now**. Still want to opens that goal's editor so you can set a
-new calendar date or keep an explanatory timing note. Returning after a short
-interruption retains the draft and conversation view; reload also restores the reading
-position. Missed days do not reschedule goals.
+On the first visit of the day, and after at least four hours away, Home opens a
+compact return briefing when you do not have a draft, pending reply, or active break.
+It can add one assistant catch-up to that conversation using its saved goals and
+conversation, or a grounded next question when no goal is open, plus Calendar, Gmail,
+and current work context only when those sources
+are already connected and enabled for answers. The catch-up never sends mail, changes
+Calendar, completes a goal, or silently moves a deadline. If a date has passed, it
+asks whether you finished the goal, still want it, or want to drop it.
+
+**Not now** dismisses the visual briefing for the day across chats. **Turn off daily
+guidance** disables future return points. The preference is also in Settings → General.
+It does not replace a draft, move keyboard focus, or later interrupt you after an
+initial blocked visit. Still want to opens that goal's editor so you can set a new date
+yourself.
 
 ## Connect ChatGPT
 

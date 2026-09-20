@@ -135,6 +135,24 @@ class BriefingTests(unittest.TestCase):
     def tearDown(self):
         self.run_async(self.turn.close())
 
+    def test_return_source_turn_is_narrow_and_does_not_publish_human_workflow_progress(self):
+        turn = SourceTurn(
+            self.owner,
+            "return-lane",
+            report=False,
+            limits={"calls": 8, "threads": 2, "context": 24_000, "mail_days": 14, "seconds": 150},
+        )
+        self.owner.return_turns = {turn}
+        result = self.run_async(turn.read("eilo_sources", {}))
+        self.assertEqual(result["data"]["mail_max_read_threads_per_turn"], 2)
+        self.assertEqual(result["data"]["mail_default_window_days"], 14)
+        self.assertNotIn("workflow_run", self.owner.chat.meta)
+        turn.calls = 8
+        with self.assertRaises(CalendarError):
+            self.run_async(turn.read("eilo_sources", {}))
+        self.run_async(turn.close())
+        self.assertEqual(self.owner.return_turns, set())
+
     def test_undiscovered_thread_id_is_blocked_without_provider_read(self):
         result = self.run_async(
             self.turn.read(
