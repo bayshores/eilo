@@ -763,3 +763,33 @@
   margin-inline: -8px;
   width: calc(100% + 16px);
 }
+
+/* hiddenInset keeps macOS window controls over web content; clear their hit area. */
+:root[data-source='live'][data-native-host='macos'] .workspace.unified-home .scene-wordmark {
+  left: 96px;
+  top: 18px;
+}
+
+@media (max-height: 700px) {
+  :root[data-source='live'] .workspace.unified-home {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock.has-return-briefing,
+  :root[data-source='live']
+    .workspace.unified-home
+    .conversation-dock.has-return-briefing
+    > .live-chat,
+  :root[data-source='live']
+    .workspace.unified-home
+    .conversation-dock.has-return-briefing
+    .conversation-thread {
+    flex: none;
+  }
+  :root[data-source='live']
+    .workspace.unified-home
+    .conversation-dock.has-return-briefing
+    .conversation-thread {
+    overflow: visible;
+  }
+}

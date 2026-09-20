@@ -1,4 +1,8 @@
 if (document.documentElement.dataset.source === 'live') {
+  const isMacElectron =
+    navigator.userAgent.includes('Electron') && navigator.userAgent.includes('Macintosh');
+  if (isMacElectron) document.documentElement.dataset.nativeHost = 'macos';
+
   const { createHeroGradient } = await import('./hero-gradient.js');
   const background = document.createElement('div');
   background.className = 'hero-gradient';
