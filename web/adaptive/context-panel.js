@@ -41,6 +41,15 @@ export function contextPolicyPatch(current, changes) {
   };
 }
 
+/** Choosing an additional source must not silently restart an intentional pause. */
+export function sourcePolicyPatch(current, flag, enabled) {
+  const policy = current?.policy || {};
+  const next = contextPolicyPatch(current, { [flag]: enabled });
+  const hasConfiguredSource = policy.desktop_enabled === true || policy.browser_enabled === true;
+  if (enabled && !hasConfiguredSource) next.enabled = true;
+  return next;
+}
+
 export function contextSummary(current) {
   if (!current) return { label: 'Unavailable', tone: 'quiet' };
   if (!current.policy?.ai_enabled) return { label: 'Off', tone: 'quiet' };
@@ -372,7 +381,7 @@ export function createContextPanel({
     ],
   ]) {
     const row = switchRow(flag, label, detail, async (checked) => {
-      await run('context', 'configure', { [flag]: checked, ...(checked ? { enabled: true } : {}) });
+      await run('context', 'configure', sourcePolicyPatch(current, flag, checked));
       if (source === 'desktop' && checked) {
         showDesktopGuide = true;
         renderedKey = '';

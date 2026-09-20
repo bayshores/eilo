@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import math
+import re
 import time
 import uuid
 from pathlib import Path
@@ -28,6 +29,29 @@ from app.accountability import (
 from app.activity_ledger import ActivityLedger
 from app.persistence import write_private
 from app.tasks import has_open_work, public_state
+
+_TASK_TERM = re.compile(r"[a-z0-9]{5,}")
+_COMMON_TASK_TERMS = frozenset(
+    {
+        "complete",
+        "finish",
+        "focus",
+        "goals",
+        "practice",
+        "problem",
+        "problems",
+        "project",
+        "projects",
+        "review",
+        "roadmap",
+        "start",
+        "study",
+        "tasks",
+        "today",
+        "work",
+        "write",
+    }
+)
 
 
 class ProactiveLoop:
@@ -64,10 +88,14 @@ class ProactiveLoop:
         self.event_task = None
         self.event_id = None
         self.context_generation = None
+        self.focus_shift_task_id = None
         self.publishing = False
 
     def check_ins_enabled(self):
-        if getattr(self.chat, "context", None) is not None and not self.active():
+        if getattr(self.chat, "context", None) is not None:
+            # A resident ContextService has its own durable delivery consent.
+            # A still-active legacy page lease must not make the UI say that
+            # resident check-ins are on when the decision path will reject them.
             return bool(self.state["context_check_ins_enabled"] and self.state["check_ins_enabled"])
         return bool(self.state["check_ins_enabled"])
 
@@ -78,6 +106,7 @@ class ProactiveLoop:
         generation = (context.state["policy_epoch"], context._generation)
         if generation != self.context_generation:
             self.context_generation = generation
+            self.focus_shift_task_id = None
             self.invalidate()
             if self.latest and self.latest.get("kind") == "work_context":
                 self.latest = None
@@ -86,6 +115,7 @@ class ProactiveLoop:
             self.update_context(observation, self.now())
         elif self.latest and self.latest.get("kind") == "work_context":
             self.latest = None
+            self.focus_shift_task_id = None
             self.invalidate()
 
     def decision_active(self):
@@ -198,6 +228,7 @@ class ProactiveLoop:
         now = self.now()
         enabled = self.check_ins_enabled()
         tasks = self.chat.meta["tasks"]
+        context = getattr(self.chat, "context", None)
         if not enabled:
             phase = "off"
         elif self.chat.blocked:
@@ -210,6 +241,11 @@ class ProactiveLoop:
             phase = "no_goals"
         elif any(event.get("status") == "publishing" for event in self.state["events"].values()):
             phase = "unavailable"
+        elif context is not None and not self.decision_active():
+            # The resident collector deliberately has no page lease.  When eïlo
+            # is foreground, its freshest browser sample may already have aged out;
+            # that means wait for new admitted context, not that sharing was revoked.
+            phase = "awaiting_observation"
         elif self.mode == "off" and not self.decision_active():
             phase = "activity_off"
         elif not self.decision_active():
@@ -255,13 +291,13 @@ class ProactiveLoop:
         }
 
     def notification_events(self):
-        if (
-            not self.check_ins_enabled()
-            or not self.decision_active()
-            or self.chat.busy
-            or not has_open_work(self.chat.meta["tasks"])
-            or not self.latest
-        ):
+        # Delivery happens only after ``current`` has admitted and published the
+        # check-in. The native host may poll a few seconds later, after a
+        # browser observation has naturally aged out, so do not make a saved
+        # message disappear just because it is no longer safe to start a new
+        # decision. A reply, goal change, new conversation, explicit pause,
+        # recovery, or the short delivery window still suppresses it.
+        if not self.check_ins_enabled():
             return []
         return [
             identity
@@ -273,7 +309,6 @@ class ProactiveLoop:
             and event.get("human_epoch") == self.state["human_epoch"]
             and event.get("session_id", self.chat.meta.get("session_id"))
             == self.chat.meta.get("session_id")
-            and event.get("fingerprint") == fingerprint(self.latest)
         ][-30:]
 
     def persist(self):
@@ -288,6 +323,8 @@ class ProactiveLoop:
             self.event_task.cancel()
 
     def on_human(self, text, request_id):
+        # A direct response starts a fresh interpretation period.
+        self.focus_shift_task_id = None
         # Link a response to the latest check-in without retaining another transcript.
         for event in reversed(list(self.state["events"].values())) if text else []:
             if (
@@ -304,10 +341,12 @@ class ProactiveLoop:
 
     def control(self, action, client_id):
         if action == "enable_check_ins":
+            self.focus_shift_task_id = None
             self.state["check_ins_enabled"] = True
             self.state["context_check_ins_enabled"] = True
             self.persist()
         elif action == "pause_check_ins":
+            self.focus_shift_task_id = None
             self.state["check_ins_enabled"] = False
             self.state["context_check_ins_enabled"] = False
             self.invalidate()
@@ -334,6 +373,7 @@ class ProactiveLoop:
                 0,
                 None,
             )
+            self.focus_shift_task_id = None
             self.chrome_available = False
             if not self.collector or self.collector.done():
                 self.collector = asyncio.create_task(
@@ -385,6 +425,7 @@ class ProactiveLoop:
         self.client_id, self.lease_until = None, 0
         self.ledger.close()
         self.sample_request, self.latest = None, None
+        self.focus_shift_task_id = None
         self.last_observation_at = None
         self.preview = {"kind": "activity_unshared"}
         self.chrome_available = False
@@ -440,6 +481,7 @@ class ProactiveLoop:
                     else:
                         self.sample_request = None
                         self.latest = None
+                        self.focus_shift_task_id = None
                         self.preview = {"kind": "activity_unknown"}
                         self.ledger.close("unavailable")
                         self.reason = (
@@ -476,6 +518,7 @@ class ProactiveLoop:
             else:
                 self.preview = {"kind": "activity_unknown"}
                 self.latest = None
+                self.focus_shift_task_id = None
                 self.invalidate()
             self.chat.changed()
             return
@@ -492,6 +535,7 @@ class ProactiveLoop:
             self.persist()
         if observation.get("kind") == "activity_invalid":
             self.latest = None
+            self.focus_shift_task_id = None
             self.preview = {"kind": "activity_unshared"}
             self.reason = (
                 "An invalid activity sample was discarded. No background decision was made."
@@ -499,6 +543,7 @@ class ProactiveLoop:
             self.invalidate()
             return
         if not self.latest or fingerprint(self.latest) != fingerprint(observation):
+            self.focus_shift_task_id = self._focus_shift_task(self.latest, observation)
             self.stable_since = now
             self.invalidate()
         self.latest = observation
@@ -510,6 +555,90 @@ class ProactiveLoop:
             else "Activity details are unshared. A limited goal/progress question may use this coarse signal; it is not evidence of distraction."
         )
         self.maybe_decide(now)
+
+    @staticmethod
+    def _task_terms(title):
+        return tuple(
+            dict.fromkeys(
+                term
+                for term in _TASK_TERM.findall(str(title or "").casefold())
+                if term not in _COMMON_TASK_TERMS
+            )
+        )
+
+    @staticmethod
+    def _context_terms(observation):
+        return frozenset(
+            _TASK_TERM.findall(
+                " ".join(str(observation.get(key) or "") for key in ("origin", "title")).casefold()
+            )
+        )
+
+    def _focus_shift_task(self, previous, current):
+        # Identify only a clear transition away from the selected focus. Another
+        # open task remains legitimate work and must never become a nudge trigger.
+        if (
+            not isinstance(previous, dict)
+            or not isinstance(current, dict)
+            or previous.get("kind") != "work_context"
+            or current.get("kind") != "work_context"
+        ):
+            return None
+        tasks = self.chat.meta["tasks"]
+        focus_id = tasks.get("focus_id")
+        focused = next(
+            (
+                task
+                for task in tasks["tasks"]
+                if task.get("id") == focus_id and task.get("status") == "open"
+            ),
+            None,
+        )
+        if focused is None:
+            return None
+        focus_terms = set(self._task_terms(focused.get("title")))
+        previous_terms = self._context_terms(previous)
+        current_terms = self._context_terms(current)
+        if not focus_terms or not focus_terms.intersection(previous_terms):
+            return None
+        if any(
+            set(self._task_terms(task.get("title"))).intersection(current_terms)
+            for task in tasks["tasks"]
+            if task.get("status") == "open"
+        ):
+            return None
+        return focused["id"]
+
+    def _focus_shift_decision(self, event_id, event):
+        task_id = event.get("focus_shift_task_id")
+        tasks = self.chat.meta["tasks"]
+        if task_id != tasks.get("focus_id"):
+            return None
+        task = next(
+            (
+                value
+                for value in tasks["tasks"]
+                if value.get("id") == task_id and value.get("status") == "open"
+            ),
+            None,
+        )
+        if task is None:
+            return None
+        title = " ".join(str(task.get("title") or "").split())[:160]
+        if not title:
+            return None
+        return validate_decision(
+            {
+                "event_id": event_id,
+                "decision": "ask",
+                "related_task_ids": [task_id],
+                "message": (
+                    f"Your focus is “{title}.” Is this a quick break, "
+                    "or would a small nudge back help?"
+                ),
+            },
+            event_id,
+        )
 
     def maybe_decide(self, now=None):
         now = self.now() if now is None else now
@@ -547,6 +676,7 @@ class ProactiveLoop:
             "observed_session_id": (self.ledger.snapshot(now).get("active_session") or {}).get(
                 "id"
             ),
+            "focus_shift_task_id": self.focus_shift_task_id,
         }
         self.state["events"][event_id] = event
         # Bound discarded attempts while retaining native conversation/publication links.
@@ -599,10 +729,25 @@ class ProactiveLoop:
                     event["status"] = "stale"
                     return
 
+                def on_preview(text):
+                    # The event process emits framed previews.  Passing this handler
+                    # makes LocalChat unwrap its final receipt and gives Home a
+                    # provisional, cancellable check-in only while its authority
+                    # still holds.
+                    if self.current(event):
+                        self.stream = {
+                            "id": event_id,
+                            "event_id": event_id,
+                            "text": text,
+                            "status": "writing",
+                        }
+                        self.chat.changed()
+
                 code, out, _ = await self.chat.command(
                     ["--input", str(path), "--stream"],
                     launcher="hermes-event",
                     timeout=120,
+                    on_preview=on_preview,
                 )
                 value = json.loads(out) if code == 0 else {}
                 audit = value.get("audit", {})
@@ -619,6 +764,8 @@ class ProactiveLoop:
                 provenance = validate_provenance(value.get("provenance"))
                 if provenance is None or provenance["task_revision"] != event["task_revision"]:
                     decision = None
+                if decision and decision["decision"] == "quiet":
+                    decision = self._focus_shift_decision(event_id, event) or decision
                 if decision:
                     allowed_ids = {
                         task["id"]

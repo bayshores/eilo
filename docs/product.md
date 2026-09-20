@@ -78,6 +78,10 @@ Keep the consequence of a permission or destructive action visible at the decisi
 
 Browser context works across regular HTTP and HTTPS sites. Do not require users to pick from a fixed site list or label sites as productive/distracting. eïlo interprets permitted context alongside the person's conversation and commitments; the site alone is not evidence of intent or completion. One optional Chrome permission covers the browser. Site exclusions are optional controls, not an onboarding prerequisite.
 
+When a focused task's distinctive terms appear in one permitted work context and a later stable context matches no open task, eïlo may ask whether it is a quick break or whether a small nudge back would help. It does not call that change procrastination, assume a site was off-task, or infer an outcome.
+
+When a new eligible check-in arrives while eïlo is out of focus, a small native glass overlay can show the already-delivered eïlo message without activating its window. A delivered check-in remains eligible for that short handoff even when the source observation later ages out; a reply, goal change, new conversation, explicit pause, recovery, or its delivery window suppresses it. The overlay stays long enough to read, disappears on its own, or opens the existing conversation only after a deliberate click. Desktop alerts remain a separate optional preference.
+
 Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actual selected states, editing carets, Home arrangement cues, and visible focus when navigating by keyboard.
 
 ### Product composition

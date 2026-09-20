@@ -189,7 +189,11 @@ class AutonomyIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 "message_id": "4",
             },
         )
-        self.assertEqual(len(self.chat.changed_states), 1)
+        self.assertEqual(
+            len(self.chat.changed_states),
+            2,
+            "the provisional stream and its durable completion each update Home",
+        )
 
     async def test_pause_source_or_task_change_discards_draft_before_delivery(self):
         for change in ("pause", "source", "task"):
@@ -219,7 +223,10 @@ class AutonomyIntegrationTests(unittest.IsolatedAsyncioTestCase):
             self.chat.command = command
             await self.loop.decide(payload)
             self.assertEqual(event["status"], "stale")
-            self.assertIsNone(self.loop.stream)
+            self.assertEqual(
+                self.loop.stream,
+                {"id": change, "event_id": change, "text": "Writing", "status": "interrupted"},
+            )
             self.chat.command = original
             self.loop.mode, self.loop.client_id, self.loop.lease_until = "active", "client", 2000
 

@@ -9,8 +9,11 @@ function createNotificationPolicy({
   save = () => {},
   show = () => {},
   onError = () => {},
+  defaultEnabled = false,
+  includeText = false,
+  requireEligibility = false,
 } = {}) {
-  let enabled = false;
+  let enabled = defaultEnabled === true;
   let seen = [];
   let needsBaseline = true;
   let currentConversationId = null;
@@ -112,7 +115,9 @@ function createNotificationPolicy({
           text.trim() === ''
         )
           return [];
-        return [{ conversationId, eventId, messageId, key: `${conversationId}\u0000${eventId}` }];
+        return [
+          { conversationId, eventId, messageId, text, key: `${conversationId}\u0000${eventId}` },
+        ];
       })
       .slice(-MAX_SEEN_KEYS);
     return { messages, notificationEventIds };
@@ -131,6 +136,7 @@ function createNotificationPolicy({
     const qualified = checkInsFrom(snapshot);
     if (qualified === null) return status();
     const { messages: checkIns, notificationEventIds } = qualified;
+    if (requireEligibility && notificationEventIds === null) return status();
 
     const conversationId = snapshot.conversation_id;
     if (needsBaseline || currentConversationId !== conversationId) {
@@ -156,12 +162,16 @@ function createNotificationPolicy({
     if (!foreground && eligible.length > 0) {
       const latest = eligible[eligible.length - 1];
       try {
-        show({
+        const record = {
           conversationId: latest.conversationId,
           eventId: latest.eventId,
           messageId: latest.messageId,
           body: GENERIC_BODY,
-        });
+        };
+        // A native eïlo overlay can render the already-delivered assistant
+        // message locally. Notification preferences and diagnostics retain IDs only.
+        if (includeText) record.text = latest.text;
+        show(record);
       } catch (error) {
         report(error);
       }

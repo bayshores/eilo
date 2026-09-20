@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { contextPolicyPatch, contextSummary, canSaveContextCorrection } from './context-panel.js';
+import {
+  canSaveContextCorrection,
+  contextPolicyPatch,
+  contextSummary,
+  sourcePolicyPatch,
+} from './context-panel.js';
 
 test('context setting changes preserve independently chosen permissions and exclusions', () => {
   const current = {
@@ -30,6 +35,31 @@ test('context setting changes preserve independently chosen permissions and excl
   assert.equal(paused.browser_enabled, true);
   assert.equal(paused.ai_enabled, true);
   assert.equal(paused.enabled, false);
+});
+
+test('adding a source preserves an intentional recording pause', () => {
+  const paused = {
+    policy: {
+      enabled: false,
+      desktop_enabled: true,
+      browser_enabled: false,
+      text_enabled: true,
+      visuals_enabled: false,
+      ai_enabled: true,
+      excluded_domains: [],
+      excluded_bundle_ids: [],
+    },
+  };
+  const resumedSource = sourcePolicyPatch(paused, 'browser_enabled', true);
+  assert.equal(resumedSource.browser_enabled, true);
+  assert.equal(resumedSource.enabled, false);
+
+  const firstSource = sourcePolicyPatch(
+    { policy: { ...paused.policy, desktop_enabled: false, browser_enabled: false } },
+    'browser_enabled',
+    true,
+  );
+  assert.equal(firstSource.enabled, true);
 });
 
 test('Home context status does not imply that choosing adaptive layout enabled AI', () => {

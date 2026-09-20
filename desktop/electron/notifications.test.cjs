@@ -42,6 +42,32 @@ test('is opt-in and baselines existing messages when first enabled', () => {
   ]);
 });
 
+test('an always-on overlay delivery can use fresh eligible text without persisting it', () => {
+  const store = memoryStore();
+  const shown = [];
+  const policy = createNotificationPolicy({
+    ...store,
+    defaultEnabled: true,
+    includeText: true,
+    requireEligibility: true,
+    show: (record) => shown.push(record),
+  });
+  policy.inspect(notificationSnapshot('c1', [], []), { foreground: false });
+  policy.inspect(notificationSnapshot('c1', [message('m1', 'e1', 'A small check-in.')], ['e1']), {
+    foreground: false,
+  });
+  assert.deepEqual(shown, [
+    {
+      conversationId: 'c1',
+      eventId: 'e1',
+      messageId: 'm1',
+      body: GENERIC_BODY,
+      text: 'A small check-in.',
+    },
+  ]);
+  assert.equal(Object.hasOwn(store.value(), 'text'), false);
+});
+
 test('foreground messages are marked seen without an OS notification', () => {
   const shown = [];
   const policy = createNotificationPolicy({ show: (record) => shown.push(record) });

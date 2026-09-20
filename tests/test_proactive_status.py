@@ -8,6 +8,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.accountability import MAX_CALLS_HOUR, fingerprint, initial_state
 from app.proactive import ProactiveLoop
@@ -152,6 +153,51 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
             self.chat.add_open_task()
             configure()
             self.assertEqual(self.loop.snapshot()["check_ins"]["phase"], expected)
+
+    def test_resident_checkin_consent_is_not_masked_by_an_active_legacy_lease(self):
+        self.chat.context = SimpleNamespace(check_in_context=lambda: APPROVED)
+        self.loop.state["check_ins_enabled"] = True
+        self.loop.state["context_check_ins_enabled"] = False
+
+        status = self.loop.snapshot()["check_ins"]
+
+        self.assertFalse(status["enabled"])
+        self.assertEqual(status["phase"], "off")
+
+    def test_resident_checkins_wait_for_new_context_instead_of_reporting_revoked_sharing(self):
+        self.chat.context = SimpleNamespace(check_in_context=lambda: None)
+        self.loop.state["check_ins_enabled"] = True
+        self.loop.state["context_check_ins_enabled"] = True
+
+        status = self.loop.snapshot()["check_ins"]
+
+        self.assertTrue(status["enabled"])
+        self.assertEqual(status["phase"], "awaiting_observation")
+
+    def test_delivered_checkin_stays_available_for_native_delivery_after_context_ages_out(self):
+        self.chat.context = SimpleNamespace(check_in_context=lambda: APPROVED)
+        self.loop.state["check_ins_enabled"] = True
+        self.loop.state["context_check_ins_enabled"] = True
+        self.loop.latest, self.loop.last_observation_at = APPROVED, self.clock[0]
+        self.loop.state["events"]["event-delivered"] = {
+            "status": "delivered",
+            "created_at": self.clock[0],
+            "task_revision": self.chat.meta["tasks"]["revision"],
+            "human_epoch": self.loop.state["human_epoch"],
+            "session_id": self.chat.meta["session_id"],
+        }
+
+        self.assertEqual(self.loop.notification_events(), ["event-delivered"])
+
+        # The browser is allowed to go quiet after publishing. That should
+        # block another model decision, but not the short native delivery of
+        # the message eïlo already saved.
+        self.chat.context = SimpleNamespace(check_in_context=lambda: None)
+        self.loop.latest = None
+        self.assertEqual(self.loop.notification_events(), ["event-delivered"])
+
+        self.loop.state["human_epoch"] += 1
+        self.assertEqual(self.loop.notification_events(), [])
 
     async def test_pause_invalidates_running_event_without_stopping_collection_or_lease(self):
         event = {

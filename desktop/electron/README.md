@@ -31,6 +31,8 @@ Notifications start off. In the native **eïlo** menu or menu-bar icon, select *
 
 The host checks existing final check-ins every four seconds while enabled. First adoption, re-enabling and conversation changes baseline existing history quietly. It records identifiers before requesting a notification, shows at most the latest new check-in per poll, and suppresses duplicates and foreground alerts. The OS preview is generic; message text stays inside eïlo. Clicking a notification opens its existing check-in in the inline conversation without replacing the selected native conversation or starting inference. An obsolete target reports that it is no longer in the current conversation.
 
+A current eligible check-in also gets a small local glass overlay while eïlo is out of focus. It shows the already-delivered assistant text, uses a non-activating window, dismisses itself after 18 seconds, and opens the existing conversation only after a click. The overlay is independent of the macOS alert preference and does not expose browser or desktop-source details.
+
 Preferences, a bounded seen list and a small lifecycle diagnostic are app-managed local state. Message text is not copied into notification preferences or diagnostics. This suppression policy favors avoiding repeated interruptions; it is not the durable outreach outbox in the implementation plan, and an OS request does not prove a banner was seen or read. Already accepted OS notifications cannot always be retracted before they are seen.
 
 ## Speech and permissions

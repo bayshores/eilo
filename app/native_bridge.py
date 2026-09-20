@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 MAX_MESSAGE_BYTES = 128 * 1024
+CLIENT_SEND_TIMEOUT_SECONDS = 2
 POLICY_FIELDS = {
     "kind",
     "schema_version",
@@ -239,12 +240,19 @@ class ContextBroker:
                 client.setup_verified = client.grant_verified = False
                 client.verified_policy = None
         for client in tuple(self._clients):
-            try:
-                await client.send(policy)
-            except (ConnectionError, OSError, NativeBridgeError):
-                self._clients.discard(client)
+            await self._send_or_drop(client, policy)
         if changed:
             await self._status(self._health(status="policy_updated"))
+
+    async def _send_or_drop(self, client: _Client, value: dict[str, Any]) -> bool:
+        """Keep a stale local bridge from blocking a privacy-control write."""
+        try:
+            await asyncio.wait_for(client.send(value), timeout=CLIENT_SEND_TIMEOUT_SECONDS)
+            return True
+        except (TimeoutError, ConnectionError, OSError, NativeBridgeError):
+            self._clients.discard(client)
+            client.writer.close()
+            return False
 
     async def update_allowed_origins(self, origins: set[str] | frozenset[str]) -> None:
         """Apply the current validated registration file and drop removed origins."""
@@ -300,7 +308,8 @@ class ContextBroker:
             self._clients.add(client)
             policy = await self._policy()
             self._last_policy = (policy["session_id"], policy["policy_epoch"])
-            await client.send(policy)
+            if not await self._send_or_drop(client, policy):
+                return
             await self._status(self._health(status="connected", origin=client.origin))
             while True:
                 try:
@@ -308,13 +317,15 @@ class ContextBroker:
                 except TimeoutError:
                     policy = await self._policy()
                     if policy["enabled"]:
-                        await client.send(
+                        if not await self._send_or_drop(
+                            client,
                             {
                                 "kind": "sample",
                                 "session_id": policy["session_id"],
                                 "policy_epoch": policy["policy_epoch"],
-                            }
-                        )
+                            },
+                        ):
+                            return
                     continue
                 if not raw:
                     return

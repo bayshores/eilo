@@ -10,6 +10,7 @@ const {
   dialog,
   systemPreferences,
   shell,
+  screen,
 } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -27,6 +28,8 @@ const {
   briefingAuthorizationURL,
   briefingSourceURL,
 } = require('./security.cjs');
+
+const CHECK_IN_OVERLAY_DURATION_MS = 45_000;
 
 function runDesktop() {
   app.setName('eïlo');
@@ -81,14 +84,21 @@ function runDesktop() {
   app.setPath('userData', path.join(stateRoot, 'profile'));
   app.setPath('sessionData', path.join(stateRoot, 'profile'));
   const preferencesPath = path.join(stateRoot, 'notifications.json');
+  const overlayPreferencesPath = path.join(stateRoot, 'check-in-overlay.json');
   const statusPath = path.join(stateRoot, 'status.json');
   let window = null,
+    overlay = null,
     tray = null,
     policy = null,
+    overlayPolicy = null,
     quitting = false,
     stopped = false;
   let startup = null,
     pendingTarget = null,
+    overlayPayload = null,
+    overlayTimer = null,
+    overlayReady = false,
+    overlayActionTarget = null,
     homeReady = false,
     timer = null,
     pollBusy = false;
@@ -219,6 +229,145 @@ function runDesktop() {
     }
   }
 
+  function overlayText(value) {
+    if (typeof value !== 'string') return null;
+    const compact = [...value]
+      .filter((character) => {
+        const code = character.charCodeAt(0);
+        return code >= 32 && code !== 127;
+      })
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 600);
+    return compact || null;
+  }
+
+  function closeOverlay() {
+    clearTimeout(overlayTimer);
+    overlayTimer = null;
+    overlayPayload = null;
+    overlayReady = false;
+    overlayActionTarget = null;
+    const current = overlay;
+    overlay = null;
+    if (current && !current.isDestroyed()) current.close();
+  }
+
+  function overlayBounds() {
+    try {
+      // Pointer location is not a useful display choice when the check-in is
+      // triggered by keyboard or an automation. Keep the surface on the
+      // workspace display and use pointer position only as a legacy fallback.
+      const homeBounds =
+        window && !window.isDestroyed() && typeof window.getBounds === 'function'
+          ? window.getBounds()
+          : null;
+      const display =
+        (homeBounds && typeof screen.getDisplayMatching === 'function'
+          ? screen.getDisplayMatching(homeBounds)
+          : null) ||
+        (typeof screen.getPrimaryDisplay === 'function' ? screen.getPrimaryDisplay() : null) ||
+        screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const area = display?.workArea;
+      if (
+        !area ||
+        ![area.x, area.y, area.width, area.height].every((value) => Number.isFinite(value))
+      )
+        return {};
+      return {
+        x: Math.max(area.x, area.x + area.width - 424),
+        y: Math.max(area.y, area.y + 34),
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  function presentCheckInOverlay() {
+    if (!overlay || overlay.isDestroyed() || !overlayPayload || !overlayReady) return;
+    overlay.webContents.send('eilo:overlay-check-in', overlayPayload);
+    overlay.showInactive();
+    clearTimeout(overlayTimer);
+    overlayTimer = setTimeout(closeOverlay, CHECK_IN_OVERLAY_DURATION_MS);
+    overlayTimer.unref?.();
+  }
+
+  function showCheckInOverlay(record, { preview = false } = {}) {
+    const target = checkInTarget(record);
+    const text = overlayText(record?.text);
+    // This visual surface is for an already delivered check-in. It is local,
+    // non-activating, and never renders raw source context or a renderer-supplied URL.
+    if (!target || !text || quitting || (!preview && window?.isFocused())) return;
+    overlayPayload = { ...target, text };
+    overlayActionTarget = preview ? null : target;
+    if (overlay && !overlay.isDestroyed()) {
+      presentCheckInOverlay();
+      return;
+    }
+    try {
+      const currentOverlay = new BrowserWindow({
+        width: 396,
+        height: 188,
+        minWidth: 396,
+        maxWidth: 396,
+        minHeight: 188,
+        maxHeight: 188,
+        show: false,
+        frame: false,
+        transparent: true,
+        resizable: false,
+        movable: false,
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
+        skipTaskbar: true,
+        alwaysOnTop: true,
+        focusable: true,
+        hasShadow: true,
+        backgroundColor: '#00000000',
+        ...overlayBounds(),
+        webPreferences: {
+          preload: path.join(__dirname, 'overlay-preload.cjs'),
+          contextIsolation: true,
+          sandbox: true,
+          nodeIntegration: false,
+          webSecurity: true,
+          webviewTag: false,
+          spellcheck: false,
+          partition: 'persist:eilo-overlay',
+          navigateOnDragDrop: false,
+        },
+      });
+      overlay = currentOverlay;
+      overlayReady = false;
+      currentOverlay.setAlwaysOnTop(true, 'pop-up-menu');
+      currentOverlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      const session = currentOverlay.webContents.session;
+      session.setPermissionCheckHandler(() => false);
+      session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+      session.setDevicePermissionHandler(() => false);
+      session.setDisplayMediaRequestHandler((_request, callback) => callback({}));
+      session.on('will-download', (event) => event.preventDefault());
+      currentOverlay.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      currentOverlay.webContents.on('will-navigate', (event) => event.preventDefault());
+      currentOverlay.webContents.on('will-redirect', (event) => event.preventDefault());
+      currentOverlay.on('closed', () => {
+        if (overlay === currentOverlay) {
+          overlay = null;
+          overlayPayload = null;
+          overlayReady = false;
+          overlayActionTarget = null;
+          clearTimeout(overlayTimer);
+          overlayTimer = null;
+        }
+      });
+      void currentOverlay.loadFile(path.join(__dirname, 'overlay.html')).catch(closeOverlay);
+    } catch {
+      closeOverlay();
+    }
+  }
+
   function configureSession(ses) {
     // The renderer is a client of one fixed local origin, never a web browser.
     ses.webRequest.onBeforeRequest((details, callback) =>
@@ -325,6 +474,7 @@ function runDesktop() {
           homeReady = false;
           recordStatus();
         });
+        window.on('focus', closeOverlay);
         for (const event of ['show', 'hide', 'focus', 'blur']) window.on(event, recordStatus);
         await window.loadURL(ORIGIN + '/home/');
         window.show();
@@ -447,6 +597,23 @@ function runDesktop() {
           }
         },
       },
+      ...(!app.isPackaged
+        ? [
+            {
+              label: 'Preview check-in overlay',
+              click: () =>
+                showCheckInOverlay(
+                  {
+                    conversationId: 'overlay-preview',
+                    messageId: 'overlay-preview',
+                    eventId: 'overlay-preview',
+                    text: 'This is a local overlay preview. It does not record a check-in.',
+                  },
+                  { preview: true },
+                ),
+            },
+          ]
+        : []),
       ...(notificationError ? [{ label: notificationError, enabled: false }] : []),
       {
         label: 'Reconnect to workspace',
@@ -479,7 +646,8 @@ function runDesktop() {
     );
   }
   async function pollCheckIns() {
-    if (pollBusy || quitting || !policy.status().enabled) return;
+    if (pollBusy || quitting || (!policy?.status().enabled && !overlayPolicy?.status().enabled))
+      return;
     pollBusy = true;
     try {
       const identity = await fetch(ORIGIN + '/api/desktop', {
@@ -495,8 +663,11 @@ function runDesktop() {
       });
       if (!response.ok) throw new Error('state');
       const snapshot = await response.json();
-      if (!quitting && policy.status().enabled)
-        policy.inspect(snapshot, { foreground: !!window?.isVisible() && !!window?.isFocused() });
+      if (!quitting) {
+        const foreground = !!window?.isVisible() && !!window?.isFocused();
+        overlayPolicy?.inspect(snapshot, { foreground });
+        if (policy.status().enabled) policy.inspect(snapshot, { foreground });
+      }
       serviceError = '';
     } catch {
       serviceError = 'The local service is unavailable.';
@@ -577,6 +748,7 @@ function runDesktop() {
       shutdownStage = 'stopping';
       clearInterval(timer);
       clearTimeout(googleReturnTimer);
+      closeOverlay();
       for (const note of activeNotifications) note.close();
       recordStatus();
       void (async () => {
@@ -599,6 +771,15 @@ function runDesktop() {
           setImmediate(() => app.quit());
         }
       })();
+    });
+    ipcMain.on('eilo:overlay-open', (event) => {
+      if (!overlay || event.sender !== overlay.webContents || !overlayPayload) return;
+      const target = overlayActionTarget;
+      closeOverlay();
+      showWindow(target);
+    });
+    ipcMain.on('eilo:overlay-dismiss', (event) => {
+      if (overlay && event.sender === overlay.webContents) closeOverlay();
     });
     ipcMain.handle('eilo:open-activity-connection', async (event) => {
       if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
@@ -747,6 +928,11 @@ function runDesktop() {
         flushTarget();
       }
     });
+    ipcMain.on('eilo:overlay-ready', (event) => {
+      if (!overlay || overlay.isDestroyed() || event.sender !== overlay.webContents) return;
+      overlayReady = true;
+      presentCheckInOverlay();
+    });
     app.whenReady().then(async () => {
       try {
         registerNativeContext(
@@ -765,6 +951,20 @@ function runDesktop() {
       } catch {
         serviceError = 'Browser context host could not be registered.';
       }
+      overlayPolicy = createNotificationPolicy({
+        defaultEnabled: true,
+        includeText: true,
+        requireEligibility: true,
+        load: () => {
+          try {
+            return JSON.parse(fs.readFileSync(overlayPreferencesPath, 'utf8'));
+          } catch {
+            return null;
+          }
+        },
+        save: (value) => writePrivate(overlayPreferencesPath, value),
+        show: showCheckInOverlay,
+      });
       policy = createNotificationPolicy({
         load: () => {
           try {

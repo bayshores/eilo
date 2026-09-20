@@ -467,7 +467,8 @@ class FakeChat:
         self.commands: list[list[str]] = []
         self.changed_count = 0
         self.refresh_count = 0
-        self.reply: object = {"event_id": "unused", "decision": "quiet", "message": ""}
+        self.reply = None
+        self.published = []
 
     def save_meta(self):
         self.meta_path.write_text(json.dumps(self.meta))
@@ -479,6 +480,7 @@ class FakeChat:
         self.refresh_count += 1
 
     def publish_check_in(self, publication, *, lookup=False):
+        self.published.append(publication)
         return {"event_id": publication["event_id"], "assistant_id": None if lookup else 42}
 
     async def command(self, args, **kwargs):
@@ -488,6 +490,15 @@ class FakeChat:
         path = Path(args[1])
         packet = json.loads(await asyncio.to_thread(path.read_text))
         event_id = path.stem.removeprefix("event-")
+        decision = (
+            {**self.reply, "event_id": event_id}
+            if isinstance(self.reply, dict)
+            else {
+                "event_id": event_id,
+                "decision": "check_in",
+                "message": "How is the notes review going?",
+            }
+        )
         return (
             0,
             json.dumps(
@@ -498,11 +509,7 @@ class FakeChat:
                         "tool_schema_count": 0,
                         "persisted": False,
                     },
-                    "decision": {
-                        "event_id": event_id,
-                        "decision": "check_in",
-                        "message": "How is the notes review going?",
-                    },
+                    "decision": decision,
                     "assistant_id": None,
                     "provenance": {
                         "version": 1,
@@ -649,6 +656,67 @@ class ProactiveLoopTests(unittest.IsolatedAsyncioTestCase):
             self.clock[0] - 1,
         )
         self.assertFalse(self.loop.current(event), "expired lease cannot deliver a result")
+
+    def test_focus_shift_only_tracks_a_selected_task_and_never_another_open_task(self):
+        self.chat.meta["tasks"]["focus_id"] = "task_notes"
+        focus_context = {
+            "kind": "work_context",
+            "origin": "https://neetcode.io",
+            "title": "Review notes",
+        }
+        unrelated_context = {
+            "kind": "work_context",
+            "origin": "https://example.test",
+            "title": "Funny cats",
+        }
+        self.loop.latest = focus_context
+        self.loop.update_context(unrelated_context, self.clock[0] + 1)
+        self.assertEqual(self.loop.focus_shift_task_id, "task_notes")
+
+        self.chat.meta["tasks"]["tasks"].append(
+            {
+                "id": "task_animals",
+                "title": "Animal research",
+                "status": "open",
+                "due_text": None,
+                "target_count": None,
+                "completed_count": 0,
+                "unit": None,
+            }
+        )
+        self.loop.latest = focus_context
+        self.loop.update_context(
+            {
+                "kind": "work_context",
+                "origin": "https://example.test",
+                "title": "Animal research",
+            },
+            self.clock[0] + 2,
+        )
+        self.assertIsNone(self.loop.focus_shift_task_id)
+
+    async def test_focus_shift_turns_a_quiet_decision_into_a_neutral_choice(self):
+        self.chat.meta["tasks"]["focus_id"] = "task_notes"
+        self.chat.reply = {"decision": "quiet", "message": ""}
+        event = self.event("event-shift")
+        event["focus_shift_task_id"] = "task_notes"
+        self.loop.state["events"]["event-shift"] = event
+        payload = {
+            "session_id": "fixture-session",
+            "event_id": "event-shift",
+            "task_state": public_state(self.chat.meta["tasks"]),
+            "human_epoch": 0,
+            "observation": APPROVED,
+        }
+
+        await self.loop.decide(payload)
+
+        self.assertEqual(event["status"], "delivered")
+        self.assertEqual(
+            self.loop.stream["text"],
+            "Your focus is “review notes.” Is this a quick break, or would a small nudge back help?",
+        )
+        self.assertEqual(self.chat.published[0]["decision"]["related_task_ids"], ["task_notes"])
 
     async def test_controlled_event_delivery_requires_current_approved_decision(self):
         event = self.event("event-delivery")

@@ -7,8 +7,51 @@ const nativeApi = globalThis.EiloNativeContext;
 let privacyRevision = 0;
 let nativeContext = null;
 let nativeState = 'unavailable';
+// Reconnect only after a known local bridge failure. This is deliberately
+// bounded: it restores the existing native transport after eïlo restarts but
+// never becomes a background activity poller.
+// The native service's documented cold-start budget is about 30 seconds.
+// Eleven exponential/capped retries span about 38 seconds without becoming a
+// persistent timer after eïlo has stayed closed.
+const NATIVE_RECONNECT_LIMIT = 11;
+const NATIVE_RECONNECT_BASE_DELAY = 250;
+const NATIVE_RECONNECT_MAX_DELAY = 5000;
+let nativeReconnectTimer = null;
+let nativeReconnectAttempts = 0;
+let nativeReconnectBlocked = false;
+
+function stopNativeReconnect() {
+  if (nativeReconnectTimer !== null) clearTimeout(nativeReconnectTimer);
+  nativeReconnectTimer = null;
+  nativeReconnectAttempts = 0;
+}
+function scheduleNativeReconnect() {
+  if (
+    !nativeApi ||
+    nativeReconnectBlocked ||
+    nativeReconnectTimer !== null ||
+    nativeReconnectAttempts >= NATIVE_RECONNECT_LIMIT
+  )
+    return;
+  const delay = Math.min(
+    NATIVE_RECONNECT_BASE_DELAY * 2 ** nativeReconnectAttempts,
+    NATIVE_RECONNECT_MAX_DELAY,
+  );
+  nativeReconnectAttempts++;
+  nativeReconnectTimer = setTimeout(() => {
+    nativeReconnectTimer = null;
+    void refreshNativeStatus().then((status) => {
+      // A live port will report its own later disconnect. Only a failed attempt
+      // needs another bounded retry here.
+      if (status.connected !== true && nativeState !== 'browser-access-off')
+        scheduleNativeReconnect();
+    });
+  }, delay);
+}
 chrome.permissions.onRemoved.addListener(() => {
   privacyRevision++;
+  nativeReconnectBlocked = true;
+  stopNativeReconnect();
   nativeContext?.disconnect();
   nativeState = 'browser-access-off';
 });
@@ -38,25 +81,35 @@ async function refreshNativeStatus() {
   }
   try {
     if (!(await hasGrant())) {
+      nativeReconnectBlocked = true;
+      stopNativeReconnect();
       nativeContext?.disconnect();
       nativeState = 'browser-access-off';
       return nativeStatus();
     }
+    nativeReconnectBlocked = false;
     if (!nativeContext)
       nativeContext = nativeApi.createNativeContext({
         chrome,
         core,
         onStatus: (status) => {
           nativeState = status.state;
+          // A policy handshake, including a disabled policy, proves the bridge
+          // reached this eïlo instance. Only that stops a reconnect sequence.
+          if (status.handshake_verified === true) stopNativeReconnect();
+          else if (status.connected !== true && ['disconnected', 'error'].includes(status.state))
+            scheduleNativeReconnect();
         },
       });
     nativeContext.connect();
   } catch {
     nativeState = 'error';
+    scheduleNativeReconnect();
   }
   return nativeStatus();
 }
 function connectNativeWhenAllowed() {
+  nativeReconnectBlocked = false;
   void refreshNativeStatus();
 }
 chrome.permissions.onAdded?.addListener(connectNativeWhenAllowed);

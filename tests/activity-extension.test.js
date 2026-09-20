@@ -432,6 +432,134 @@ async function externalSetupChecks() {
 }
 const externalChecks = externalSetupChecks();
 
+async function nativeReconnectChecks() {
+  let nativeAttempts = 0;
+  let nativeConnected = false;
+  let statusListener;
+  let tabReads = 0;
+  let permissionRequests = 0;
+  let nextTimer = 1;
+  const timers = new Map();
+  const schedule = (callback, delay) => {
+    const id = nextTimer++;
+    timers.set(id, { callback, delay, cancelled: false });
+    return id;
+  };
+  const clear = (id) => {
+    const timer = timers.get(id);
+    if (timer) timer.cancelled = true;
+  };
+  const emit = (status) => {
+    nativeConnected = status.connected === true;
+    statusListener({ handshake_verified: false, enabled: false, ...status });
+  };
+  const context = {
+    URL,
+    Set,
+    console,
+    setTimeout: schedule,
+    clearTimeout: clear,
+    EiloNativeContext: {
+      createNativeContext: ({ onStatus }) => {
+        statusListener = onStatus;
+        return {
+          connect() {
+            nativeAttempts++;
+            nativeConnected = true;
+            onStatus({
+              state: 'connected',
+              connected: true,
+              handshake_verified: false,
+              enabled: false,
+            });
+          },
+          disconnect() {
+            nativeConnected = false;
+            onStatus({
+              state: 'disconnected',
+              connected: false,
+              handshake_verified: false,
+              enabled: false,
+            });
+          },
+          status() {
+            return { connected: nativeConnected, handshake_verified: false, enabled: false };
+          },
+        };
+      },
+    },
+    importScripts() {
+      vm.runInNewContext(fs.readFileSync(path.join(extension, 'core.js'), 'utf8'), context);
+    },
+    chrome: {
+      runtime: {
+        onConnectExternal: { addListener() {} },
+        onMessage: { addListener() {} },
+        onMessageExternal: { addListener() {} },
+        onStartup: { addListener() {} },
+      },
+      permissions: {
+        onRemoved: event(),
+        onAdded: { addListener() {} },
+        contains: async () => true,
+        request: async () => {
+          permissionRequests++;
+          return false;
+        },
+      },
+      storage: { onChanged: event(), local: { get: async () => ({ excludedHosts: [] }) } },
+      tabs: {
+        query: async () => {
+          tabReads++;
+          return [];
+        },
+      },
+      windows: { onFocusChanged: { addListener() {} } },
+    },
+  };
+  context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync(path.join(extension, 'background.js'), 'utf8'), context);
+  await new Promise(setImmediate);
+  assert.equal(nativeAttempts, 1, 'the extension opens the pre-authorized native transport once');
+
+  emit({ state: 'disconnected', connected: false });
+  const retry = [...timers.values()].find((timer) => timer.delay === 250 && !timer.cancelled);
+  assert.ok(retry, 'a native disconnect queues one short local retry');
+  retry.cancelled = true; // The captured one-shot timer has now fired.
+  retry.callback();
+  await new Promise(setImmediate);
+  assert.equal(nativeAttempts, 2, 'the retry reconnects the existing native transport');
+  assert.equal(tabReads, 0, 'transport recovery never reads browser activity');
+  assert.equal(permissionRequests, 0, 'transport recovery never requests browser access');
+
+  emit({ state: 'ready', connected: true, handshake_verified: true, enabled: true });
+  assert.equal(
+    [...timers.values()].filter((timer) => !timer.cancelled).length,
+    0,
+    'a verified policy handshake cancels retries',
+  );
+
+  // A cold native service can take roughly 30 seconds to start. The reconnect
+  // window covers that startup but still has a hard stop rather than polling.
+  emit({ state: 'disconnected', connected: false });
+  for (let attempt = 0; attempt < 11; attempt++) {
+    const next = [...timers.values()].find((timer) => !timer.cancelled);
+    assert.ok(next, 'each bounded reconnect attempt is scheduled once');
+    next.cancelled = true; // The captured one-shot timer has now fired.
+    next.callback();
+    await new Promise(setImmediate);
+    emit({ state: 'disconnected', connected: false });
+  }
+  assert.equal(
+    [...timers.values()].filter((timer) => !timer.cancelled).length,
+    0,
+    'the native reconnect window ends instead of turning into a background poller',
+  );
+  assert.equal(tabReads, 0, 'bounded recovery still never reads browser activity');
+  assert.equal(permissionRequests, 0, 'bounded recovery still never requests browser access');
+}
+const nativeReconnects = nativeReconnectChecks();
+
 async function firstInstallSetupChecks() {
   let installedListener;
   const created = [];
@@ -659,7 +787,14 @@ async function bridgeChecks() {
     false,
   );
 }
-Promise.all([backgroundChecks, portChecks, externalChecks, firstInstallChecks, bridgeChecks()])
+Promise.all([
+  backgroundChecks,
+  portChecks,
+  externalChecks,
+  nativeReconnects,
+  firstInstallChecks,
+  bridgeChecks(),
+])
   .then(() => process.stdout.write('activity extension and bridge checks passed\n'))
   .catch((error) => {
     console.error(error);

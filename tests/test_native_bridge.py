@@ -9,6 +9,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.native_bridge import (
@@ -133,6 +134,33 @@ class ContextBrokerTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.wait_for(reader.readline(), timeout=0.05)
         writer.close()
         await writer.wait_closed()
+
+    async def test_stalled_policy_client_does_not_block_a_settings_write(self):
+        class Writer:
+            closed = False
+
+            def close(self):
+                self.closed = True
+
+        class Client:
+            setup_verified = grant_verified = False
+            verified_policy = None
+
+            def __init__(self):
+                self.writer = Writer()
+
+            async def send(self, _value):
+                await asyncio.Future()
+
+        client = Client()
+        self.broker._clients.add(client)
+        self.current = policy(epoch=2)
+
+        with patch("app.native_bridge.CLIENT_SEND_TIMEOUT_SECONDS", 0.01):
+            await asyncio.wait_for(self.broker.refresh_policy(), timeout=0.2)
+
+        self.assertNotIn(client, self.broker._clients)
+        self.assertTrue(client.writer.closed)
 
     async def test_stale_epoch_is_ignored(self):
         reader, writer = await attach(self.directory)

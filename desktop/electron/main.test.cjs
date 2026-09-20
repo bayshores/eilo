@@ -65,8 +65,17 @@ class FakeWindow extends EventEmitter {
     this.url = url;
     this.webContents.mainFrame.url = url;
   }
+  async loadFile(file) {
+    this.url = 'file://' + file;
+    this.webContents.mainFrame.url = this.url;
+    this.webContents.emit('did-finish-load');
+  }
   show() {
     this.visible = true;
+  }
+  showInactive() {
+    this.visible = true;
+    this.shownInactive = true;
   }
   hide() {
     this.visible = false;
@@ -81,7 +90,18 @@ class FakeWindow extends EventEmitter {
     return this.focused;
   }
   isDestroyed() {
-    return false;
+    return this.destroyed === true;
+  }
+  close() {
+    this.destroyed = true;
+    this.visible = false;
+    this.emit('closed');
+  }
+  setAlwaysOnTop(...value) {
+    this.alwaysOnTop = value;
+  }
+  setVisibleOnAllWorkspaces(...value) {
+    this.visibleOnAllWorkspaces = value;
   }
   isMinimized() {
     return false;
@@ -161,17 +181,27 @@ function buildHarness({
   const chromeOpens = [];
   const pendingExec = [];
   let timer = null;
+  let applicationMenu = null;
   let stateCalls = 0;
   const electron = {
     app,
     ipcMain,
+    screen: {
+      getCursorScreenPoint: () => ({ x: 100, y: 100 }),
+      getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 1440, height: 900 } }),
+    },
     BrowserWindow: class extends FakeWindow {
       constructor(options) {
         super(options);
         windows.push(this);
       }
     },
-    Menu: { buildFromTemplate: (value) => value, setApplicationMenu: () => {} },
+    Menu: {
+      buildFromTemplate: (value) => value,
+      setApplicationMenu: (value) => {
+        applicationMenu = value;
+      },
+    },
     Tray: class extends EventEmitter {
       setToolTip() {}
       setContextMenu() {}
@@ -295,6 +325,9 @@ function buildHarness({
         ok: true,
         json: async () => ({
           conversation_id: 'c1',
+          accountability: {
+            check_ins: { notification_event_ids: stateCalls === 1 ? [] : ['e1'] },
+          },
           messages:
             stateCalls === 1
               ? []
@@ -341,6 +374,9 @@ function buildHarness({
       return supervisorOptions;
     },
     registrations,
+    get applicationMenu() {
+      return applicationMenu;
+    },
     releaseStop,
     runTimer: async () => {
       timer();
@@ -435,6 +471,64 @@ test('only the trusted main home frame flushes a pending check-in target', async
   assert.deepEqual(window.sent, [
     ['eilo:open-check-in', { conversationId: 'c1', messageId: 'm1', eventId: 'e1' }],
   ]);
+});
+
+test('a fresh background check-in opens a non-activating native overlay and only a deliberate click opens Home', async () => {
+  const h = buildHarness({ notificationEnabled: false });
+  await drain();
+  await drain();
+  await drain();
+  const main = h.windows[0];
+  main.focused = false;
+  await h.runTimer();
+
+  const overlay = h.windows[1];
+  assert.ok(overlay, 'a fresh eligible check-in gets a native overlay');
+  assert.equal(overlay.shownInactive, undefined, 'the overlay waits for its renderer listener');
+  h.ipcMain.emit('eilo:overlay-ready', { sender: {} });
+  assert.equal(overlay.shownInactive, undefined, 'untrusted renderer readiness cannot show it');
+  h.ipcMain.emit('eilo:overlay-ready', { sender: overlay.webContents });
+  assert.equal(overlay.shownInactive, true);
+  assert.equal(main.focused, false, 'the overlay never steals focus from the active app');
+  assert.deepEqual(overlay.alwaysOnTop, [true, 'pop-up-menu']);
+  assert.equal(h.notifications.length, 0, 'desktop alerts remain independently off');
+  assert.deepEqual(JSON.parse(JSON.stringify(overlay.sent)), [
+    [
+      'eilo:overlay-check-in',
+      { conversationId: 'c1', eventId: 'e1', messageId: 'm1', text: 'private text' },
+    ],
+  ]);
+
+  h.ipcMain.emit('eilo:overlay-open', { sender: {} });
+  assert.equal(main.focused, false, 'untrusted overlay IPC cannot foreground Home');
+  h.ipcMain.emit('eilo:overlay-open', { sender: overlay.webContents });
+  assert.equal(overlay.isDestroyed(), true);
+  assert.equal(main.focused, true, 'an intentional overlay click opens the existing conversation');
+});
+
+test('development can preview the non-activating overlay without creating a check-in', async () => {
+  const h = buildHarness({ notificationEnabled: false });
+  await drain();
+  await drain();
+  await drain();
+  const controls = h.applicationMenu.find((item) => item.label === 'eïlo').submenu;
+  const preview = controls.find((item) => item.label === 'Preview check-in overlay');
+  assert.ok(preview, 'development keeps a deliberate visual preview for this native-only surface');
+
+  preview.click();
+  const overlay = h.windows[1];
+  assert.ok(overlay);
+  assert.equal(overlay.shownInactive, undefined, 'the preview still waits for renderer readiness');
+  h.ipcMain.emit('eilo:overlay-ready', { sender: overlay.webContents });
+  assert.equal(overlay.shownInactive, true);
+  assert.equal(h.notifications.length, 0, 'the preview does not emit an OS notification');
+
+  h.ipcMain.emit('eilo:overlay-open', { sender: overlay.webContents });
+  assert.equal(
+    h.windows[0].focused,
+    true,
+    'preview action opens Home without inventing a check-in target',
+  );
 });
 
 test('check-in notification bridge is trusted, read-only status has no side effects, and enable honors cancellation', async () => {
