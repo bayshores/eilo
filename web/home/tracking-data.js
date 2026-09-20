@@ -36,6 +36,8 @@ function adaptiveRows(snapshot, now = Date.now() / 1000) {
       // An installed native host does not turn off an existing browser lease.
       if (source === 'browser' && snapshot?.accountability?.activity?.state === 'active')
         return browserRow(snapshot);
+      if (policy.enabled === false && policy[`${source}_enabled`] === true)
+        return row(source, name, 'Paused', detail, 'muted');
       return row(source, name, 'Off', '', 'muted');
     }
     if (fresh) return row(source, name, 'Collecting', detail, 'active');

@@ -738,6 +738,42 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+.activity-recording-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 2px 0 6px;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.activity-recording-status::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #87918d;
+  box-shadow: 0 0 0 3px #ffffff08;
+  content: '';
+}
+.activity-recording-status[data-state='active'] {
+  color: var(--ink);
+}
+.activity-recording-status[data-state='active']::before {
+  background: var(--peach);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--peach) 15%, transparent);
+}
+.activity-recording-status[data-state='paused'] {
+  color: #d6b495;
+}
+.activity-recording-feedback {
+  flex-basis: 100%;
+  color: var(--peach);
+  font-size: 13px;
+}
+.activity-recording-feedback:empty {
+  display: none;
+}
 .activity-checkin-control {
   gap: 4px;
 }

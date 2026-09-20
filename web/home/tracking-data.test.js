@@ -118,6 +118,27 @@ test('tracking prefers adaptive desktop and browser health without claiming that
   );
 });
 
+test('paused configured sources stay visible in tracking', () => {
+  const view = base({
+    snapshot: {
+      adaptive: {
+        policy: { enabled: false, desktop_enabled: true, browser_enabled: true },
+        capture_status: {
+          desktop: { enabled: false, status: 'waiting' },
+          browser: { enabled: false, status: 'waiting' },
+        },
+      },
+      integrations: { google_calendar: {}, briefing_sources: {} },
+    },
+  });
+  assert.deepEqual(
+    selectTracking(view)
+      .rows.slice(0, 2)
+      .map(({ status }) => status),
+    ['Paused', 'Paused'],
+  );
+});
+
 test('usage accepts only a complete aggregate contract and supports arbitrary HTTP origins', () => {
   const usage = {
     timezone: 'UTC',

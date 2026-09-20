@@ -46,6 +46,20 @@ const when = (seconds) =>
     hour: 'numeric',
     minute: '2-digit',
   });
+const recordingState = (view) => {
+  const policy = view?.snapshot?.adaptive?.policy;
+  const adaptiveConfigured = Boolean(policy?.desktop_enabled || policy?.browser_enabled);
+  const legacyState = view?.snapshot?.accountability?.activity?.state;
+  const legacyConfigured = ['active', 'paused'].includes(legacyState);
+  const available = view?.connection === 'connected' && (adaptiveConfigured || legacyConfigured);
+  const active = available && (policy?.enabled === true || legacyState === 'active');
+  return {
+    available,
+    active,
+    label: active ? 'Pause recording' : 'Resume recording',
+    status: active ? 'Recording on' : 'Recording paused',
+  };
+};
 export const activitySummary = (records) => {
   const total = records.reduce((seconds, record) => {
     const recorded = record.kind === 'episode' ? record.recordedSeconds : record.observed_seconds;
@@ -69,6 +83,7 @@ export function createWorkspaceViews({
   onCheckinToggle,
   onActivitySetup,
   onContextCommand,
+  onRecordingToggle = async () => {},
   canManage = () => false,
 }) {
   let current = null,
@@ -462,7 +477,33 @@ export function createWorkspaceViews({
   headerControls.hidden = true;
   pageHeader.append(headerControls);
   const checkinHost = el('div', 'activity-checkin-control');
+  const recordingStatus = el('span', 'activity-recording-status');
+  const recordingFeedback = el('span', 'activity-recording-feedback');
+  recordingFeedback.setAttribute('role', 'status');
+  let recordingBusy = false;
+  const recordingToggle = button(
+    '',
+    async () => {
+      if (recordingBusy) return;
+      recordingBusy = true;
+      recordingFeedback.textContent = '';
+      updateRecordingControl();
+      try {
+        await onRecordingToggle();
+      } catch (error) {
+        recordingFeedback.textContent =
+          error.message || 'Recording could not be updated. Try again.';
+      } finally {
+        recordingBusy = false;
+        updateRecordingControl();
+      }
+    },
+    'button activity-recording-toggle',
+  );
   headerControls.append(
+    recordingStatus,
+    recordingToggle,
+    recordingFeedback,
     checkinHost,
     button('Manage activity', onConnections, 'text-button activity-manage'),
   );
@@ -551,6 +592,17 @@ export function createWorkspaceViews({
     onConnect: onActivitySetup || onConnections,
     onDiscuss,
   });
+  function updateRecordingControl() {
+    const state = recordingState(current);
+    recordingStatus.hidden = !state.available;
+    recordingToggle.hidden = !state.available;
+    if (!state.available) return;
+    recordingStatus.textContent = state.status;
+    recordingStatus.dataset.state = state.active ? 'active' : 'paused';
+    recordingToggle.textContent = state.label;
+    recordingToggle.setAttribute('aria-label', `${state.status}. ${state.label}`);
+    recordingToggle.disabled = recordingBusy;
+  }
   overview.append(firstActivity);
   activity.append(toolbar, overview, activityContent);
   container.append(activity);
@@ -754,6 +806,7 @@ export function createWorkspaceViews({
     choices.hidden = activityFilter === 'trash';
     toolbar.hidden = false;
     checkinCenter.update(current);
+    updateRecordingControl();
     const legacyRecords = observedSessions(snapshot, { trash: activityFilter === 'trash' });
     const allRows =
       activityFilter === 'trash'

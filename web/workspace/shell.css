@@ -1316,12 +1316,6 @@
   height: min(535px, calc(100dvh - 32px));
   max-height: 535px;
 }
-.capture-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-}
 .connection-statuses {
   position: fixed;
   right: 12px;
@@ -1383,21 +1377,6 @@
 }
 .connection-status[data-tone='attention']::after {
   background: #e4a89c;
-}
-.capture-controls .text-button {
-  font-size: 12px;
-  min-height: 34px;
-}
-.capture-pause {
-  color: var(--peach);
-}
-.capture-error {
-  flex-basis: 100%;
-  font-size: 12px;
-  color: var(--peach);
-}
-.capture-error:empty {
-  display: none;
 }
 .daily-start {
   display: grid;
@@ -1514,10 +1493,6 @@
   :root[data-source='live'] .header-actions {
     flex-wrap: wrap;
   }
-  .capture-controls {
-    order: 2;
-    flex-basis: 100%;
-  }
 }
 @media (max-width: 700px) {
   .connection-statuses {
@@ -1531,12 +1506,6 @@
   }
   .daily-start {
     margin-top: 8px;
-  }
-  .capture-controls {
-    gap: 4px 8px;
-  }
-  .capture-controls .text-button {
-    font-size: 11px;
   }
 }
 
@@ -1649,7 +1618,8 @@
   padding: 28px;
   border-radius: 20px;
 }
-.workspace-inspector :is(.goal-filter, .activity-day-button, .activity-manage) {
+.workspace-inspector
+  :is(.goal-filter, .activity-day-button, .activity-manage, .activity-recording-toggle) {
   min-height: 42px;
   border-radius: 14px;
   padding: 9px 14px;

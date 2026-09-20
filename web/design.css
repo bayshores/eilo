@@ -95,21 +95,6 @@
 .scene-wordmark span {
   display: inline-block;
 }
-.workspace > .capture-controls {
-  position: absolute;
-  right: 28px;
-  top: 62px;
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 10px;
-  max-width: calc(50% - 70px);
-}
-.workspace > .capture-controls .text-button {
-  min-height: 32px;
-  font-size: 12px;
-  white-space: nowrap;
-}
 .settings-name-prompt {
   display: none !important;
 }
@@ -472,12 +457,6 @@
     font-size: 50px;
     top: 12px;
   }
-  .workspace > .capture-controls {
-    top: 65px;
-    right: 28px;
-    max-width: calc(100% - 110px);
-    gap: 8px;
-  }
   :root[data-source='live'] .home-header,
   :root[data-source='live'] .workspace.conversation-active > .home-header {
     display: grid;
@@ -494,9 +473,6 @@
     justify-content: flex-end;
     gap: 6px;
     width: 100%;
-  }
-  .capture-controls {
-    gap: 6px;
   }
   .workspace > .daily-start {
     grid-template-columns: minmax(0, 1fr);
@@ -520,9 +496,6 @@
   .scene-wordmark {
     font-size: 44px;
     top: 9px;
-  }
-  .workspace > .capture-controls {
-    top: 32px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -608,10 +581,6 @@
     width: 30px;
     height: 4px;
   }
-  .workspace > .capture-controls {
-    right: 20px;
-    max-width: calc(100% - 40px);
-  }
 }
 
 :root[data-source='live']
@@ -648,9 +617,6 @@
   :root[data-source='live'] .workspace,
   :root[data-source='live'] .workspace.conversation-active {
     padding-top: 74px;
-  }
-  .workspace > .capture-controls {
-    top: 65px;
   }
 }
 

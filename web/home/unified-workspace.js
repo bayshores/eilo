@@ -359,9 +359,15 @@ export function mountUnifiedWorkspace({
       ['desktop', 'browser'].includes(row.id),
     );
     const recording = sources.some((row) => ['Collecting', 'Sharing'].includes(row.status));
-    activity.title.textContent = recording ? 'Recording activity' : 'Your activity';
+    const paused = sources.some((row) => row.status === 'Paused');
+    activity.title.textContent = recording
+      ? 'Recording activity'
+      : paused
+        ? 'Recording paused'
+        : 'Your activity';
     activity.meta.textContent = sources.map((row) => row.name + ': ' + row.status).join(' · ');
-    activity.state.hidden = true;
+    activity.state.textContent = paused ? 'Resume in Activity' : '';
+    activity.state.hidden = !activity.state.textContent;
     activity.trigger.setAttribute('aria-label', 'Open activity');
     goal.trigger.setAttribute(
       'aria-label',

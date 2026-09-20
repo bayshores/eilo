@@ -189,32 +189,6 @@ export function createLiveHome({
     accountShortcut.hidden = !state || ['connected', 'unknown'].includes(state);
   });
 
-  const captureControls = node('div', 'capture-controls');
-  const pauseCapture = action(
-    'Pause recording',
-    async () => {
-      pauseCapture.disabled = true;
-      sound.prepare();
-      try {
-        if (current.snapshot?.adaptive?.policy?.enabled)
-          await client.contextCommand('configure', {
-            ...current.snapshot.adaptive.policy,
-            enabled: false,
-          });
-        if (current.snapshot?.accountability?.activity?.state === 'active')
-          await activity.control('pause');
-        sound.play('confirmed');
-      } catch (error) {
-        captureError.textContent = error.message || 'Recording could not be paused. Try again.';
-      } finally {
-        pauseCapture.disabled = false;
-      }
-    },
-    'text-button capture-pause',
-  );
-  const captureError = node('span', 'capture-error');
-  captureError.setAttribute('role', 'status');
-  captureControls.append(pauseCapture, captureError);
   const connectionStatuses = node('div', 'connection-statuses');
   connectionStatuses.setAttribute('role', 'group');
   connectionStatuses.setAttribute('aria-label', 'Connection statuses');
@@ -236,12 +210,9 @@ export function createLiveHome({
     statusButtons.set(id, button);
     connectionStatuses.append(button);
   }
-  workspace.append(captureControls, connectionStatuses);
-  function updateCaptureControls() {
-    const policy = current.snapshot?.adaptive?.policy;
+  workspace.append(connectionStatuses);
+  function updateConnectionStatuses() {
     const tracking = selectTracking(current);
-    const configured = policy?.enabled && (policy.desktop_enabled || policy.browser_enabled);
-    const legacy = current.snapshot?.accountability?.activity?.state === 'active';
     connectionStatuses.title = recordingSummary(current);
     const rows = new Map(tracking.rows.map((row) => [row.id, row]));
     for (const [id, button] of statusButtons) {
@@ -256,7 +227,6 @@ export function createLiveHome({
       button.title = summary;
       button.setAttribute('aria-label', `${summary}. Manage connection`);
     }
-    pauseCapture.hidden = !tracking.online || !(configured || legacy);
   }
 
   header.tabIndex = -1;
@@ -315,6 +285,23 @@ export function createLiveHome({
       client.activityControl(enabled ? 'enable_check_ins' : 'pause_check_ins', crypto.randomUUID()),
     onActivitySetup: () => openDetail('browser-setup'),
     onContextCommand: (action, fields) => client.contextCommand(action, fields),
+    onRecordingToggle: async () => {
+      const policy = current.snapshot?.adaptive?.policy;
+      const adaptiveConfigured = Boolean(policy?.desktop_enabled || policy?.browser_enabled);
+      const legacyState = current.snapshot?.accountability?.activity?.state;
+      const active = (adaptiveConfigured && policy?.enabled === true) || legacyState === 'active';
+      const available =
+        current.connection === 'connected' &&
+        (adaptiveConfigured || ['active', 'paused'].includes(legacyState));
+      if (!available) return;
+      const shouldResume = !active;
+      sound.prepare();
+      if (adaptiveConfigured && policy.enabled !== shouldResume)
+        await client.contextCommand('configure', { ...policy, enabled: shouldResume });
+      if (legacyState === (shouldResume ? 'paused' : 'active'))
+        await activity.control(shouldResume ? 'enable' : 'pause');
+      sound.play('confirmed');
+    },
   });
   const settingsHost = node('div', 'settings-page');
   settingsHost.hidden = true;
@@ -1152,7 +1139,7 @@ export function createLiveHome({
         rememberPresentation();
       current = next;
       activity.update(next);
-      updateCaptureControls();
+      updateConnectionStatuses();
       for (const guide of browserGuides) guide.update(next);
       updates.update(next);
       views.update(next);
@@ -1293,7 +1280,7 @@ export function createLiveHome({
     refreshPreferences() {
       sound.sync?.();
       unified?.refresh();
-      updateCaptureControls();
+      updateConnectionStatuses();
     },
     settingsHost,
     settingsSections: [

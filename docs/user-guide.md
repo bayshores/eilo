@@ -159,10 +159,8 @@ Open **Settings** from Home. **Permissions → Let AI use recorded activity** se
 
 A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Widgets & layout returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
 
-In **Permissions**, desktop capture, Chrome, visible text and AI help have separate controls. **Pause recording** stops new capture. **Settings → Memory → Forget activity & context** removes activity and what was learned from it; saved conversations and explicitly chosen notes/preferences stay separate. Activity presents compact work episodes with details on selection. Recorded usage is not proof of focus or task completion.
+In **Permissions**, desktop capture, Chrome, visible text and AI help have separate controls. **Settings → Memory → Forget activity & context** removes activity and what was learned from it; saved conversations and explicitly chosen notes/preferences stay separate. Activity presents compact work episodes with details on selection. Recorded usage is not proof of focus or task completion.
 
 On a new private installation, **Connect ChatGPT** starts your own account sign-in. Enter its code on the official page opened by **Continue in browser**. The app does not import another Codex application's credentials.
 
-The header shows actual recording health and a **Pause recording** control when
-capture is enabled. A configured permission alone is not proof that activity is
-arriving. Pausing recording does not erase existing records or change AI sharing.
+The **Activity** header shows recording health and the everyday **Pause recording** or **Resume recording** control. After a pause, the same control remains visible as **Resume recording** and Home says **Recording paused**. A configured permission alone is not proof that activity is arriving. Pausing recording does not erase existing records or change AI sharing.

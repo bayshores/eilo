@@ -54,12 +54,6 @@
   padding: 10px 17px;
   font-size: 16px;
 }
-:root[data-source='live'] .workspace.unified-home > .capture-controls {
-  right: 42px;
-  top: 96px;
-  max-width: none;
-  gap: 14px;
-}
 :root[data-source='live'] .workspace.unified-home .talk-actions,
 :root[data-source='live'] .workspace.unified-home > .workspace-page {
   display: none;
@@ -429,10 +423,6 @@
     padding: 9px 12px;
     font-size: 14px;
   }
-  :root[data-source='live'] .workspace.unified-home > .capture-controls {
-    top: 84px;
-    right: 24px;
-  }
   .unified-summary {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
@@ -473,11 +463,6 @@
     left: 14px;
     right: 14px;
     justify-content: flex-start;
-  }
-  :root[data-source='live'] .workspace.unified-home > .capture-controls {
-    top: 23px;
-    right: 14px;
-    max-width: 65%;
   }
   .unified-date {
     font-size: 16px;
@@ -623,9 +608,6 @@
   :root[data-source='live'] .workspace.unified-home .header-actions {
     top: 20px;
   }
-  :root[data-source='live'] .workspace.unified-home > .capture-controls {
-    top: 58px;
-  }
   .unified-date {
     font-size: 16px;
   }
@@ -670,9 +652,6 @@
   }
   :root[data-source='live'] .workspace.unified-home .header-actions {
     top: 66px;
-  }
-  :root[data-source='live'] .workspace.unified-home > .capture-controls {
-    top: 20px;
   }
   .unified-card {
     min-height: 86px;
