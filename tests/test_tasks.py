@@ -13,8 +13,8 @@ from app.tasks import (
 )
 
 
-def add(temp_id, title, *, due=None, target=None, unit=None):
-    return {
+def add(temp_id, title, *, due=None, due_on=None, target=None, unit=None):
+    operation = {
         "op": "add",
         "temp_id": temp_id,
         "title": title,
@@ -22,6 +22,9 @@ def add(temp_id, title, *, due=None, target=None, unit=None):
         "target_count": target,
         "unit": unit,
     }
+    if due_on is not None:
+        operation["due_on"] = due_on
+    return operation
 
 
 class TaskProjectionTests(unittest.TestCase):
@@ -105,6 +108,31 @@ class TaskProjectionTests(unittest.TestCase):
             request="request_000004",
         )
         self.assertEqual((state["tasks"][0]["status"], state["focus_id"]), ("cancelled", None))
+
+    def test_exact_due_dates_are_validated_and_kept_with_timing_words(self):
+        state, _ = self.apply(
+            initial_tasks(),
+            [add("new_one", "Report", due="after review", due_on="2026-09-21")],
+            ids=("task_a",),
+        )
+        self.assertEqual(
+            (state["tasks"][0]["due_text"], state["tasks"][0]["due_on"]),
+            ("after review", "2026-09-21"),
+        )
+        updated, _ = self.apply(
+            state,
+            [{"op": "edit", "task_id": "task_a", "due_on": None}],
+            request="request_due_clear",
+        )
+        self.assertIsNone(updated["tasks"][0]["due_on"])
+        for value in ("2026-02-30", "2026-2-3", "tomorrow"):
+            with self.subTest(value=value):
+                with self.assertRaises(TaskError):
+                    self.apply(
+                        state,
+                        [{"op": "edit", "task_id": "task_a", "due_on": value}],
+                        request=f"request_due_bad_{value}",
+                    )
 
     def test_invalid_batch_is_all_or_nothing(self):
         state, _ = self.apply(initial_tasks(), [add("new_one", "Kept")], ids=("task_a",))

@@ -91,6 +91,24 @@ export function checkinView(view) {
   };
 }
 
+export function groupedCheckinHistory(history) {
+  let failed = 0;
+  for (const item of history || []) {
+    if (item?.outcome !== 'failed_quiet') break;
+    failed += 1;
+  }
+  if (failed < 2) return { summary: null, failed: [], entries: history || [] };
+  return {
+    summary: {
+      count: failed,
+      title: 'Recent check-ins could not finish',
+      description: 'No check-in was sent from these attempts. The recorded details are kept below.',
+    },
+    failed: history.slice(0, failed),
+    entries: history.slice(failed),
+  };
+}
+
 export function checkinTime(value) {
   return stamp(value)
     ? new Date(value * 1000).toLocaleString([], {

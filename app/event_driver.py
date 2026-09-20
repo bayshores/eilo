@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -120,6 +121,18 @@ def _nullable_text(value: Any, *, field: str, maximum: int) -> str | None:
     return None if value is None else _small_text(value, field=field, maximum=maximum)
 
 
+def _nullable_date(value: Any, *, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise InputError(f"invalid {field}")
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise InputError(f"invalid {field}") from None
+    return value
+
+
 def _work_context_observation(value: Any) -> dict[str, Any]:
     """Validate the modern, already-minimized context contract at its owner boundary."""
     from app.accountability import validate_context_observation
@@ -147,15 +160,27 @@ def _task_state(value: Any) -> dict[str, Any]:
         raise InputError("invalid task state")
     tasks, identities = [], set()
     for raw in value["tasks"]:
-        if not isinstance(raw, dict) or set(raw) != {
-            "id",
-            "title",
-            "status",
-            "due_text",
-            "target_count",
-            "completed_count",
-            "unit",
-        }:
+        if not isinstance(raw, dict) or set(raw) not in (
+            {
+                "id",
+                "title",
+                "status",
+                "due_text",
+                "target_count",
+                "completed_count",
+                "unit",
+            },
+            {
+                "id",
+                "title",
+                "status",
+                "due_text",
+                "due_on",
+                "target_count",
+                "completed_count",
+                "unit",
+            },
+        ):
             raise InputError("invalid task")
         identity = _identifier(raw["id"], "task.id")
         if identity in identities or raw["status"] not in (
@@ -182,17 +207,18 @@ def _task_state(value: Any) -> dict[str, Any]:
         if unit is not None and target is None:
             raise InputError("invalid task")
         identities.add(identity)
-        tasks.append(
-            {
-                "id": identity,
-                "title": _small_text(raw["title"], field="task.title", maximum=500),
-                "status": raw["status"],
-                "due_text": _nullable_text(raw["due_text"], field="task.due_text", maximum=120),
-                "target_count": target,
-                "completed_count": completed,
-                "unit": unit,
-            }
-        )
+        task = {
+            "id": identity,
+            "title": _small_text(raw["title"], field="task.title", maximum=500),
+            "status": raw["status"],
+            "due_text": _nullable_text(raw["due_text"], field="task.due_text", maximum=120),
+            "target_count": target,
+            "completed_count": completed,
+            "unit": unit,
+        }
+        if "due_on" in raw:
+            task["due_on"] = _nullable_date(raw["due_on"], field="task.due_on")
+        tasks.append(task)
     focus_id = value["focus_id"]
     if focus_id is not None:
         focus_id = _identifier(focus_id, "task_state.focus_id")

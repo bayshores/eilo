@@ -3,7 +3,13 @@ import test from 'node:test';
 import { returnBriefingData, shouldOfferReturn } from './return-briefing-data.js';
 
 const now = new Date(2026, 8, 19, 12);
-const task = (id, title, due_text = null) => ({ id, title, status: 'open', due_text });
+const task = (id, title, due_text = null, due_on = null) => ({
+  id,
+  title,
+  status: 'open',
+  due_text,
+  due_on,
+});
 const snapshot = (tasks = [task('focus', 'Study')], extra = {}) => ({
   schema_version: 2,
   tasks: { tasks, focus_id: 'focus', break_active: false },
@@ -41,6 +47,15 @@ test('only valid exact local ISO dates can be called overdue', () => {
     assert.equal(data.status, 'deadline-needs-review');
     assert.equal(data.prompt.includes('has passed'), false);
   }
+});
+
+test('a selected due date outranks a loose timing note without overwriting it', () => {
+  const data = returnBriefingData(
+    view(snapshot([task('focus', 'Report', 'after the review', '2026-09-18')])),
+    now,
+  );
+  assert.equal(data.status, 'deadline-passed');
+  assert.equal(data.dueLabel, 'Due Sep 18');
 });
 
 test('calendar events require a fresh approved connected snapshot and stay within today', () => {
@@ -89,6 +104,28 @@ test('return guidance waits for a new day and respects interruption states', () 
     { guidance: false },
   ])
     assert.equal(shouldOfferReturn({ day: '2026-09-19', guidance: true, ...options }), false);
+  assert.equal(
+    shouldOfferReturn({
+      day: '2026-09-19',
+      lastDay: '2026-09-19',
+      guidance: true,
+      now: 8 * 60 * 60 * 1000,
+      lastActiveAt: 3 * 60 * 60 * 1000,
+      absenceMs: 4 * 60 * 60 * 1000,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldOfferReturn({
+      day: '2026-09-19',
+      lastDay: '2026-09-19',
+      guidance: true,
+      now: 6 * 60 * 60 * 1000,
+      lastActiveAt: 3 * 60 * 60 * 1000,
+      absenceMs: 4 * 60 * 60 * 1000,
+    }),
+    false,
+  );
 });
 
 test('today and future exact deadlines stay current, while a break overrides goal prompts', () => {

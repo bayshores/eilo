@@ -103,8 +103,10 @@ class HomeRouteTests(unittest.IsolatedAsyncioTestCase):
         for path in (
             "/home/index.html",
             "/home/home/layout.js",
+            "/home/home/health-data.js",
             "/home/workspace/views.js",
             "/home/workspace/views.css",
+            "/home/workspace/activity-reflection-data.js",
             "/home/workspace/item-controls.js",
             "/home/workspace/item-controls.css",
             "/home/goals/editor.js",

@@ -32,6 +32,14 @@ test('unavailable builds and recovery states give honest useful descriptions', (
     'Google Calendar access needs attention.',
   );
   assert.equal(
+    describeSnapshot({
+      ...base,
+      state: 'reauth_required',
+      error: { message: 'Google no longer accepts this permission.' },
+    }),
+    'Google no longer accepts this permission.',
+  );
+  assert.equal(
     describeSnapshot({ ...base, state: 'error', error: { message: 'Connection expired.' } }),
     'Connection expired.',
   );

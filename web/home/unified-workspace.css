@@ -145,11 +145,28 @@
   font-size: 14px;
   color: #dfb991;
 }
+.unified-health {
+  grid-column-start: 1;
+  grid-column-end: -1;
+  min-height: 78px;
+  align-items: center;
+  padding-block: 16px;
+}
+.unified-health .unified-card-title {
+  font-size: 20px;
+}
+.unified-health .unified-card-meta {
+  font-size: 15px;
+}
 .unified-detail {
   flex: none;
+  max-height: min(30dvh, 270px);
   padding: 24px 28px;
   border-radius: 20px;
   background: #282524aa;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .unified-detail h2 {
   margin: 0 50px 12px 0;
@@ -159,11 +176,39 @@
   font-size: 16px;
   color: var(--muted);
 }
+.unified-detail > p {
+  margin: 0 0 8px;
+}
 .unified-detail .button {
   margin-right: 16px;
 }
 .unified-detail-close {
   float: right;
+}
+.unified-health-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 20px;
+  align-items: center;
+  padding: 14px 0;
+}
+.unified-health-item + .unified-health-item {
+  margin-top: 6px;
+}
+.unified-health-item h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.unified-health-item p {
+  grid-column: 1;
+  margin: 0;
+}
+.unified-health-item .button {
+  grid-column: 2;
+  grid-row-start: 1;
+  grid-row-end: span 2;
+  margin: 0;
 }
 
 :root[data-source='live'] .workspace.unified-home > .board-scroll,
@@ -580,10 +625,6 @@
   max-height: none;
   overflow: auto;
 }
-.unified-detail {
-  max-height: 24vh;
-  overflow: auto;
-}
 :root[data-source='live'] .workspace.unified-home.unified-show-widgets > .board-scroll {
   height: min(30vh, 300px);
   min-height: 0;
@@ -743,6 +784,26 @@
   width: calc(100% + 16px);
 }
 
+:root[data-source='live'] .workspace.unified-context-visible > .board-scroll {
+  display: block;
+  flex: 0 0 clamp(154px, 19vh, 214px);
+  width: 100%;
+  min-height: 154px;
+  height: auto;
+  margin: 0;
+  padding: 0 8px;
+  overflow: hidden;
+}
+:root[data-source='live'] .workspace.unified-context-visible > .home-pagination {
+  display: flex;
+  position: static;
+  flex: none;
+  transform: none;
+}
+:root[data-source='live'] .workspace.unified-context-visible > .conversation-dock {
+  min-height: 200px;
+}
+
 /* hiddenInset keeps macOS window controls over web content; clear their hit area. */
 :root[data-source='live'][data-native-host='macos'] .workspace.unified-home .scene-wordmark {
   left: 96px;
@@ -770,5 +831,117 @@
     .conversation-dock.has-return-briefing
     .conversation-thread {
     overflow: visible;
+  }
+  .unified-detail {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (min-width: 541px) and (max-height: 700px) {
+  :root[data-source='live'] .workspace.unified-home {
+    padding: 58px 24px 8px;
+    gap: 6px;
+  }
+  :root[data-source='live'] .workspace.unified-home .scene-wordmark {
+    left: 24px;
+    top: 12px;
+    font-size: 34px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions {
+    top: 15px;
+    right: 24px;
+    gap: 7px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions .button {
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 13px;
+  }
+  :root[data-source='live'] .workspace.unified-home .home-header {
+    margin-bottom: 0;
+  }
+  :root[data-source='live'] .workspace.unified-home .home-header h1 {
+    margin-top: 2px;
+    font-size: 27px;
+  }
+  .unified-date {
+    font-size: 14px;
+  }
+  .unified-card {
+    min-height: 78px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .unified-card-copy {
+    gap: 3px;
+  }
+  .unified-card-eyebrow,
+  .unified-card-state {
+    font-size: 11px;
+  }
+  .unified-card-title {
+    font-size: 17px;
+  }
+  .unified-card-meta {
+    font-size: 12px;
+  }
+  .unified-health {
+    min-height: 60px;
+    padding-block: 9px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible > .board-scroll {
+    flex-basis: 154px;
+    min-height: 154px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible > .home-pagination {
+    min-height: 20px;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock {
+    min-height: 158px;
+    margin-top: 0;
+    padding: 10px 14px;
+  }
+  .unified-dock-header {
+    min-height: 38px;
+  }
+  .unified-dock-header h2 {
+    font-size: 18px;
+  }
+  .unified-presence {
+    width: 38px;
+    height: 38px;
+  }
+  .unified-prompt {
+    margin-bottom: 10px;
+    font-size: 18px;
+    line-height: 1.25;
+  }
+  .unified-replies {
+    gap: 7px;
+  }
+  .unified-replies .button {
+    min-height: 38px;
+    min-width: 132px;
+    padding: 7px 13px;
+    font-size: 14px;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock .live-composer {
+    padding: 9px 13px 5px;
+  }
+}
+
+@media (max-width: 540px) {
+  .unified-health {
+    min-height: 72px;
+  }
+  .unified-health-item {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .unified-health-item .button {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 }

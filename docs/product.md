@@ -19,15 +19,17 @@ priorities, breaks, and external actions.
   optional source setup follows with separate collection, AI-sharing, check-in
   and alert choices. Existing profiles retain their current workspace.
 - **Home** combines a date-aware goal/event/activity summary with an expandable
-  conversation dock. Collapsing the conversation reveals the saved widget area and keeps the compact dock at the bottom. Returning from Settings preserves whether the conversation was open. Goal details open in place; **Edit home** opens the
+  conversation dock. A compact strip of saved widgets remains visible while the
+  conversation is open; collapsing it reveals the full saved widget area and keeps the compact dock at the bottom. A recovery card appears only when a connected source or check-ins need attention and links to the relevant repair surface. Returning from Settings preserves whether the conversation was open. Goal details open in place; **Edit home** opens the
   saved widget arrangement directly, and Done restores the briefing and dock. Tracking shows current browser, Calendar, and Gmail
   access; Browser usage shows retained recorded time by site and day.
-- **Talk** expands within Home, keeping the summary cards visible. Goals and Activity open as detail panels over this workspace. History stays inside the
+- **Talk** expands within Home, keeping the summary cards and compact widget
+  context visible. Goals and Activity open as detail panels over this workspace. History stays inside the
   dock; drafts and the selected conversation survive collapsing and reopening.
 - **Goals** opens from its Home widget and provides a detail view of active, completed, cancelled,
   and recoverable deleted goals.
-- **Activity** opens from its Home widget and starts with a useful source setup action plus explicit check-in
-  and recording controls. A pause keeps a visible **Resume recording** action in the same Activity header. Recorded usage, check-in filters, audit history and recoverable deleted
+- **Activity** opens from its Home widget and starts with a concise, honest
+  reflection of available activity plus explicit check-in and recording controls. The recorded rows remain available on demand, while repeated unfinished check-ins are summarized before their individual audit entries. A pause keeps a visible **Resume recording** action in the same Activity header. Recoverable deleted
   items appear when they contain data. Observed time is evidence of an admitted
   signal, never proof of attention, progress, or completion.
 - **Permissions** combines activity capture, detail level, AI sharing, and connected-app management in one destination with independent controls. Calendar entries are
@@ -108,20 +110,22 @@ and asks for a small first step in the ordinary conversation. No mandatory timer
 daily planning ritual or widget arrangement precedes ordinary use.
 
 A daily return briefing is on by default. On the first connected Home visit of
-a local day it expands the conversation only when no draft, pending reply or
-break is active. A blocked first visit does not trigger delayed guidance after
-work clears. Dismissal persists for the local day. The opening is currently a
+a local day, or after at least four hours away, it expands the conversation only
+when no draft, pending reply or break is active. A blocked first visit does not
+trigger delayed guidance after work clears. Dismissal persists for the local day. The opening is currently a
 local projection of saved goal and date state, not an automatic model turn or
 new mailbox read. Exact ISO goal dates may be identified as passed; ambiguous
-wording is shown for confirmation without inventing a deadline. It uses confirmed task state and
+wording is shown for confirmation without inventing a deadline. A passed date offers
+**Finished**, **Still want to**, **Drop goal**, and **Not now**; keeping it opens the
+real goal editor with a calendar date separate from the person's timing note. It uses confirmed task state and
 only explicitly linked next-step context. Calendar information requires a current
 connected cache (under fifteen minutes old); this UI performs no new AI source
-read. Continue, Change and Not now remain optional. Dismissal applies across chats
+read. Its next-step and dismissal choices remain optional. Dismissal applies across chats
 for the local day, and the user can turn guidance off. Short returns retain the
 draft and conversation instead of restarting guidance.
 
 Visible navigation and restrained interface sounds default on only where no
 preference exists. Explicit off choices persist. A saved permission is distinct
-from receipt of activity. A persistent bottom-right status cluster reports Desktop,
-Browser, Calendar, and Gmail health and opens Permissions for management. Collection,
+from receipt of activity. Home source cards and its recovery card report Desktop,
+Browser, Calendar, and Gmail health and open the relevant management surface. Collection,
 AI sharing and alerts never gain consent from this presentation default.

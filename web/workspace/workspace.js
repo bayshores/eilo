@@ -388,7 +388,7 @@ export function createLiveHome({
         onChanged: (next) => client.acceptWorkspace(next),
         onActivate: () => {
           messageFingerprint = '';
-          if (compactHistory.matches) setHistoryOpen(false, { focus: false });
+          if (historyOpen) setHistoryOpen(false, { focus: false });
           talk();
         },
       });
@@ -444,7 +444,15 @@ export function createLiveHome({
     },
     renderPage: (
       page,
-      { goalFilter, connectionsTab, activityTab, settingsSection, connectionId } = {},
+      {
+        goalFilter,
+        goalId,
+        editGoal,
+        connectionsTab,
+        activityTab,
+        settingsSection,
+        connectionId,
+      } = {},
     ) => {
       if (['chats', 'projects'].includes(page)) {
         setThreadOpen(true, { focus: false });
@@ -459,7 +467,7 @@ export function createLiveHome({
       workspace.dataset.page = homePage;
       board.hidden = page !== 'home';
       pages.hidden = page === 'home';
-      views.show(page, { goalFilter, activityTab });
+      views.show(page, { goalFilter, goalId, editGoal, activityTab });
       settingsHost.hidden = !['settings', 'connections'].includes(page);
       if (page === 'connections' || page === 'settings') {
         onSettingsSection(settingsSection || (page === 'connections' ? 'connections' : 'general'));

@@ -41,7 +41,8 @@ export function describeSnapshot(snapshot) {
   if (snapshot.state === 'authorizing') return 'Finish Google sign-in.';
   if (snapshot.state === 'choosing') return 'Select calendars to read, then save.';
   if (snapshot.state === 'paused') return 'Calendar sync is paused.';
-  if (snapshot.state === 'reauth_required') return 'Google Calendar access needs attention.';
+  if (snapshot.state === 'reauth_required')
+    return snapshot.error?.message || 'Google Calendar access needs attention.';
   if (snapshot.state === 'error') return snapshot.error?.message || 'Calendar needs attention.';
   return snapshot.last_synced_at
     ? `Synced ${formatWhen(snapshot.last_synced_at)}.`
@@ -442,13 +443,14 @@ export function mountCalendarConnection(
         });
     } else {
       const expired = snapshot.state === 'reauth_required';
+      const recoveryDetail = snapshot.error?.message
+        ? `The last access check could not restore the existing permission: ${snapshot.error.message} Reconnect Calendar to grant a new one.`
+        : 'Retry the existing access, or reconnect if Google no longer allows it.';
       content.append(
         element(
           'p',
           'calendar-connection__detail',
-          expired
-            ? 'Retry access, or reconnect if Google no longer allows it.'
-            : snapshot.error?.message || 'Calendar needs attention.',
+          expired ? recoveryDetail : snapshot.error?.message || 'Calendar needs attention.',
         ),
       );
       if (expired) {

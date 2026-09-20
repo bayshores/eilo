@@ -154,7 +154,16 @@ class TaskTrashTests(unittest.TestCase):
         published = public_state(deleted)
         self.assertEqual(
             set(published["tasks"][0]),
-            {"id", "title", "status", "due_text", "target_count", "completed_count", "unit"},
+            {
+                "id",
+                "title",
+                "status",
+                "due_text",
+                "due_on",
+                "target_count",
+                "completed_count",
+                "unit",
+            },
         )
         self.assertEqual(published["tasks"][0]["status"], "deleted")
         duplicate, receipt = self.apply(

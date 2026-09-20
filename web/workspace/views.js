@@ -13,6 +13,7 @@ import {
 } from '../goals/data.js';
 import { progressText } from '../home/data.js';
 import { createItemControls } from './item-controls.js';
+import { activityReflection } from './activity-reflection-data.js';
 import { mountCheckinCenter, renderAgentLog } from '../activity/checkins.js';
 import { checkinView } from '../activity/checkin-data.js';
 import { createActivityDayMap } from '../activity/day-map.js';
@@ -35,6 +36,20 @@ const statusLabel = (status) =>
   ({ open: 'Active', completed: 'Completed', cancelled: 'Cancelled', deleted: 'In Trash' })[
     status
   ] || '';
+const dueDateLabel = (value) => {
+  if (typeof value !== 'string') return '';
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` !==
+      value
+  )
+    return '';
+  return `Due ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+};
 const duration = (seconds) =>
   seconds >= 60
     ? `${Math.floor(seconds / 60)} min observed`
@@ -302,7 +317,7 @@ export function createWorkspaceViews({
               ? 'Current focus'
               : null,
           progressText(task) || null,
-          task.due_text || null,
+          dueDateLabel(task.due_on) || task.due_text || null,
         ].filter(Boolean);
         if (meta.length) item.append(el('span', 'goal-option-meta', meta.join(' · ')));
         item.append(
@@ -408,10 +423,18 @@ export function createWorkspaceViews({
       );
     const facts = el('div', 'goal-facts');
     body.append(facts);
-    if (task.due_text) {
+    if (task.due_on || task.due_text) {
       const due = el('div', 'goal-due');
-      due.append(el('span', '', 'Timing'), el('strong', '', task.due_text));
+      due.append(
+        el('span', '', task.due_on ? 'Due date' : 'Timing'),
+        el('strong', '', dueDateLabel(task.due_on) || task.due_text),
+      );
       facts.append(due);
+    }
+    if (task.due_on && task.due_text) {
+      const timing = el('div', 'goal-due');
+      timing.append(el('span', '', 'Timing note'), el('strong', '', task.due_text));
+      facts.append(timing);
     }
     if (progressText(task)) {
       const progress = el('section', 'goal-progress');
@@ -762,7 +785,7 @@ export function createWorkspaceViews({
       activityDetail.append(el('p', 'activity-relation', `May relate to ${related.join(', ')}`));
     if (actions.childElementCount) activityDetail.append(actions);
   }
-  function appendActivityRecord(record) {
+  function appendActivityRecord(record, target = feed) {
     const selected = record.id === selectedActivityId;
     const item = el('article', 'activity-record activity-observation');
     item.dataset.activityRecordId = record.id;
@@ -796,7 +819,7 @@ export function createWorkspaceViews({
       ),
     );
     item.append(select);
-    feed.append(item);
+    target.append(item);
   }
   function renderActivity() {
     const snapshot = current?.snapshot;
@@ -917,6 +940,20 @@ export function createWorkspaceViews({
           el('p', 'activity-summary', 'Restore observations within seven days.'),
         );
       } else if (records.length) {
+        const reflection = activityReflection(records);
+        const reflectionCard = el('section', 'activity-reflection');
+        reflectionCard.append(
+          el('h2', '', reflection.title),
+          el('p', '', reflection.detail),
+          el(
+            'span',
+            'activity-reflection-meta',
+            reflection.otherCount
+              ? `${activitySummary(records)} · ${reflection.otherCount} other app${reflection.otherCount === 1 ? '' : 's'}`
+              : activitySummary(records),
+          ),
+        );
+        feed.append(reflectionCard);
         const summary = el('div', 'activity-feed-summary');
         summary.append(el('p', 'activity-summary', activitySummary(records)));
         if (hasTrash)
@@ -946,7 +983,15 @@ export function createWorkspaceViews({
         );
         feed.append(empty);
       }
-      for (const record of records) appendActivityRecord(record);
+      if (activityFilter === 'recorded' && records.length) {
+        const details = el('details', 'activity-recorded-details');
+        details.open = Boolean(selectedActivityId);
+        details.append(el('summary', '', 'Recorded details'));
+        const list = el('div', 'activity-recorded-list');
+        for (const record of records) appendActivityRecord(record, list);
+        details.append(list);
+        feed.append(details);
+      } else for (const record of records) appendActivityRecord(record);
     }
     feed.scrollTop = scroll;
     if (focusActivityId) {
@@ -957,7 +1002,7 @@ export function createWorkspaceViews({
     }
   }
   return {
-    show(nextPage, { goalFilter, activityTab } = {}) {
+    show(nextPage, { goalFilter, goalId, editGoal, activityTab } = {}) {
       controls.closeMenus();
       if (page !== nextPage) controls.clearNotice();
       page = nextPage;
@@ -975,7 +1020,19 @@ export function createWorkspaceViews({
         selectedActivityId = '';
         activityKey = '';
       }
-      if (page === 'goals') renderGoals();
+      if (page === 'goals') {
+        const task = current?.snapshot?.tasks?.tasks.find((item) => item.id === goalId);
+        if (task) {
+          controls.select();
+          selectedId = task.id;
+          expandedId = task.id;
+          filter = task.status === 'cancelled' ? 'all' : task.status;
+          query = '';
+          search.value = '';
+        }
+        renderGoals();
+        if (task && editGoal && task.status !== 'deleted') controls.beginEdit(task);
+      }
       if (page === 'activity') renderActivity();
     },
     update(view) {

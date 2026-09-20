@@ -7,6 +7,7 @@ import re
 import time
 import uuid
 from copy import deepcopy
+from datetime import date
 
 
 class TaskError(ValueError):
@@ -35,16 +36,16 @@ def public_state(state: dict) -> dict:
         "break_active": state["break_active"],
         "tasks": [
             {
-                key: task[key]
-                for key in (
-                    "id",
-                    "title",
-                    "status",
-                    "due_text",
-                    "target_count",
-                    "completed_count",
-                    "unit",
-                )
+                "id": task["id"],
+                "title": task["title"],
+                "status": task["status"],
+                "due_text": task["due_text"],
+                # Stored tasks created before exact dates were introduced do
+                # not have this field. Their wording remains intact.
+                "due_on": task.get("due_on"),
+                "target_count": task["target_count"],
+                "completed_count": task["completed_count"],
+                "unit": task["unit"],
             }
             for task in state["tasks"]
         ],
@@ -77,6 +78,19 @@ def _count(value, *, nullable=False, positive=False):
         or not (1 if positive else 0) <= value <= 10000
     ):
         raise TaskError("Use a whole-number quantity between 0 and 10,000.")
+    return value
+
+
+def _date(value, *, nullable=False):
+    """Keep an exact, user-confirmed deadline separate from their own wording."""
+    if value is None and nullable:
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise TaskError("Use a calendar date in YYYY-MM-DD format.")
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise TaskError("Use a real calendar date in YYYY-MM-DD format.") from None
     return value
 
 
@@ -144,7 +158,11 @@ def apply_operations(
             raise TaskError("Invalid task change.")
         name = operation.get("op")
         if name == "add":
-            _shape(operation, ("op", "temp_id", "title", "due_text", "target_count", "unit"))
+            _shape(
+                operation,
+                ("op", "temp_id", "title", "due_text", "target_count", "unit"),
+                ("due_on",),
+            )
             temp_id = operation["temp_id"]
             if (
                 not isinstance(temp_id, str)
@@ -162,6 +180,7 @@ def apply_operations(
                 "title": _text(operation["title"], "a title", 500),
                 "status": "open",
                 "due_text": _text(operation["due_text"], "deadline wording", 120, nullable=True),
+                "due_on": _date(operation.get("due_on"), nullable=True),
                 "target_count": _count(operation["target_count"], nullable=True, positive=True),
                 "unit": _text(operation["unit"], "a quantity label", 60, nullable=True),
                 "completed_count": 0,
@@ -179,7 +198,11 @@ def apply_operations(
                 + "."
             )
         elif name == "edit":
-            _shape(operation, ("op", "task_id"), ("title", "due_text", "target_count", "unit"))
+            _shape(
+                operation,
+                ("op", "task_id"),
+                ("title", "due_text", "due_on", "target_count", "unit"),
+            )
             if len(operation) == 2:
                 raise TaskError("Choose something to change on this task.")
             task = resolve(operation["task_id"])
@@ -189,6 +212,8 @@ def apply_operations(
                     task[key] = _text(
                         operation[key], key.replace("_", " "), maximum, nullable=key != "title"
                     )
+            if "due_on" in operation:
+                task["due_on"] = _date(operation["due_on"], nullable=True)
             if "target_count" in operation:
                 task["target_count"] = _count(
                     operation["target_count"], nullable=True, positive=True

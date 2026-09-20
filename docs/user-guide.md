@@ -20,13 +20,17 @@ Home offers **Continue**, **Help me start**, and **Change plan**. Help me start
 prepares an editable message; sending it asks for a small next step without
 silently changing your goal. An existing draft is never replaced.
 
-On the first visit of the day, the inline return point uses the chosen saved goal,
-an explicitly linked return point when available, and a recently synced upcoming
-Calendar event when available. **Not now** dismisses it for the day across chats.
-**Turn off daily guidance** disables future return points. The preference is also
-in Settings → General. It does not open over a conversation or move keyboard focus.
-Returning after an interruption retains the draft and conversation view; reload
-also restores the reading position. Missed days do not reschedule goals.
+On the first visit of the day, and after at least four hours away, the inline return
+point uses the chosen saved goal, an explicitly linked return point when available,
+and a recently synced upcoming Calendar event when available. It waits when you have
+a draft, a pending reply, or an active break. **Not now** dismisses it for the day
+across chats. **Turn off daily guidance** disables future return points. The preference
+is also in Settings → General. It does not open over a conversation or move keyboard
+focus. When an exact goal date has passed, choose **Finished**, **Still want to**,
+**Drop goal**, or **Not now**. Still want to opens that goal's editor so you can set a
+new calendar date or keep an explanatory timing note. Returning after a short
+interruption retains the draft and conversation view; reload also restores the reading
+position. Missed days do not reschedule goals.
 
 ## Connect ChatGPT
 
@@ -34,9 +38,10 @@ Open **Settings → Account → Connect ChatGPT**. A **Connect ChatGPT** shortcu
 
 ## Start a conversation
 
-Choose **Talk** in the navigation and type in the composer. **Workspace** returns
-to the page you were using. **History** opens saved chats and projects inside Talk;
-it sits beside the conversation in wide windows and replaces it in compact ones.
+Choose **Talk** from Home and type in the composer. **Workspace** returns to the
+same Home view. **History** opens saved chats and projects inside Talk; it sits beside
+the conversation in wide windows and replaces it in compact ones. Selecting a saved
+chat closes History and returns visibly to that conversation with the composer ready.
 Drafts and cursor positions are retained when switching chats. Enter sends and
 Shift+Enter inserts a line break. A sent message may first show an acceptance receipt while its reply
 is still being generated. If a saved reply needs recovery after an interruption,
@@ -66,17 +71,20 @@ reading is available.
 
 Goals offers search, **Add goal**, and status filters including **Recently deleted**. **Edit goal**, **Set focus**, **Clear focus**, and **Mark complete** are visible in the selected goal; cancellation and trash are under **More actions**. You can add
 or edit a goal, set or clear focus, complete, cancel, reopen, or move a goal to
-Trash. Trash is recoverable local goal state; it does not erase older native
+Trash. The goal editor keeps an exact **Due date** separate from a free-text
+**Timing note**, so a date-aware return briefing never has to guess what loose
+wording means. Trash is recoverable local goal state; it does not erase older native
 conversation history.
 
 Activity has **Recorded activity** and **AI activity** tabs. Recorded activity
-opens to the latest recorded local day. Use the previous/next day controls for
-older or newer records. Each row already shows its title, source, local time and
-recorded duration. Select one row for its details and its available correction
-actions; on a wide window the detail sits beside the list, and on a compact
-window it appears below it. Press Escape or choose **Close** to return to the
-list. Browser usage remains available from the Browser usage widget on Home, so
-Activity can stay a short chronological record.
+opens to the latest recorded local day with a compact description of what the
+available data can support. It never treats an app or page as proof of focus or
+completion. **Recorded details** reveals the individual rows when you need the
+underlying evidence. Use the previous/next day controls for older or newer records.
+Select one row for its details and its available correction actions; on a wide window
+the detail sits beside the list, and on a compact window it appears below it. Press
+Escape or choose **Close** to return to the list. Browser usage remains available from
+the Browser usage widget on Home, so Activity can stay a short chronological record.
 
 AI activity contains conversation replies, delivered check-ins and recorded
 check-in outcomes. **What informed this?** shows the input categories actually
@@ -155,7 +163,7 @@ goals or conversation content.
 
 Open **Settings** from Home. **Permissions → Let AI use recorded activity** separately lets the existing AI use your conversation and permitted activity. Capture, AI sharing, and check-ins each keep their own controls.
 
-**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. Collapsing the conversation reveals the saved widget area; a compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
+**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. When Talk is open, a compact strip keeps saved widgets in view; collapsing the conversation reveals the full saved widget area. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
 
 A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Widgets & layout returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
 

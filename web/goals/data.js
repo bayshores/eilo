@@ -33,7 +33,7 @@ export function selectGoals(snapshot, { filter = 'open', query = '', selectedId 
   };
   const matches = (task) =>
     !needle ||
-    [task.title, task.due_text].some(
+    [task.title, task.due_text, task.due_on].some(
       (value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle),
     );
   const items = (activeFilter === 'deleted' ? data.trash : data.tasks)

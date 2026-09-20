@@ -951,6 +951,54 @@
   gap: 10px 16px;
   margin: 0 0 12px;
 }
+.activity-reflection {
+  margin: 0 0 16px;
+  padding: 22px 24px;
+  border-radius: 20px;
+  background: #2e2928;
+  box-shadow:
+    inset 0 1px #ffffff12,
+    0 10px 26px #0002;
+}
+.activity-reflection h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 500;
+}
+.activity-reflection p {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.activity-reflection-meta {
+  display: block;
+  margin-top: 13px;
+  color: #d7b79d;
+  font-size: 13px;
+}
+.activity-recorded-details {
+  margin: 4px 0 0;
+  border-radius: 18px;
+  background: #24262b;
+}
+.activity-recorded-details > summary {
+  min-height: 50px;
+  padding: 15px 18px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+}
+.activity-recorded-details > summary:focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.activity-recorded-list {
+  padding: 0 14px 12px;
+}
 .activity-feed-heading {
   justify-content: space-between;
 }

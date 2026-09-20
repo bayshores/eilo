@@ -7,15 +7,30 @@ function quantity(value, label, { optional = false, minimum = 0 } = {}) {
   return Number(text);
 }
 
+function calendarDate(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const date = new Date(`${text}T12:00:00`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(text) ||
+    Number.isNaN(date.getTime()) ||
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` !==
+      text
+  )
+    throw new Error('Choose a real calendar date.');
+  return text;
+}
+
 export function taskEditOperations(task, values, tempId = 'new_manual') {
   const title = String(values.title || '').trim(),
-    due = String(values.due_text || '').trim() || null;
+    due = String(values.due_text || '').trim() || null,
+    dueOn = calendarDate(values.due_on);
   if (!title || title.length > 500) throw new Error('Enter a goal name of 1–500 characters.');
   if (due && due.length > 120) throw new Error('Keep timing to 120 characters.');
   const target = quantity(values.target_count, 'Target', { optional: true, minimum: 1 });
   const unit = target === null ? null : String(values.unit || '').trim() || null;
   if (unit && unit.length > 60) throw new Error('Keep the unit to 60 characters.');
-  const fields = { title, due_text: due, target_count: target, unit };
+  const fields = { title, due_text: due, due_on: dueOn, target_count: target, unit };
   if (!task) return [{ op: 'add', temp_id: tempId, ...fields }];
   if (task.status === 'deleted') throw new Error('Restore this goal before editing it.');
   const changes = Object.fromEntries(

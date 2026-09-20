@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkinView, observedContext } from './checkin-data.js';
+import { checkinView, groupedCheckinHistory, observedContext } from './checkin-data.js';
 const view = (patch = {}, connection = 'connected') => ({
   connection,
   snapshot: {
@@ -75,4 +75,17 @@ test('earliest reevaluation time is optional, finite, and never a promised messa
   for (const t of [0, -1, NaN, Infinity, '500'])
     assert.equal(checkinView(view({ eligible_at: t })).eligibleAt, null);
   assert.match(checkinView(view({ phase: 'eligible' })).description, /may prompt/);
+});
+
+test('repeated current failures are grouped without deleting their audit entries', () => {
+  const history = [
+    { outcome: 'failed_quiet', createdAt: 50 },
+    { outcome: 'failed_quiet', createdAt: 40 },
+    { outcome: 'quiet', createdAt: 30 },
+  ];
+  const grouped = groupedCheckinHistory(history);
+  assert.equal(grouped.summary.count, 2);
+  assert.deepEqual(grouped.failed, history.slice(0, 2));
+  assert.deepEqual(grouped.entries, history.slice(2));
+  assert.equal(groupedCheckinHistory(history.slice(1)).summary, null);
 });

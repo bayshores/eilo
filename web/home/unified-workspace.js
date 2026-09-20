@@ -1,5 +1,10 @@
-import { returnBriefingData, shouldOfferReturn } from './return-briefing-data.js';
+import {
+  RETURN_AFTER_ABSENCE_MS,
+  returnBriefingData,
+  shouldOfferReturn,
+} from './return-briefing-data.js';
 import { selectTracking } from './tracking-data.js';
+import { homeHealth } from './health-data.js';
 import { localDay } from './daily-start.js';
 import { progressText } from './data.js';
 import { goalActionOperations, undoGoalOperations } from '../goals/editor.js';
@@ -47,7 +52,9 @@ export function mountUnifiedWorkspace({
     const trigger = button(
       '',
       () =>
-        kind === 'event' ? toggleDetail(kind) : showPage(kind === 'goal' ? 'goals' : 'activity'),
+        ['event', 'health'].includes(kind)
+          ? toggleDetail(kind)
+          : showPage(kind === 'goal' ? 'goals' : 'activity'),
       'unified-card unified-' + kind,
     );
     const copy = node('span', 'unified-card-copy');
@@ -58,7 +65,13 @@ export function mountUnifiedWorkspace({
       node(
         'span',
         'unified-card-eyebrow',
-        kind === 'event' ? 'Coming up' : kind === 'goal' ? 'Your goals' : 'Activity',
+        kind === 'event'
+          ? 'Coming up'
+          : kind === 'goal'
+            ? 'Your goals'
+            : kind === 'health'
+              ? 'Needs attention'
+              : 'Activity',
       ),
     );
     copy.append(title, meta, state);
@@ -67,16 +80,17 @@ export function mountUnifiedWorkspace({
     trigger.append(copy, disclosure);
     trigger.setAttribute(
       'aria-controls',
-      kind === 'event' ? 'unified-detail' : 'workspace-inspector',
+      ['event', 'health'].includes(kind) ? 'unified-detail' : 'workspace-inspector',
     );
-    if (kind === 'event') trigger.setAttribute('aria-expanded', 'false');
+    if (['event', 'health'].includes(kind)) trigger.setAttribute('aria-expanded', 'false');
     else trigger.setAttribute('aria-haspopup', 'dialog');
     summary.append(trigger);
     return { trigger, title, meta, state };
   }
   const goal = card('goal'),
     event = card('event'),
-    activity = card('activity');
+    activity = card('activity'),
+    health = card('health');
   const detail = node('section', 'unified-detail');
   detail.id = 'unified-detail';
   detail.hidden = true;
@@ -106,14 +120,10 @@ export function mountUnifiedWorkspace({
   const keep = button('Still want to', () => {
     if (!data?.task) return;
     dismiss();
-    talk(
-      'I still want to work on “' +
-        data.task.title +
-        '”. Help me choose a next step and review its timing.',
-    );
+    showPage('goals', { goalId: data.task.id, editGoal: true });
   });
   const drop = button('Drop goal', () => changeGoal('cancel'), 'button unified-drop');
-  const start = button('Choose a next step', () => {
+  const start = button('Plan next step', () => {
     dismiss();
     talk(
       data?.task
@@ -138,6 +148,7 @@ export function mountUnifiedWorkspace({
   notice.setAttribute('role', 'status');
   briefing.after(notice);
   let data = null,
+    healthState = null,
     view = null,
     page = 'home',
     active = false,
@@ -151,6 +162,9 @@ export function mountUnifiedWorkspace({
     dismissed = false,
     saving = false;
   let lastDay = '',
+    lastActiveAt = 0,
+    returnCheckPending = true,
+    returnedAfterAbsence = false,
     lastChat = null,
     destroyed = false,
     motion = null;
@@ -158,6 +172,8 @@ export function mountUnifiedWorkspace({
   try {
     lastDay = storage?.getItem(storeKey) || '';
     dismissed = storage?.getItem(storeKey + ':dismissed') === localDay();
+    const savedActiveAt = Number(storage?.getItem(storeKey + ':active-at'));
+    lastActiveAt = Number.isFinite(savedActiveAt) && savedActiveAt > 0 ? savedActiveAt : 0;
   } catch {
     lastDay = '';
   }
@@ -204,6 +220,15 @@ export function mountUnifiedWorkspace({
     }
     render();
   }
+  function rememberActive(at = Date.now()) {
+    if (!Number.isFinite(at) || at <= 0) return;
+    lastActiveAt = at;
+    try {
+      storage?.setItem(storeKey + ':active-at', String(at));
+    } catch {
+      return;
+    }
+  }
   function setBoard(open) {
     if (open) {
       dockBeforeLayout = isOpen();
@@ -215,34 +240,67 @@ export function mountUnifiedWorkspace({
     if (open) enter([board]);
     window.dispatchEvent(new Event('resize'));
   }
+  function detailValue(kind) {
+    if (kind === 'goal') return data.task;
+    if (kind === 'health') return healthState?.items || [];
+    return [data.event, data.calendarState];
+  }
+  function detailTrigger(kind = selection) {
+    return { goal: goal.trigger, event: event.trigger, health: health.trigger }[kind] || null;
+  }
   function closeDetail(focus = true) {
-    const trigger = selection === 'event' ? event.trigger : goal.trigger;
+    const trigger = detailTrigger();
     selection = null;
     detail.hidden = true;
     goal.trigger.setAttribute('aria-expanded', 'false');
     event.trigger.setAttribute('aria-expanded', 'false');
-    if (focus) trigger.focus({ preventScroll: true });
+    health.trigger.setAttribute('aria-expanded', 'false');
+    if (focus && trigger) trigger.focus({ preventScroll: true });
   }
   function toggleDetail(kind) {
     if (selection === kind) return closeDetail();
     selection = kind;
     selectionContext = view.snapshot.conversation_id;
-    detailKey = JSON.stringify(kind === 'goal' ? data.task : [data.event, data.calendarState]);
+    detailKey = JSON.stringify(detailValue(kind));
     goal.trigger.setAttribute('aria-expanded', String(kind === 'goal'));
     event.trigger.setAttribute('aria-expanded', String(kind === 'event'));
+    health.trigger.setAttribute('aria-expanded', String(kind === 'health'));
     detail.replaceChildren();
     detail.hidden = false;
     const title = node(
       'h2',
       '',
-      kind === 'goal' ? data.task?.title || 'Your goals' : data.event?.title || 'Calendar',
+      kind === 'goal'
+        ? data.task?.title || 'Your goals'
+        : kind === 'health'
+          ? 'Needs attention'
+          : data.event?.title || 'Calendar',
     );
     title.tabIndex = -1;
     detail.append(
       button('Close', () => closeDetail(), 'text-button unified-detail-close'),
       title,
     );
-    if (kind === 'goal' && data.task) {
+    if (kind === 'health') {
+      const items = healthState?.items || [];
+      detail.append(node('p', '', healthState?.detail || 'Everything is up to date.'));
+      for (const item of items) {
+        const row = node('article', 'unified-health-item');
+        row.append(node('h3', '', item.title), node('p', '', item.detail));
+        row.append(
+          button(item.action, () => {
+            closeDetail(false);
+            if (item.id === 'checkins') showPage('activity', { activityTab: 'ai' });
+            else
+              showPage('settings', {
+                settingsSection: 'sources',
+                connectionId: item.id === 'browser' ? 'browser-activity' : item.id,
+              });
+          }),
+        );
+        detail.append(row);
+      }
+    } else if (kind === 'goal' && data.task) {
       const task = data.task;
       detail.append(
         node(
@@ -251,6 +309,14 @@ export function mountUnifiedWorkspace({
           [task.due_text, progressText(task)].filter(Boolean).join(' · ') || 'No deadline set.',
         ),
       );
+      if (['deadline-passed', 'deadline-needs-review'].includes(data.status))
+        detail.append(
+          button('Review deadline', () => {
+            closeDetail(false);
+            dismiss();
+            showPage('goals', { goalId: task.id, editGoal: true });
+          }),
+        );
       detail.append(button('Discuss this goal', () => talk('About “' + task.title + '”: ')));
       detail.append(button('Manage goals', () => showPage('goals'), 'text-button'));
     } else if (kind === 'goal') {
@@ -336,15 +402,24 @@ export function mountUnifiedWorkspace({
   function render() {
     const previous = active;
     active = !!data && page === 'home';
+    healthState = homeHealth(view);
+    const open = isOpen();
+    const showContext = active && open && !boardOpen;
+    const contextChanged = workspace.classList.contains('unified-context-visible') !== showContext;
     workspace.classList.toggle('unified-home', active);
-    workspace.classList.toggle('unified-browsing', active && !isOpen() && !boardOpen);
+    workspace.classList.toggle('unified-browsing', active && !open && !boardOpen);
+    workspace.classList.toggle('unified-context-visible', showContext);
+    if (contextChanged && active)
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+        enter([board, dock]);
+      });
     for (const el of [summary, date, dockHeader, settings]) el.hidden = !active;
     if (!active) {
       briefing.hidden = true;
       detail.hidden = true;
       return;
     }
-    const open = isOpen();
     heading.textContent = data.onBreak ? 'Take your time' : 'Welcome back';
     date.textContent = data.dateLabel;
     date.dateTime = localDay();
@@ -368,6 +443,10 @@ export function mountUnifiedWorkspace({
     activity.meta.textContent = sources.map((row) => row.name + ': ' + row.status).join(' · ');
     activity.state.textContent = paused ? 'Resume in Activity' : '';
     activity.state.hidden = !activity.state.textContent;
+    health.trigger.hidden = !healthState.items.length;
+    health.title.textContent = healthState.title;
+    health.meta.textContent = healthState.detail;
+    health.state.hidden = true;
     activity.trigger.setAttribute('aria-label', 'Open activity');
     goal.trigger.setAttribute(
       'aria-label',
@@ -377,6 +456,7 @@ export function mountUnifiedWorkspace({
       'aria-label',
       data.event ? 'Details for ' + data.event.title : data.calendarState,
     );
+    health.trigger.setAttribute('aria-label', healthState.title || 'Needs attention');
     toggle.setAttribute('aria-label', open ? 'Collapse conversation' : 'Expand conversation');
     toggle.setAttribute('aria-expanded', String(open));
     toggle.querySelector('use').setAttribute('href', open ? '#arrow-down' : '#arrow-up');
@@ -395,14 +475,13 @@ export function mountUnifiedWorkspace({
       action.disabled = saving || !client.canManage();
     }
     start.hidden = !!data.task && needsReview;
-    start.textContent = data.task ? 'Continue' : 'Choose a next step';
+    start.textContent = data.task ? 'Plan next step' : 'Choose a next step';
     start.disabled = !client.canManage();
     later.disabled = saving;
     if (
       selection &&
       (selectionContext !== view.snapshot.conversation_id ||
-        detailKey !==
-          JSON.stringify(selection === 'goal' ? data.task : [data.event, data.calendarState]))
+        detailKey !== JSON.stringify(detailValue(selection)))
     )
       closeDetail(false);
     if (!previous) enter([header, summary, dock]);
@@ -426,34 +505,40 @@ export function mountUnifiedWorkspace({
       notice.hidden = true;
       undoRevision = null;
     }
-    const firstVisit =
+    const canCheckReturn =
       !!data &&
       !document.hidden &&
       page === 'home' &&
       view.connection === 'connected' &&
-      day !== lastDay;
+      returnCheckPending;
+    const now = Date.now();
     const offer =
-      !!data &&
-      page === 'home' &&
-      view.connection === 'connected' &&
+      canCheckReturn &&
+      !dismissed &&
       shouldOfferReturn({
         day,
         lastDay,
+        now,
+        lastActiveAt: returnedAfterAbsence ? now - RETURN_AFTER_ABSENCE_MS : lastActiveAt,
+        absenceMs: RETURN_AFTER_ABSENCE_MS,
         hasDraft: !!view.draft,
         busy: view.sending || !!view.localPending || view.snapshot?.status === 'busy',
         onBreak: data.onBreak,
         guidance: getPreferences().dailyGuidance,
         onboarding: view.snapshot?.onboarding,
       });
-    if (firstVisit) {
+    if (canCheckReturn) {
+      returnCheckPending = false;
+      returnedAfterAbsence = false;
       lastDay = day;
       try {
         storage?.setItem(storeKey, day);
       } catch {
         console.warn('Return preference could not be saved.');
       }
+      rememberActive(now);
     }
-    if (offer && firstVisit) {
+    if (offer) {
       dismissed = false;
       setOpen(true, { focus: false });
     }
@@ -470,14 +555,24 @@ export function mountUnifiedWorkspace({
     if (view) update(view, page);
   };
   const onVisibility = () => {
-    if (document.hidden) stopMotion();
-    else refresh();
+    if (document.hidden) {
+      rememberActive();
+      stopMotion();
+      return;
+    }
+    const now = Date.now();
+    returnedAfterAbsence = Boolean(lastActiveAt && now - lastActiveAt >= RETURN_AFTER_ABSENCE_MS);
+    if (returnedAfterAbsence) returnCheckPending = true;
+    rememberActive(now);
+    refresh();
   };
+  const onPageHide = () => rememberActive();
   const onPreference = () => {
     stopMotion();
     render();
   };
   document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('pagehide', onPageHide);
   preference.addEventListener('change', onPreference);
   const timer = setInterval(refresh, 60000);
   const appWindow = workspace.closest('.app-window');
@@ -501,6 +596,7 @@ export function mountUnifiedWorkspace({
       stopMotion();
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', onPageHide);
       preference.removeEventListener('change', onPreference);
       layoutObserver.disconnect();
       for (const el of [summary, detail, date, dockHeader, briefing, notice, settings]) el.remove();

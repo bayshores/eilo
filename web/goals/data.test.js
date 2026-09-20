@@ -12,7 +12,7 @@ const snapshot = (tasks, extra = {}) => ({
 
 test('goals filters, searches, orders the focused open task, and keeps an eligible selection', () => {
   const tasks = [
-    task('later', 'open', 'Read algorithms', { due_text: 'Friday' }),
+    task('later', 'open', 'Read algorithms', { due_text: 'Friday', due_on: '2026-09-21' }),
     task('focus', 'open', 'Practice graphs', {
       target_count: 3,
       completed_count: 1,
@@ -37,6 +37,10 @@ test('goals filters, searches, orders the focused open task, and keeps an eligib
   );
   assert.deepEqual(
     selectGoals(state, { filter: 'all', query: 'fri' }).items.map((item) => item.id),
+    ['later'],
+  );
+  assert.deepEqual(
+    selectGoals(state, { filter: 'all', query: '2026-09' }).items.map((item) => item.id),
     ['later'],
   );
 });

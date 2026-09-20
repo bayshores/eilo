@@ -38,6 +38,22 @@ const action = (label, handler, className = 'text-button') => {
   button.addEventListener('click', handler);
   return button;
 };
+const dueLabel = (task) => {
+  const value = task?.due_on;
+  if (typeof value === 'string') {
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (
+      Number.isInteger(year) &&
+      Number.isInteger(month) &&
+      Number.isInteger(day) &&
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` ===
+        value
+    )
+      return `Due ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+  }
+  return task?.due_text || '';
+};
 
 /** Renders live Home cards from the current client view; lifecycle and drafts remain with the workspace. */
 export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail }) {
@@ -50,7 +66,8 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
   };
   const taskRow = (task, { due = false, focus = false } = {}) => {
     const row = node('div', 'live-task');
-    if (due) row.append(node('span', 'live-due', task.due_text || 'Flexible'));
+    const timing = dueLabel(task);
+    if (due) row.append(node('span', 'live-due', timing || 'Flexible'));
     const copy = node('div', 'live-task-copy');
     copy.append(node('strong', '', task.title));
     const label = [
@@ -62,7 +79,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
             ? 'Cancelled'
             : '',
       progressText(task),
-      !due && task.due_text,
+      !due && timing,
     ]
       .filter(Boolean)
       .join(' · ');

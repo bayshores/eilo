@@ -49,6 +49,16 @@ export function formatChatDate(value) {
     : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+export function chatDisplayName(chat) {
+  const name = typeof chat?.name === 'string' ? chat.name.trim() : '';
+  const lower = name.toLocaleLowerCase();
+  const generic = ['new chat', 'untitled chat', 'conversation'].includes(lower);
+  const looksLikePrompt = name.length > 56 || name.endsWith('?');
+  if (name && !generic && !looksLikePrompt) return name;
+  const date = formatChatDate(chat?.updated_at);
+  return date ? `Conversation · ${date}` : 'Conversation';
+}
+
 function labelError(error) {
   if (error?.status === 409) return 'That changed elsewhere. The latest library is shown.';
   if (error?.name === 'AbortError') return 'That took too long. Try again.';
@@ -531,7 +541,8 @@ export function mountChatLibrary(
         open.disabled = busy || !canManage();
         open.setAttribute('aria-current', chat.id === catalog.active_chat_id ? 'page' : 'false');
         const copy = create('span', 'chat-library__chat-copy');
-        copy.append(create('strong', '', chat.name || 'Untitled chat'));
+        const label = chatDisplayName(chat);
+        copy.append(create('strong', '', label));
         const project = projectName(chat.project_id);
         if (project) copy.append(create('small', '', project));
         open.append(copy);
@@ -547,7 +558,7 @@ export function mountChatLibrary(
         );
         more.dataset.focus = `menu-${chat.id}`;
         more.disabled = busy || !canManage();
-        more.setAttribute('aria-label', `Options for ${chat.name || 'untitled chat'}`);
+        more.setAttribute('aria-label', `Options for ${label}`);
         more.setAttribute('aria-expanded', String(menuId === chat.id));
         row.append(open, stamp, more);
         if (menuId === chat.id) row.append(rowMenu(chat));

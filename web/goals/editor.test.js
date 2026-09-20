@@ -53,6 +53,7 @@ test('new goals and lifecycle operations have explicit bounded intent', () => {
         temp_id: 'new_manual',
         title: 'New goal',
         due_text: null,
+        due_on: null,
         target_count: null,
         unit: null,
       },
@@ -68,4 +69,22 @@ test('new goals and lifecycle operations have explicit bounded intent', () => {
     { op: 'progress', task_id: 'one', completed_count: 3 },
     { op: 'focus', task_id: 'one' },
   ]);
+});
+
+test('a selected calendar deadline is kept separate from the timing note', () => {
+  const changes = taskEditOperations(task, {
+    ...values,
+    due_on: '2026-10-03',
+    due_text: 'After midterms',
+  });
+  assert.deepEqual(changes, [
+    {
+      op: 'edit',
+      task_id: 'one',
+      due_text: 'After midterms',
+      due_on: '2026-10-03',
+    },
+  ]);
+  for (const due_on of ['2026-02-30', '2026-2-3', 'tomorrow'])
+    assert.throws(() => taskEditOperations(task, { ...values, due_on }));
 });

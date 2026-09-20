@@ -2,13 +2,29 @@ import { calendarAgenda, calendarTime } from '../calendar/agenda.js';
 import { homeData } from './data.js';
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
+export const RETURN_AFTER_ABSENCE_MS = 4 * 60 * 60 * 1000;
 
 function localDateLabel(now) {
   return now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-// Due text is primarily the person's wording. Only an exact ISO date earns an overdue claim.
-function dueDate(value) {
+// Due text is primarily the person's wording. An explicitly chosen calendar
+// date takes precedence; only exact dates earn an overdue claim.
+function dueDate(task) {
+  const dueOn = task?.due_on;
+  if (typeof dueOn === 'string') {
+    const [year, month, day] = dueOn.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (
+      Number.isInteger(year) &&
+      Number.isInteger(month) &&
+      Number.isInteger(day) &&
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` ===
+        dueOn
+    )
+      return date;
+  }
+  const value = task?.due_text;
   const match =
     typeof value === 'string' && value.trim().match(/^(?:due|by)\s+(\d{4})-(\d{2})-(\d{2})$/i);
   const exact =
@@ -60,7 +76,7 @@ export function returnBriefingData(view, now = new Date()) {
   const goals = homeData(snapshot);
   if (!goals.supported) return null;
   const task = goals.focus || (goals.open.length === 1 ? goals.open[0] : null);
-  const due = dueDate(task?.due_text);
+  const due = dueDate(task);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let status = goals.onBreak ? 'on-break' : task ? 'current' : 'choose-focus';
   let prompt = goals.onBreak
@@ -90,21 +106,31 @@ export function returnBriefingData(view, now = new Date()) {
   };
 }
 
-/** Return guidance is for a new day only and never interrupts a draft, busy state, break, or onboarding. */
+/** Return guidance is for a new day or a longer absence and never interrupts a draft, busy state, break, or onboarding. */
 export function shouldOfferReturn({
   day,
   lastDay,
+  now = Date.now(),
+  lastActiveAt,
+  absenceMs = RETURN_AFTER_ABSENCE_MS,
   hasDraft,
   busy,
   onBreak,
   guidance,
   onboarding,
 } = {}) {
+  const afterAbsence =
+    Number.isFinite(now) &&
+    Number.isFinite(lastActiveAt) &&
+    Number.isFinite(absenceMs) &&
+    absenceMs > 0 &&
+    now >= lastActiveAt &&
+    now - lastActiveAt >= absenceMs;
   return Boolean(
     guidance &&
     typeof day === 'string' &&
     day &&
-    day !== lastDay &&
+    (day !== lastDay || afterAbsence) &&
     !hasDraft &&
     !busy &&
     !onBreak &&

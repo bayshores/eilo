@@ -198,6 +198,7 @@ export function createItemControls({
       values: {
         title: task?.title || '',
         due_text: task?.due_text || '',
+        due_on: task?.due_on || '',
         target_count: task?.target_count ?? '',
         completed_count: task?.completed_count ?? 0,
         unit: task?.unit || '',
@@ -246,8 +247,12 @@ export function createItemControls({
     const title = field('title', 'Name', { maxLength: 500 });
     title.querySelector('input').required = true;
     body.append(title);
+    body.append(field('due_on', 'Due date', { type: 'date' }));
     body.append(
-      field('due_text', 'Timing', { maxLength: 120, placeholder: 'Optional — in your own words' }),
+      field('due_text', 'Timing note', {
+        maxLength: 120,
+        placeholder: 'Optional — in your own words',
+      }),
     );
     const group = el('div', 'goal-quantity-fields');
     group.append(

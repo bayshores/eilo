@@ -11,6 +11,7 @@ import json
 import logging
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
@@ -72,6 +73,18 @@ def _text(value, maximum, *, empty=True):
 def _identifier(value):
     if not isinstance(value, str) or not ID.fullmatch(value):
         raise AnalysisError("Invalid analysis identifier.")
+    return value
+
+
+def _calendar_date(value):
+    if value is None:
+        return None
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise AnalysisError("Invalid analysis date.")
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise AnalysisError("Invalid analysis date.") from None
     return value
 
 
@@ -138,7 +151,16 @@ def validate_input(raw):
     tasks = raw["tasks"]
     if not isinstance(tasks, list) or len(tasks) > 32:
         raise AnalysisError("Invalid analysis tasks.")
-    allowed_task = {"id", "title", "status", "due_text", "target_count", "completed_count", "unit"}
+    allowed_task = {
+        "id",
+        "title",
+        "status",
+        "due_text",
+        "due_on",
+        "target_count",
+        "completed_count",
+        "unit",
+    }
     clean_tasks = []
     for task in tasks:
         if (
@@ -154,6 +176,8 @@ def validate_input(raw):
         for field, maximum in (("due_text", 120), ("unit", 80)):
             if task.get(field) is not None:
                 _text(task[field], maximum)
+        if "due_on" in task:
+            _calendar_date(task["due_on"])
         for field in ("target_count", "completed_count"):
             if task.get(field) is not None and (
                 type(task[field]) is not int or not 0 <= task[field] <= 10000

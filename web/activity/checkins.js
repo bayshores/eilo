@@ -1,5 +1,5 @@
 import { createInlineDialog } from '../workspace/inline-dialog.js';
-import { checkinView, checkinTime } from './checkin-data.js';
+import { checkinView, checkinTime, groupedCheckinHistory } from './checkin-data.js';
 
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -226,7 +226,7 @@ export function renderAgentLog(host, view, { onCheckIns }) {
     host.append(empty);
     return;
   }
-  for (const item of value.history) {
+  const appendRow = (target, item) => {
     const row = el('article', 'agent-log-row');
     row.dataset.outcome = item.outcome;
     const icon = el(
@@ -244,6 +244,17 @@ export function renderAgentLog(host, view, { onCheckIns }) {
     time.dateTime = new Date((item.finishedAt || item.createdAt) * 1000).toISOString();
     row.append(icon, copy, time);
     if (item.outcome === 'delivered') copy.append(button('Read check-ins', onCheckIns));
-    host.append(row);
+    target.append(row);
+  };
+  const grouped = groupedCheckinHistory(value.history);
+  if (grouped.summary) {
+    const summary = el('article', 'agent-log-summary');
+    summary.append(el('h3', '', grouped.summary.title), el('p', '', grouped.summary.description));
+    const details = el('details', 'agent-log-details');
+    details.append(el('summary', '', `View ${grouped.summary.count} check-in attempts`));
+    for (const item of grouped.failed) appendRow(details, item);
+    summary.append(details);
+    host.append(summary);
   }
+  for (const item of grouped.entries) appendRow(host, item);
 }

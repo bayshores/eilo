@@ -1011,6 +1011,7 @@ class ContextService:
                     "title",
                     "status",
                     "due_text",
+                    "due_on",
                     "target_count",
                     "completed_count",
                     "unit",
