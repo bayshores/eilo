@@ -31,6 +31,37 @@ test('duplicate polls show one active update only', () => {
   assert.equal(queue.reconcile(input).active.text, 'Writing');
   assert.equal(queue.reconcile(input).queued.length, 0);
 });
+test('new direct assistant replies surface after existing history has been seeded', () => {
+  const queue = createUpdateQueue(memory());
+  const old = { id: 'old', role: 'assistant', text: 'Earlier reply' };
+  queue.reconcile({ conversationId: 'one', messages: [old], visible: true });
+  assert.equal(queue.snapshot().active, null);
+  const next = queue.reconcile({
+    conversationId: 'one',
+    messages: [old, { id: 'new', role: 'assistant', text: 'New reply' }],
+    visible: true,
+  });
+  assert.deepEqual(next.active, {
+    id: 'message:new',
+    text: 'New reply',
+    status: 'complete',
+    kind: 'reply',
+  });
+});
+test('direct replies already seen in open chat do not replay as an overlay later', () => {
+  const queue = createUpdateQueue(memory());
+  const reply = { id: 'seen-in-chat', role: 'assistant', text: 'Already visible' };
+  queue.reconcile({ conversationId: 'one', messages: [], visible: false, suppressReplies: true });
+  queue.reconcile({
+    conversationId: 'one',
+    messages: [reply],
+    visible: false,
+    suppressReplies: true,
+  });
+  assert.equal(queue.snapshot().active, null);
+  const later = queue.reconcile({ conversationId: 'one', messages: [reply], visible: true });
+  assert.equal(later.active, null);
+});
 test('only one update is active and dismiss advances once', () => {
   const queue = createUpdateQueue(memory());
   queue.reconcile({ conversationId: 'one', messages: [], visible: true });

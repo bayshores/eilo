@@ -47,6 +47,11 @@ Shift+Enter inserts a line break. A sent message may first show an acceptance re
 is still being generated. If a saved reply needs recovery after an interruption,
 use the recovery control instead of sending the message again.
 
+When the conversation is closed, a fresh assistant reply can appear as a small
+in-app eïlo overlay. Choose **Open** to return to the same conversation or
+dismiss it. The overlay does not move focus or appear over other applications;
+desktop alerts remain a separate optional setting.
+
 Conversation is for stating or correcting commitments, recording progress,
 asking for help, or taking a break. Mentions, questions, and brainstorming do
 not automatically become commitments; unclear changes should ask for a
@@ -124,6 +129,12 @@ only after an explicit gesture and may require browser or macOS microphone
 permission. Stop or release to transcribe locally; Cancel or Escape discards the
 recording. Review the resulting editable draft before choosing Send.
 
+**Settings → General → Speak eïlo replies** controls system-voice responses. It
+is on for a new profile and speaks only new replies while the Home conversation
+is open and eïlo is the active window. **Stop voice** appears beside Send while
+a reply is being read. eïlo never replays old history, and it stays silent when
+you have moved to another app.
+
 ## Layout
 
 **Tracking** shows which sources are available and whether connected Calendar or
@@ -146,7 +157,7 @@ setup begins with only the chosen widgets. Your custom arrangement is kept.
 
 Choose **Edit home → Tidy layout** to align cards while keeping their sizes, or **Settings → Widgets & layout → Restore starter layout**. Both offer Undo and keep saved contents. The upgrade makes a one-time backup of old layout metadata, removes identical source cards, and aligns the source widgets; later custom placement is kept.
 
-**Settings → General → Interface sounds** controls short cues for sent messages and confirmed actions. New profiles start with sounds on; saved off choices stay off. **Interface sound volume** and **Play test sound** make playback easy to check. Sounds stay silent during microphone recording and while the page is hidden. Desktop alerts remain separate.
+**Settings → General → Interface sounds** controls short cues for sent messages and confirmed actions. New profiles start with sounds on; saved off choices stay off. **Sound volume** and **Play test sound** make playback easy to check. Sounds stay silent during microphone recording and while the page is hidden. Desktop alerts remain separate.
 
 eïlo uses one monochrome dark appearance. There is no accent picker or Light-mode control.
 
@@ -163,7 +174,7 @@ goals or conversation content.
 
 Open **Settings** from Home. **Permissions → Let AI use recorded activity** separately lets the existing AI use your conversation and permitted activity. Capture, AI sharing, and check-ins each keep their own controls.
 
-**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. When Talk is open, a compact strip keeps saved widgets in view; collapsing the conversation reveals the full saved widget area. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
+**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. When Talk is open, the compact day-context strip stays in view while the full widget board gives its space to the conversation; collapsing Talk restores the board. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
 
 A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Widgets & layout returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
 

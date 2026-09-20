@@ -5,7 +5,7 @@ export function createLiveUpdates({
   container = null,
   isConversationOpen = () => false,
 }) {
-  const prefix = 'eilo:seen-check-ins:v1:';
+  const prefix = 'eilo:seen-assistant-updates:v1:';
   const queue = createUpdateQueue({
     loadSeen: (id) => {
       try {
@@ -28,7 +28,7 @@ export function createLiveUpdates({
   panel.hidden = true;
   panel.setAttribute('aria-label', 'New update from eïlo');
   panel.innerHTML =
-    '<div class="live-update-heading"><span>eïlo</span><span class="live-update-state"></span><button class="icon-button live-update-dismiss" aria-label="Dismiss this update">×</button></div><p class="live-update-text"></p><div class="live-update-footer"><button class="text-button live-update-open">Reply</button><span class="live-update-count"></span></div>';
+    '<div class="live-update-heading"><span>eïlo</span><span class="live-update-kind"></span><span class="live-update-state"></span><button class="icon-button live-update-dismiss" aria-label="Dismiss this update">×</button></div><p class="live-update-text"></p><div class="live-update-footer"><button class="text-button live-update-open">Open</button><span class="live-update-count"></span></div>';
   (container || document.querySelector('.app-window')).append(panel);
   const announce = document.createElement('div');
   announce.className = 'sr-only';
@@ -98,12 +98,15 @@ export function createLiveUpdates({
       announce.textContent = 'A new update from eïlo is appearing.';
     }
     panel.querySelector('.live-update-text').textContent = active.text;
+    panel.querySelector('.live-update-kind').textContent =
+      active.kind === 'check-in' ? 'Check-in' : 'New reply';
     panel.querySelector('.live-update-state').textContent =
       active.status === 'writing' ? 'Writing…' : '';
     panel.querySelector('.live-update-count').textContent = value.queued.length
       ? `${value.queued.length} more`
       : '';
     panel.classList.toggle('is-writing', active.status === 'writing');
+    panel.classList.toggle('is-check-in', active.kind === 'check-in');
     if (active.status === 'complete' && finishedId !== active.id) {
       finishedId = active.id;
       announce.textContent = active.text;
@@ -117,6 +120,7 @@ export function createLiveUpdates({
       messages: state.snapshot?.messages,
       stream: state.snapshot?.accountability?.check_in_stream,
       visible: visible(),
+      suppressReplies: isConversationOpen(),
     });
     render();
   }

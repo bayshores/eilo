@@ -784,24 +784,53 @@
   width: calc(100% + 16px);
 }
 
-:root[data-source='live'] .workspace.unified-context-visible > .board-scroll {
-  display: block;
-  flex: 0 0 clamp(154px, 19vh, 214px);
-  width: 100%;
-  min-height: 154px;
-  height: auto;
-  margin: 0;
-  padding: 0 8px;
-  overflow: hidden;
-}
-:root[data-source='live'] .workspace.unified-context-visible > .home-pagination {
-  display: flex;
-  position: static;
-  flex: none;
-  transform: none;
-}
+/* When someone opens chat, the brief remains visible as a compact context strip.
+   The duplicate widget board yields its reserved space to the actual conversation. */
 :root[data-source='live'] .workspace.unified-context-visible > .conversation-dock {
-  min-height: 200px;
+  flex: 1 1 0;
+  min-height: clamp(340px, 46vh, 560px);
+  margin-top: 0;
+}
+@media (min-width: 1040px) {
+  :root[data-source='live'] .workspace.unified-context-visible > .unified-summary {
+    grid-template-columns: minmax(0, 1.55fr) repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-health {
+    grid-column: auto;
+  }
+}
+@media (min-width: 701px) {
+  :root[data-source='live'] .workspace.unified-context-visible {
+    gap: clamp(8px, 1vh, 12px);
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card {
+    min-height: 88px;
+    padding: 11px 14px;
+    gap: 10px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-copy {
+    gap: 3px;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 1.2;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-meta {
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-eyebrow,
+  :root[data-source='live'] .workspace.unified-context-visible .unified-card-state {
+    font-size: 12px;
+  }
 }
 
 /* hiddenInset keeps macOS window controls over web content; clear their hit area. */

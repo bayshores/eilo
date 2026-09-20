@@ -97,6 +97,7 @@ export function normalizeHomePreferences(raw = {}) {
         ? Math.max(0, Math.min(1, value.soundVolume))
         : 0.5,
     dailyGuidance: typeof value.dailyGuidance === 'boolean' ? value.dailyGuidance : true,
+    spokenReplies: typeof value.spokenReplies === 'boolean' ? value.spokenReplies : true,
     widgetPins: Array.isArray(value.widgetPins)
       ? value.widgetPins
           .filter((id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id))

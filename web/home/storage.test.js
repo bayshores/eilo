@@ -68,6 +68,7 @@ test('normalizers accept only bounded profile and note fields', () => {
       soundEffects: true,
       soundVolume: 0.5,
       dailyGuidance: true,
+      spokenReplies: true,
       widgetPins: [],
       dismissedContextWidgets: [],
     },
@@ -80,6 +81,7 @@ test('normalizers accept only bounded profile and note fields', () => {
     soundEffects: true,
     soundVolume: 0.5,
     dailyGuidance: true,
+    spokenReplies: true,
     widgetPins: [],
     dismissedContextWidgets: [],
   });
@@ -114,11 +116,13 @@ test('defaults are helpful but explicit off preferences survive', () => {
     pin: false,
     soundEffects: false,
     dailyGuidance: false,
+    spokenReplies: false,
     soundVolume: 0,
   });
   assert.equal(value.pin, false);
   assert.equal(value.soundEffects, false);
   assert.equal(value.dailyGuidance, false);
+  assert.equal(value.spokenReplies, false);
   assert.equal(value.soundVolume, 0);
   assert.equal(normalizeHomePreferences({ soundVolume: Infinity }).soundVolume, 0.5);
   assert.equal(normalizeHomePreferences({ soundVolume: 5 }).soundVolume, 1);

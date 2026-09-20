@@ -9,6 +9,7 @@ test('orb reflects actual capture and service state without implying recording f
   assert.equal(orbState({ ...connected, snapshot: { status: 'busy' } }), 'thinking');
   assert.equal(orbState(connected, 'recording'), 'listening');
   assert.equal(orbState(connected, 'transcribing'), 'processing');
+  assert.equal(orbState(connected, 'idle', true), 'speaking');
   assert.equal(orbState(connected, 'requesting'), 'processing');
   assert.equal(orbState({ connection: 'offline' }), 'offline');
   assert.equal(orbState({ connection: 'loading' }), 'connecting');

@@ -100,6 +100,7 @@ test('opening conversation preserves the next update and pauses dismissal while 
     const panel = app.children[0],
       seen = () => JSON.parse([...storage.values()][0]);
     assert.equal(panel.querySelector('.live-update-text').textContent, 'Update 1');
+    assert.equal(panel.querySelector('.live-update-kind').textContent, 'Check-in');
     assert.ok(seen().includes('event:check-1'));
     assert.ok(!seen().includes('event:check-2'));
     assert.equal(timers.size, 1);

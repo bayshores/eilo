@@ -101,6 +101,7 @@
     "speech/capture.js",
     "speech/input.js",
     "speech/mic-worklet.js",
+    "speech/output.js",
     "speech/styles.css",
     "styles/base.css",
     "styles/focus.js",

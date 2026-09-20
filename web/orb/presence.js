@@ -1,7 +1,8 @@
 /** Present actual conversation/capture state without starting work or a microphone. */
-export function orbState(view = {}, speech = 'idle') {
+export function orbState(view = {}, speech = 'idle', speaking = false) {
   if (speech === 'recording') return 'listening';
   if (['requesting', 'stopping', 'transcribing'].includes(speech)) return 'processing';
+  if (speaking) return 'speaking';
   if (view.connection === 'loading') return 'connecting';
   if (view.connection === 'offline') return 'offline';
   if (view.error || view.snapshot?.status === 'error' || view.snapshot?.recovery_pending)
@@ -23,6 +24,7 @@ const LABELS = {
   offline: 'eïlo · Offline',
   attention: 'eïlo · Needs attention',
   thinking: 'eïlo · Replying',
+  speaking: 'eïlo · Speaking',
 };
 
 export function mountOrb(
@@ -51,7 +53,7 @@ export function mountOrb(
       reducedMotion,
       paused: paused || !intersecting || document.visibilityState === 'hidden',
       amplitude: state === 'listening' ? amplitude : 0,
-      busy: ['thinking', 'processing', 'connecting'].includes(state),
+      busy: ['thinking', 'processing', 'connecting', 'speaking'].includes(state),
     };
   }
   function sync() {

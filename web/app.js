@@ -1750,7 +1750,7 @@ function createGeneralSettings() {
   volume.max = '1';
   volume.step = '0.05';
   volume.value = String(prefs.soundVolume);
-  volume.setAttribute('aria-label', 'Interface sound volume');
+  volume.setAttribute('aria-label', 'Sound volume');
   volume.addEventListener('input', () => {
     prefs.soundVolume = Number(volume.value);
     writeStorage(PREFS_KEY, prefs);
@@ -1786,13 +1786,25 @@ function createGeneralSettings() {
     writeStorage(PREFS_KEY, prefs);
     live.refreshPreferences();
   });
+  const spokenReplies = document.createElement('label');
+  spokenReplies.className = 'check-option';
+  const spokenRepliesInput = document.createElement('input');
+  spokenRepliesInput.type = 'checkbox';
+  spokenRepliesInput.checked = prefs.spokenReplies;
+  spokenReplies.append(spokenRepliesInput, document.createTextNode('Speak eïlo replies'));
+  spokenRepliesInput.addEventListener('change', () => {
+    prefs.spokenReplies = spokenRepliesInput.checked;
+    writeStorage(PREFS_KEY, prefs);
+    live.refreshPreferences();
+  });
   section
     .querySelector('.motion-setting')
-    .parentElement.after(soundOption, soundControls, guidance);
+    .parentElement.after(soundOption, soundControls, guidance, spokenReplies);
   window.addEventListener('eilo-preferences-changed', () => {
     soundInput.checked = prefs.soundEffects;
     volume.value = String(prefs.soundVolume);
     guidanceInput.checked = prefs.dailyGuidance;
+    spokenRepliesInput.checked = prefs.spokenReplies;
   });
   const speechMode = document.querySelector('.speech-method select');
   if (speechMode) {
@@ -1867,6 +1879,7 @@ function createGeneralSettings() {
     ]),
     group('Conversation', [
       guidance,
+      spokenReplies,
       section.querySelector('.speech-preference'),
       section.querySelector('.settings-checkins'),
     ]),

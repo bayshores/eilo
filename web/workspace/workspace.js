@@ -8,6 +8,7 @@ import { mountChromeSetup } from '../activity/setup.js';
 import { refreshSetupHealth } from '../activity/setup-health.js';
 import { createLiveUpdates } from '../chat/live-updates.js';
 import { mountSpeechInput } from '../speech/input.js';
+import { mountSpeechOutput } from '../speech/output.js';
 import { mountWorkflowProgress } from '../chat/workflow-progress.js';
 import { mountBriefingSources } from '../connections/briefing-sources.js';
 import { mountConnectionsManager } from '../connections/manager.js';
@@ -106,10 +107,11 @@ export function createLiveHome({
     messageFingerprint = '',
     detailFingerprint = '',
     speech = null,
+    speechOutput = null,
     speechState = 'idle';
   const sound = createInterfaceSound({
     enabled: getSoundEnabled,
-    muted: () => speechState !== 'idle',
+    muted: () => speechState !== 'idle' || speechOutput?.speaking === true,
     volume: () => getPreferences().soundVolume,
   });
   const orbElement = node('span', 'agent-orb');
@@ -150,7 +152,7 @@ export function createLiveHome({
   });
   const updates = createLiveUpdates({
     openConversation: () => talk(),
-    container: document.querySelector('.workspace'),
+    container: document.querySelector('.app-window'),
     isConversationOpen: () => threadOpen,
   });
   const workspace = document.querySelector('.workspace'),
@@ -435,7 +437,10 @@ export function createLiveHome({
       }
       if (inspector.open) inspector.close();
       onViewChange(page);
-      if (['settings', 'connections'].includes(page)) speech?.cancel();
+      if (['settings', 'connections'].includes(page)) {
+        speech?.cancel();
+        speechOutput?.stop();
+      }
       if (dialog.open) dialog.close();
       setThreadOpen(false, { focus: false });
       if (!['chats', 'projects'].includes(page))
@@ -574,7 +579,7 @@ export function createLiveHome({
     if (orbElement.parentNode !== target) target.prepend(orbElement);
     if (!presence) presence = mountOrb(orbElement);
     presence.pause(false);
-    presence.update({ state: orbState(current, speechState) });
+    presence.update({ state: orbState(current, speechState, speechOutput?.speaking === true) });
   }
 
   function setThreadOpen(open, { focus = true } = {}) {
@@ -582,6 +587,7 @@ export function createLiveHome({
     if (wasOpen && !open) {
       rememberPresentation();
       speech?.cancel();
+      speechOutput?.stop();
     }
     threadOpen = open;
     dock.dataset.open = String(open);
@@ -810,7 +816,22 @@ export function createLiveHome({
         onSignal({ state, amplitude }) {
           speechState = state;
           sound.sync?.();
-          presence?.update({ state: orbState(current, speechState), amplitude });
+          presence?.update({
+            state: orbState(current, speechState, speechOutput?.speaking === true),
+            amplitude,
+          });
+        },
+      });
+      speechOutput = mountSpeechOutput(form, {
+        getPreferences,
+        isVisible: () =>
+          threadOpen &&
+          currentPage === 'home' &&
+          document.visibilityState === 'visible' &&
+          (typeof document.hasFocus !== 'function' || document.hasFocus()),
+        onState: () => {
+          sound.sync?.();
+          placeOrb();
         },
       });
       chatContext = mountChatContext(form.querySelector('.speech-actions'), { client });
@@ -1182,6 +1203,7 @@ export function createLiveHome({
       renderConversation(dock);
       onboarding?.update(next, currentPage);
       unified?.update(next, currentPage, threadOpen);
+      speechOutput?.update(next);
       placeOrb();
       if (restorePresentation && next.snapshot) {
         restorePresentation = false;
@@ -1261,6 +1283,7 @@ export function createLiveHome({
         onboarding?.destroy();
         unified?.destroy();
         sound.destroy();
+        speechOutput?.destroy();
       }
       calendarPanel?.destroy();
       calendarPanel = null;
@@ -1287,6 +1310,7 @@ export function createLiveHome({
     sound,
     refreshPreferences() {
       sound.sync?.();
+      speechOutput?.sync();
       unified?.refresh();
       updateConnectionStatuses();
     },

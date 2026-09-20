@@ -35,6 +35,16 @@
   background: var(--peach);
   color: #272321;
 }
+.speech-output-stop {
+  min-height: 38px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  color: #f4cfb2;
+  background: #f4cfb218;
+}
+.speech-output-stop:hover {
+  background: #f4cfb22c;
+}
 .speech-actions select {
   min-height: 44px;
   border: 0;
@@ -149,8 +159,10 @@
   bottom: 24px;
   width: min(410px, calc(100% - 48px));
   padding: 18px 20px 15px;
+  border: 1px solid #ffffff26;
   border-radius: 22px;
-  background: #35373e;
+  background: linear-gradient(145deg, #363a3be8, #202325ed);
+  backdrop-filter: blur(24px) saturate(1.18);
   box-shadow:
     0 18px 70px #0008,
     0 3px 12px #0004;
@@ -167,6 +179,19 @@
   font-weight: 500;
   font-size: 20px;
   letter-spacing: -0.03em;
+}
+.live-update-kind {
+  padding: 3px 7px;
+  border: 1px solid #ffffff1c;
+  border-radius: 999px;
+  color: #d4c4b8;
+  font-size: 11px;
+  line-height: 1;
+}
+.live-update.is-check-in .live-update-kind {
+  color: #f5c7a6;
+  border-color: #f5c7a640;
+  background: #f5c7a610;
 }
 .live-update-state {
   font-size: 13px;

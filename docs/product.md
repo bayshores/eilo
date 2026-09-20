@@ -19,8 +19,7 @@ priorities, breaks, and external actions.
   optional source setup follows with separate collection, AI-sharing, check-in
   and alert choices. Existing profiles retain their current workspace.
 - **Home** combines a date-aware goal/event/activity summary with an expandable
-  conversation dock. A compact strip of saved widgets remains visible while the
-  conversation is open; collapsing it reveals the full saved widget area and keeps the compact dock at the bottom. A recovery card appears only when a connected source or check-ins need attention and links to the relevant repair surface. Returning from Settings preserves whether the conversation was open. Goal details open in place; **Edit home** opens the
+  conversation dock. Opening conversation keeps a compact context strip visible and gives the duplicate saved-widget board space to the message history; collapsing it reveals the full saved widget area and keeps the compact dock at the bottom. A recovery card appears only when a connected source or check-ins need attention and links to the relevant repair surface. Returning from Settings preserves whether the conversation was open. Goal details open in place; **Edit home** opens the
   saved widget arrangement directly, and Done restores the briefing and dock. Tracking shows current browser, Calendar, and Gmail
   access; Browser usage shows retained recorded time by site and day.
 - **Talk** expands within Home, keeping the summary cards and compact widget
@@ -35,8 +34,10 @@ priorities, breaks, and external actions.
 - **Permissions** combines activity capture, detail level, AI sharing, and connected-app management in one destination with independent controls. Calendar entries are
   separate from goals; source access does not automatically authorize sharing
   that data with the model.
-- **Speech** is local transcription into an editable draft. The person reviews
-  and sends the text through the ordinary conversation path.
+- **Speech** includes local transcription into an editable draft and optional
+  spoken eïlo replies. Spoken replies run only while the Home conversation is
+  open and the eïlo window is active; a visible Stop voice control ends the
+  current reply.
 
 ## Product limits
 

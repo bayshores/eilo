@@ -1,15 +1,13 @@
-// Pure state for one-at-a-time proactive check-ins. The host owns streaming,
+// Pure state for one-at-a-time assistant updates. The host owns streaming,
 // persistence, visibility events, timers, and every DOM acknowledgement.
 const DEFAULT_SEEN_CAP = 200;
 const DEFAULT_QUEUE_CAP = 20;
 const DISMISSED = 'dismissed:';
 
 const text = (value) => (typeof value === 'string' && value.trim() ? value : null);
-const checkIn = (message) =>
-  message?.role === 'assistant' &&
-  message?.origin === 'check_in' &&
-  text(message.id) &&
-  text(message.text);
+const assistantUpdate = (message) =>
+  message?.role === 'assistant' && text(message.id) && text(message.text) && !message.display_kind;
+const updateKind = (message) => (message?.origin === 'check_in' ? 'check-in' : 'reply');
 const update = (stream) =>
   stream &&
   text(stream.id) &&
@@ -112,7 +110,12 @@ export function createUpdateQueue({
       queued.some((next) => next.id === canonical)
     )
       return;
-    queued.push({ id: canonical, text: item.text, status: item.status });
+    queued.push({
+      id: canonical,
+      text: item.text,
+      status: item.status,
+      kind: item.kind || 'reply',
+    });
     if (queued.length > queueCap) queued.shift();
   }
   function activate(visible) {
@@ -134,9 +137,9 @@ export function createUpdateQueue({
         .map((value) => value.slice(DISMISSED.length))
         .slice(-seenCap),
     );
-    // Mounting an existing conversation must not turn its old check-ins into alerts.
+    // Mounting an existing conversation must not turn its old replies into alerts.
     if (firstPresentation)
-      for (const message of messages) if (checkIn(message)) seen.add(messageKey(message));
+      for (const message of messages) if (assistantUpdate(message)) seen.add(messageKey(message));
     // Persist even an empty marker: null means first presentation, [] means later arrivals matter.
     if (firstPresentation) persist();
     // A live draft is intentionally handled after history seeding so it can resume.
@@ -146,6 +149,7 @@ export function createUpdateQueue({
           id: streamKey(stream),
           text: stream.text,
           status: stream.status,
+          kind: 'check-in',
           aliases: stream.message_id ? [`message:${stream.message_id}`] : [],
         },
         { allowSeen: true },
@@ -170,6 +174,7 @@ export function createUpdateQueue({
     messages = [],
     stream = null,
     visible = false,
+    suppressReplies = false,
   } = {}) {
     if (!text(nextConversationId)) return snapshot();
     const safeMessages = Array.isArray(messages) ? messages : [];
@@ -180,21 +185,29 @@ export function createUpdateQueue({
     if (!firstPresentation && nextConversationId === conversationId) synchronizeSeen();
 
     for (const message of safeMessages) {
-      if (!checkIn(message)) continue;
+      if (!assistantUpdate(message)) continue;
       const key = messageKey(message);
       const canonical = join(key, message.event_id ? `message:${message.id}` : null);
       if (firstPresentation) continue;
+      const kind = updateKind(message);
+      if (kind === 'reply' && suppressReplies) {
+        mark(canonical);
+        forget(canonical);
+        continue;
+      }
       const existing =
         active?.id === canonical ? active : queued.find((item) => item.id === canonical);
       // Polling can skip the stream's complete frame; native history is authoritative.
       if (existing) {
         existing.text = message.text;
         existing.status = 'complete';
+        existing.kind = kind;
       } else
         enqueue({
           id: canonical,
           text: message.text,
           status: 'complete',
+          kind,
           aliases: [key, `message:${message.id}`],
         });
     }
@@ -217,7 +230,7 @@ export function createUpdateQueue({
           existing.status = stream.status;
         } else
           enqueue(
-            { id: canonical, text: stream.text, status: stream.status },
+            { id: canonical, text: stream.text, status: stream.status, kind: 'check-in' },
             { allowSeen: stream.status === 'writing' },
           );
       }
