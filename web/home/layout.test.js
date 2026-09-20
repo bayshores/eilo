@@ -14,6 +14,8 @@ import {
   withConversationDock,
   withUniqueSourceWidgets,
   withTrackingWidgets,
+  withUnifiedHomeWidgets,
+  withoutSummaryDuplicateWidgets,
 } from './layout.js';
 
 test('approved setup applies once and retains its receipt through manual edits and reload', () => {
@@ -160,6 +162,76 @@ test('tracking widgets fit an untouched live Home and never reset a custom arran
   assert.deepEqual(withTrackingWidgets(custom), custom);
   const empty = { version: 1, widgets: [], positions: {} };
   assert.deepEqual(withTrackingWidgets(empty), empty);
+});
+
+test('the unified Home migration consolidates the complete app-owned source set', () => {
+  const source = withTrackingWidgets(withConversationDock(createDefaultState()));
+  const before = structuredClone(source);
+  const unified = withUnifiedHomeWidgets(source);
+  assert.deepEqual(
+    unified.widgets.map((widget) => widget.type),
+    ['today', 'progress'],
+  );
+  assert.deepEqual(
+    projectLayout(unified, 'wide').map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
+    [
+      { id: 'today-1', x: 0, y: 0, w: 8, h: 2 },
+      { id: 'progress-1', x: 8, y: 0, w: 4, h: 2 },
+    ],
+  );
+  assert.equal(paginateHomeLayout(unified, 'wide', 2).length, 1);
+  assert.deepEqual(source, before, 'the source preset is never mutated');
+  assert.equal(withUnifiedHomeWidgets(unified), unified, 'the migration is idempotent');
+
+  const moved = updateLayout(source, { type: 'resizeTo', id: 'goals-1', w: 6, h: 2, mode: 'wide' });
+  assert.deepEqual(
+    withUnifiedHomeWidgets(moved).widgets.map((widget) => widget.type),
+    ['today', 'progress'],
+    'a complete app-owned source set is consolidated even after a prior responsive migration',
+  );
+  const removed = updateLayout(source, { type: 'remove', id: 'tracking-1' });
+  assert.equal(
+    withUnifiedHomeWidgets(removed),
+    removed,
+    'an explicitly removed source card stays removed',
+  );
+  const custom = updateLayout(source, {
+    type: 'add',
+    widgetType: 'notes',
+    size: 'small',
+    id: 'notes-1',
+  });
+  assert.equal(withUnifiedHomeWidgets(custom), custom, 'a custom widget prevents preset migration');
+});
+
+test('summary consolidation removes only canonical duplicate cards and retains contextual work', () => {
+  let state = withTrackingWidgets(withConversationDock(createDefaultState()));
+  state = updateLayout(state, {
+    type: 'add',
+    widgetType: 'context',
+    componentId: 'search-results',
+    size: 'medium',
+    id: 'context-search-results',
+  });
+  const consolidated = withoutSummaryDuplicateWidgets(state);
+  assert.deepEqual(
+    consolidated.widgets.map((widget) => widget.id),
+    ['today-1', 'progress-1', 'context-search-results'],
+  );
+  assert.ok(
+    Object.values(consolidated.positions).every((positions) =>
+      positions.every((position) => !['goals-1', 'tracking-1', 'usage-1'].includes(position.id)),
+    ),
+  );
+  const custom = updateLayout(state, {
+    type: 'add',
+    widgetType: 'goals',
+    size: 'small',
+    id: 'goals-personal',
+  });
+  assert.ok(
+    withoutSummaryDuplicateWidgets(custom).widgets.some((widget) => widget.id === 'goals-personal'),
+  );
 });
 
 test('tidyHomeLayout packs an explicitly selected mode without changing widget geometry', () => {

@@ -89,7 +89,16 @@ export function normalizeHomePreferences(raw = {}) {
         ? value.name.slice(0, 40)
         : '',
     pin: typeof value.pin === 'boolean' ? value.pin : true,
-    homeLayoutVersion: value.homeLayoutVersion === 2 ? 2 : 1,
+    homeLayoutVersion:
+      value.homeLayoutVersion === 5
+        ? 5
+        : value.homeLayoutVersion === 4
+          ? 4
+          : value.homeLayoutVersion === 3
+            ? 3
+            : value.homeLayoutVersion === 2
+              ? 2
+              : 1,
     reducedMotion: value.reducedMotion === true,
     soundEffects: typeof value.soundEffects === 'boolean' ? value.soundEffects : true,
     soundVolume:

@@ -27,6 +27,20 @@ const icon = (name) => {
   return el;
 };
 
+// Calendar and activity cards already own their corresponding source state. Keep
+// only independent attention items in the summary so the same repair is not shown twice.
+function summaryHealth(state) {
+  const items = (state?.items || []).filter(
+    (item) => !['calendar', 'desktop', 'browser'].includes(item.id),
+  );
+  if (!items.length) return { items: [], title: '', detail: '' };
+  return {
+    items,
+    title: items.length === 1 ? items[0].title : `${items.length} things need attention`,
+    detail: items.length === 1 ? items[0].detail : 'Review the items that need attention.',
+  };
+}
+
 // Presentation only; writes use the existing revisioned task service.
 export function mountUnifiedWorkspace({
   workspace,
@@ -58,23 +72,21 @@ export function mountUnifiedWorkspace({
       'unified-card unified-' + kind,
     );
     const copy = node('span', 'unified-card-copy');
+    const eyebrow = node(
+      'span',
+      'unified-card-eyebrow',
+      kind === 'event'
+        ? 'Calendar'
+        : kind === 'goal'
+          ? 'Current focus'
+          : kind === 'health'
+            ? 'Needs attention'
+            : 'Activity',
+    );
     const title = node('strong', 'unified-card-title');
     const meta = node('span', 'unified-card-meta');
     const state = node('span', 'unified-card-state');
-    copy.append(
-      node(
-        'span',
-        'unified-card-eyebrow',
-        kind === 'event'
-          ? 'Coming up'
-          : kind === 'goal'
-            ? 'Your goals'
-            : kind === 'health'
-              ? 'Needs attention'
-              : 'Activity',
-      ),
-    );
-    copy.append(title, meta, state);
+    copy.append(eyebrow, title, meta, state);
     const disclosure = node('span', 'unified-disclosure');
     disclosure.setAttribute('aria-hidden', 'true');
     trigger.append(copy, disclosure);
@@ -85,7 +97,7 @@ export function mountUnifiedWorkspace({
     if (['event', 'health'].includes(kind)) trigger.setAttribute('aria-expanded', 'false');
     else trigger.setAttribute('aria-haspopup', 'dialog');
     summary.append(trigger);
-    return { trigger, title, meta, state };
+    return { trigger, eyebrow, title, meta, state };
   }
   const goal = card('goal'),
     event = card('event'),
@@ -404,7 +416,7 @@ export function mountUnifiedWorkspace({
   function render() {
     const previous = active;
     active = !!data && page === 'home';
-    healthState = homeHealth(view);
+    healthState = summaryHealth(homeHealth(view));
     const open = isOpen();
     const showContext = active && open && !boardOpen;
     const contextChanged = workspace.classList.contains('unified-context-visible') !== showContext;
@@ -425,12 +437,16 @@ export function mountUnifiedWorkspace({
     heading.textContent = data.onBreak ? 'Take your time' : 'Welcome back';
     date.textContent = data.dateLabel;
     date.dateTime = localDay();
-    goal.title.textContent = data.task?.title || 'Choose your focus';
-    goal.meta.textContent = data.dueLabel || 'One thing to work on';
+    goal.eyebrow.textContent = data.task ? 'Current focus' : 'Choose a focus';
+    goal.title.textContent = data.task?.title || 'Choose what to work on';
+    goal.meta.textContent = data.dueLabel || '';
+    goal.meta.hidden = !goal.meta.textContent;
     goal.state.textContent = data.goalLabel || '';
     goal.state.hidden = !goal.state.textContent;
+    event.eyebrow.textContent = data.event ? 'Coming up' : 'Calendar';
     event.title.textContent = data.event?.title || data.calendarState;
-    event.meta.textContent = data.eventLabel;
+    event.meta.textContent = data.eventLabel || '';
+    event.meta.hidden = !event.meta.textContent;
     event.state.hidden = true;
     const sources = selectTracking(view).rows.filter((row) =>
       ['desktop', 'browser'].includes(row.id),
@@ -443,11 +459,13 @@ export function mountUnifiedWorkspace({
         ? 'Recording paused'
         : 'Your activity';
     activity.meta.textContent = sources.map((row) => row.name + ': ' + row.status).join(' · ');
-    activity.state.textContent = paused ? 'Resume in Activity' : '';
+    activity.meta.hidden = !activity.meta.textContent;
+    activity.state.textContent = paused ? 'Manage activity' : '';
     activity.state.hidden = !activity.state.textContent;
     health.trigger.hidden = !healthState.items.length;
     health.title.textContent = healthState.title;
     health.meta.textContent = healthState.detail;
+    health.meta.hidden = !healthState.detail;
     health.state.hidden = true;
     activity.trigger.setAttribute('aria-label', 'Open activity');
     goal.trigger.setAttribute(

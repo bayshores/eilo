@@ -18,6 +18,8 @@ import {
   readLayoutTransfer,
   withConversationDock,
   withTrackingWidgets,
+  withUnifiedHomeWidgets,
+  withoutSummaryDuplicateWidgets,
 } from './home/layout.js';
 import { SAMPLE } from './preview/fixtures.js';
 import { createHoldGesture } from './home/hold.js';
@@ -122,6 +124,30 @@ if (createLiveHome && prefs.homeLayoutVersion < 2) {
   }
   prefs.homeLayoutVersion = 2;
   homeStorage.write(KEY, state);
+  homeStorage.write(PREFS_KEY, prefs);
+}
+// The consolidated Home has one action surface and one progress surface. This is
+// intentionally limited to the complete app-owned source set; personal boards survive.
+if (createLiveHome && prefs.homeLayoutVersion < 4) {
+  const unified = withUnifiedHomeWidgets(state);
+  if (unified !== state) {
+    homeStorage.write(KEY + ':before-unified-home', state);
+    state = unified;
+    homeStorage.write(KEY, state);
+  }
+  prefs.homeLayoutVersion = 4;
+  homeStorage.write(PREFS_KEY, prefs);
+}
+// Default Goals, Tracking, and Usage cards duplicate the Home summary. Preserve
+// every personal or contextual card while removing only those stable app-owned IDs.
+if (createLiveHome && prefs.homeLayoutVersion < 5) {
+  const condensed = withoutSummaryDuplicateWidgets(state);
+  if (condensed !== state) {
+    homeStorage.write(KEY + ':before-summary-consolidation', state);
+    state = condensed;
+    homeStorage.write(KEY, state);
+  }
+  prefs.homeLayoutVersion = 5;
   homeStorage.write(PREFS_KEY, prefs);
 }
 

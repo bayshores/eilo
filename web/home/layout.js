@@ -247,6 +247,89 @@ export function withTrackingWidgets(rawState) {
   return next;
 }
 
+const SOURCE_ONLY_WIDGETS = Object.freeze([
+  ['today-1', 'today'],
+  ['goals-1', 'goals'],
+  ['tracking-1', 'tracking'],
+  ['progress-1', 'progress'],
+  ['usage-1', 'usage'],
+]);
+
+function hasOnlyBuiltInSourceWidgets(rawState) {
+  const state = normalizeState(rawState);
+  return (
+    state.widgets.length === SOURCE_ONLY_WIDGETS.length &&
+    SOURCE_ONLY_WIDGETS.every(([id, type]) =>
+      state.widgets.some((widget) => widget.id === id && widget.type === type),
+    )
+  );
+}
+
+/**
+ * The old untouched Home default repeated its day strip across five source cards.
+ * Consolidate only the complete app-owned source set. A removed source card or any
+ * personal card makes the layout intentional and leaves it untouched.
+ */
+export function withUnifiedHomeWidgets(rawState) {
+  if (!hasOnlyBuiltInSourceWidgets(rawState)) return rawState;
+  return normalizeState({
+    version: 1,
+    widgets: [
+      {
+        id: 'today-1',
+        type: 'today',
+        size: 'medium',
+        footprints: {
+          wide: { w: 8, h: 2 },
+          compact: { w: 6, h: 2 },
+          stacked: { w: 1, h: 2 },
+        },
+      },
+      {
+        id: 'progress-1',
+        type: 'progress',
+        size: 'small',
+        footprints: {
+          wide: { w: 4, h: 2 },
+          compact: { w: 6, h: 2 },
+          stacked: { w: 1, h: 2 },
+        },
+      },
+    ],
+    positions: {
+      wide: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'progress-1', x: 8, y: 0 },
+      ],
+      compact: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'progress-1', x: 0, y: 2 },
+      ],
+      stacked: [
+        { id: 'today-1', x: 0, y: 0 },
+        { id: 'progress-1', x: 0, y: 2 },
+      ],
+    },
+  });
+}
+
+const SUMMARY_OWNED_WIDGET_IDS = new Set(['goals-1', 'tracking-1', 'usage-1']);
+
+export function withoutSummaryDuplicateWidgets(rawState) {
+  const state = normalizeState(rawState);
+  const removed = new Set(
+    state.widgets
+      .filter((widget) => SUMMARY_OWNED_WIDGET_IDS.has(widget.id))
+      .map((widget) => widget.id),
+  );
+  if (!removed.size) return rawState;
+  const next = cloneState(state);
+  next.widgets = next.widgets.filter((widget) => !removed.has(widget.id));
+  for (const mode of Object.keys(next.positions))
+    next.positions[mode] = next.positions[mode].filter((position) => !removed.has(position.id));
+  return next;
+}
+
 /**
  * Live source widgets render one shared backend view per type. Keep their first
  * saved instance and geometry, while leaving intentionally repeatable personal

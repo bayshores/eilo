@@ -106,9 +106,12 @@ test('personal profile names are restored only from local preferences', () => {
   );
 });
 
-test('scrolling Home migration version is explicit and survives normalization', () => {
+test('Home migration version is explicit and survives normalization', () => {
   assert.equal(normalizeHomePreferences({ homeLayoutVersion: 2 }).homeLayoutVersion, 2);
-  assert.equal(normalizeHomePreferences({ homeLayoutVersion: '2' }).homeLayoutVersion, 1);
+  assert.equal(normalizeHomePreferences({ homeLayoutVersion: 3 }).homeLayoutVersion, 3);
+  assert.equal(normalizeHomePreferences({ homeLayoutVersion: 4 }).homeLayoutVersion, 4);
+  assert.equal(normalizeHomePreferences({ homeLayoutVersion: 5 }).homeLayoutVersion, 5);
+  assert.equal(normalizeHomePreferences({ homeLayoutVersion: '5' }).homeLayoutVersion, 1);
 });
 
 test('defaults are helpful but explicit off preferences survive', () => {

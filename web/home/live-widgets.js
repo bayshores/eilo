@@ -1,5 +1,4 @@
 import { appendProvenance } from '../chat/provenance.js';
-import { calendarAgenda, calendarTime } from '../calendar/agenda.js';
 import { conversationEntries, deliveryLabel, progressText } from './data.js';
 import { renderTrackingWidget, renderUsageWidget } from './context-widgets.js';
 
@@ -140,49 +139,37 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
     }
     if (widget.type === 'today') {
       container.classList.add('home-launcher');
-      const calendar = snapshot.integrations?.google_calendar;
-      const agenda = calendarAgenda(calendar);
-      container.append(node('h2', '', 'What’s next?'));
-      const actions = node('div', 'launcher-actions');
       const chosen = value.focus || (value.open.length === 1 ? value.open[0] : null);
+      container.append(node('h2', '', chosen ? 'Next move' : 'Choose a focus'));
       if (chosen) {
-        const commitment = node('p', 'launcher-current-task', chosen.title);
         const progress = progressText(chosen);
-        if (progress)
-          commitment.append(node('span', 'launcher-current-progress', ' · ' + progress));
-        container.append(commitment);
-      }
-      for (const [label, tone, handler] of [
-        [chosen ? 'Continue' : 'Let’s start', 'sand', () => talk()],
-        [
-          'Help me start',
-          'lavender',
-          () =>
-            talk(
-              chosen
-                ? 'Help me start “' + chosen.title + '”. Suggest one small next step I can change.'
-                : 'Help me choose one thing to start with.',
-            ),
-        ],
-        ['Change plan', 'blue', () => talk('I want to change what I’m working on. ')],
-      ])
+        if (progress) container.append(node('p', 'launcher-current-status', progress));
+      } else
+        container.append(
+          node('p', 'launcher-current-status', 'Pick one goal to make the next step clear.'),
+        );
+      const actions = node('div', 'launcher-actions');
+      const choices = chosen
+        ? [
+            [
+              'Plan next step',
+              'sand',
+              () =>
+                talk(
+                  'Help me choose one small next step for “' +
+                    chosen.title +
+                    '”. I can change it if needed.',
+                ),
+            ],
+            ['Review focus', 'blue', () => openDetail('goals')],
+          ]
+        : [
+            ['Choose a focus', 'sand', () => openDetail('goals')],
+            ['Ask eïlo', 'blue', () => talk('Help me choose one thing to focus on next.')],
+          ];
+      for (const [label, tone, handler] of choices)
         actions.append(action(label, handler, 'launcher-action launcher-action--' + tone));
-      const today = action(
-        '',
-        () => openDetail(agenda.length ? 'calendar-day' : 'today'),
-        'launcher-today',
-      );
-      const nextTask = value.focus || value.open[0];
-      const todayCopy = agenda.length
-        ? `${calendarTime(agenda[0])} · ${agenda[0].title}`
-        : nextTask?.title || 'No commitments yet';
-      today.append(
-        node('span', 'launcher-today__label', 'Today'),
-        node('span', 'launcher-today__copy', todayCopy),
-        node('span', 'launcher-today__arrow', '→'),
-      );
-      today.setAttribute('aria-label', `View today: ${todayCopy}`);
-      container.append(actions, today);
+      container.append(actions);
     } else if (widget.type === 'goals') {
       if (!value.open.length) {
         empty(

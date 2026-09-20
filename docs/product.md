@@ -18,10 +18,18 @@ priorities, breaks, and external actions.
   of up to three existing widgets. Approval saves the goal and reveals that Home;
   optional source setup follows with separate collection, AI-sharing, check-in
   and alert choices. Existing profiles retain their current workspace.
-- **Home** combines a date-aware goal/event/activity summary with an expandable
-  conversation dock. Opening conversation keeps a compact context strip visible and gives the duplicate saved-widget board space to the message history; collapsing it reveals the full saved widget area and keeps the compact dock at the bottom. A recovery card appears only when a connected source or check-ins need attention and links to the relevant repair surface. Returning from Settings preserves whether the conversation was open. Goal details open in place; **Edit home** opens the
-  saved widget arrangement directly, and Done restores the briefing and dock. Tracking shows current browser, Calendar, and Gmail
-  access; Browser usage shows retained recorded time by site and day.
+- **Home** combines a date-aware, non-duplicative current-focus/Calendar/activity
+  summary with an expandable conversation dock. The canonical Goals, Tracking, and Usage
+  cards that merely repeat that strip are removed from the app-owned starter board; personal
+  and adaptive context widgets stay in the saved arrangement. Opening conversation keeps the
+  compact context strip visible and gives the widget board space to the message history;
+  collapsing it restores the compact dock at the bottom. The **Next move** action pre-fills a
+  reviewable conversation draft and never sends it by itself. A recovery card appears only
+  when a connected source or check-ins need attention and links to the relevant repair
+  surface. Returning from Settings preserves whether the conversation was open. Goal details
+  open in place; **Edit home** opens the saved widget arrangement directly, and Done restores
+  the briefing and dock. Tracking shows current browser, Calendar, and Gmail access; Browser
+  usage shows retained recorded time by site and day.
 - **Talk** expands within Home, keeping the summary cards and compact widget
   context visible. Goals and Activity open as detail panels over this workspace. History stays inside the
   dock; drafts and the selected conversation survive collapsing and reopening.
@@ -56,11 +64,11 @@ input.
 
 ### One Home component design
 
-Every card on Home is a normal widget with the same move, resize, remove, and keyboard controls. Permitted context can add relevant widgets and update their contents; it must not hide existing widgets or replace the board with a separate fixed layout. Preserve saved positions and sizes through content updates. Removed automatic widgets stay removed until explicitly added again; whole-card pages use a compact arrow-and-dot control when all widgets cannot fit. A chosen note remains editable and separate from the layout.
+The saved Home board holds normal widgets with the same move, resize, remove, and keyboard controls. The fixed day strip is a concise workspace summary, not a second editable board. Permitted context can add relevant widgets and update their contents; it must not hide personal widgets or replace the board with a separate fixed layout. Preserve saved positions and sizes through content updates. Removed automatic widgets stay removed until explicitly added again; whole-card pages use a compact arrow-and-dot control when all widgets cannot fit. A chosen note remains editable and separate from the layout.
 
 **Settings** remains a separate page reached from Home, with an explicit Back to Home control, organized into General, Widgets & layout, Permissions, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Guided first setup replaces the empty Home before approval. After approval, its optional support invitation sits beside the conversation, and connection steps open inline. Settings stays outside the widget canvas. Keep the Check-ins switch and recording state/control in the Activity header across its views. Put status details and desktop alerts behind the adjacent settings icon. Empty Activity has one source action; recorded sessions must not open to a blank Overview. Expose history filters and recovery categories when they contain records.
 
-The ordinary starter Home uses warm surfaces and Continue, Help me start, and Change plan actions; an approved first workspace starts with only its chosen widgets. The launcher adapts to widget dimensions, and its Today summary stays inside the card. On Home, Talk expands as a dock while the day summary remains visible; collapsing it reveals saved widgets and keeps the compact dock available. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
+The ordinary starter Home uses warm surfaces, a **Next move** action, and a separate progress card; an approved first workspace starts with only its chosen widgets. The action card exposes only a reviewable planning draft and a focus review, so it never implies that eïlo has started work or sent a message. Its title stays visible at compact widget heights, and long summary labels clamp rather than overlap nearby metadata. On Home, Talk expands as a dock while the day summary remains visible; collapsing it reveals saved widgets and keeps the compact dock available. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
 
 ### Frontend instructions
 
