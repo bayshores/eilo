@@ -1,0 +1,765 @@
+/* Unified Home retains the saved board; the briefing and conversation share one surface. */
+:root[data-source='live'] .workspace.unified-home {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(8px, 1.3vh, 18px);
+  width: min(1400px, 100%);
+  max-width: 1400px;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(78px, 10vh, 124px) 40px 14px;
+  overflow-y: hidden;
+  overflow-x: clip;
+  scrollbar-width: thin;
+  scroll-padding-block: 24px;
+}
+:root[data-source='live'] .workspace.unified-home > .home-header {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  min-height: 0;
+  padding: 0;
+  margin: 0 0 8px;
+}
+.unified-home .home-header > div:first-child {
+  position: relative;
+}
+:root[data-source='live'] .workspace.unified-home .home-header h1 {
+  font-size: clamp(30px, 3.6vw, 48px);
+  line-height: 1.12;
+  letter-spacing: -1.3px;
+  margin: 9px 0 0;
+}
+.unified-date {
+  display: block;
+  font-size: 20px;
+  color: #c5bdb8;
+}
+:root[data-source='live'] .workspace.unified-home .scene-wordmark {
+  left: 40px;
+  top: 26px;
+  transform: none;
+  font-size: 48px;
+  letter-spacing: -3px;
+}
+:root[data-source='live'] .workspace.unified-home .header-actions {
+  position: absolute;
+  right: 40px;
+  top: 40px;
+  gap: 12px;
+}
+:root[data-source='live'] .workspace.unified-home .header-actions .button {
+  min-height: 44px;
+  padding: 10px 17px;
+  font-size: 16px;
+}
+:root[data-source='live'] .workspace.unified-home > .capture-controls {
+  right: 42px;
+  top: 96px;
+  max-width: none;
+  gap: 14px;
+}
+:root[data-source='live'] .workspace.unified-home .talk-actions,
+:root[data-source='live'] .workspace.unified-home > .workspace-page {
+  display: none;
+}
+.unified-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  flex: none;
+}
+.unified-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  text-align: left;
+  min-height: clamp(100px, 15vh, 176px);
+  min-width: 0;
+  padding: 22px 26px;
+  border: 1px solid #d2b89b55;
+  border-radius: 25px;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 180ms,
+    border-color 180ms,
+    box-shadow 180ms;
+}
+.unified-card:hover {
+  border-color: #d2b89b80;
+}
+.unified-card[aria-expanded='true'] {
+  border-color: var(--peach);
+}
+.unified-card:focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: 3px;
+}
+.unified-disclosure {
+  content: '';
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-left: auto;
+  border-top: 1px solid #c5bdb8;
+  border-right: 1px solid #c5bdb8;
+  transform: rotate(45deg);
+}
+.unified-card[aria-expanded='true'] .unified-disclosure {
+  transform: rotate(135deg);
+}
+.unified-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+.unified-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.unified-card-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.unified-card-title {
+  font:
+    500 24px/1.25 Bricolage,
+    sans-serif;
+  overflow-wrap: anywhere;
+}
+.unified-card-meta {
+  font-size: 17px;
+  line-height: 1.4;
+  color: #beb6af;
+  overflow-wrap: anywhere;
+}
+.unified-card-eyebrow {
+  font: 400 14px/1.2 var(--font-ui);
+  color: #bcb0a6;
+}
+.unified-card-state {
+  font-size: 14px;
+  color: #dfb991;
+}
+.unified-detail {
+  flex: none;
+  padding: 24px 28px;
+  border-radius: 20px;
+  background: #282524aa;
+}
+.unified-detail h2 {
+  margin: 0 50px 12px 0;
+  font-size: 22px;
+}
+.unified-detail p {
+  font-size: 16px;
+  color: var(--muted);
+}
+.unified-detail .button {
+  margin-right: 16px;
+}
+.unified-detail-close {
+  float: right;
+}
+
+:root[data-source='live'] .workspace.unified-home > .board-scroll,
+:root[data-source='live'] .workspace.unified-home > .home-pagination {
+  display: none;
+}
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .board-scroll {
+  display: block;
+  flex: none;
+  width: 100%;
+  height: 470px;
+  min-height: 470px;
+  margin: 0;
+}
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .home-pagination {
+  display: flex;
+  flex: none;
+  position: static;
+  transform: none;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock {
+  position: relative;
+  inset: auto;
+  grid-area: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  max-width: none;
+  margin: 4px 0 0;
+  padding: clamp(12px, 1.8vh, 22px) 26px;
+  border: 1px solid #d2b89b55;
+  border-radius: 25px;
+  background: #24211f55;
+  box-shadow:
+    inset 0 1px 1px #ffffff28,
+    0 14px 40px #0002;
+  overflow: visible;
+}
+.unified-dock-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: none;
+  min-height: clamp(42px, 6vh, 64px);
+}
+.unified-dock-header h2 {
+  font-size: 24px;
+  margin: 0;
+}
+.unified-presence {
+  width: clamp(42px, 6vh, 64px);
+  height: clamp(42px, 6vh, 64px);
+  flex: none;
+}
+.unified-presence .agent-orb {
+  width: 100%;
+  height: 100%;
+}
+.unified-dock-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.unified-dock-toggle {
+  border: 0;
+  background: transparent;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--ink);
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .live-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  width: 100%;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .conversation-thread {
+  display: flex;
+  position: static;
+  flex-direction: column;
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  width: 100%;
+  margin: 12px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.unified-home .conversation-presence {
+  display: none;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-thread .live-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 45dvh;
+  overflow-y: auto;
+  padding: 10px 2px;
+}
+.unified-briefing {
+  flex: none;
+  padding: 4px 4px 12px;
+}
+.unified-prompt {
+  max-width: 770px;
+  margin: 0 0 18px;
+  font-size: clamp(22px, 2.3vw, 30px);
+  line-height: 1.36;
+  color: #eee8e2;
+}
+.unified-replies {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.unified-replies .button {
+  min-width: 180px;
+  min-height: 46px;
+  padding: 10px 24px;
+  border-radius: 13px;
+  background: #ffffff10;
+  border: 1px solid #ffffff26;
+  font-size: 17px;
+  color: var(--ink);
+}
+.unified-replies .button:hover {
+  background: #ffffff20;
+}
+.unified-replies .unified-drop {
+  background: #99574d24;
+  border-color: #ab766344;
+}
+.unified-later {
+  font-size: 14px;
+  color: #b8aca3;
+  min-height: 44px;
+}
+.unified-notice {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 4px;
+  font-size: 17px;
+}
+:root[data-source='live'] .workspace.unified-home .has-return-briefing .live-messages {
+  max-height: 180px;
+}
+.unified-home .has-return-briefing .live-messages:has(.conversation-empty-state) {
+  display: none;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .live-composer {
+  flex: none;
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-width: 0;
+  padding: 16px 20px 10px;
+  border-radius: 26px;
+  margin: auto 0 0;
+  background: #191a1b50;
+  border: 1px solid #ffffff38;
+  box-shadow: inset 0 1px 1px #ffffff0a;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .live-input {
+  min-height: 28px;
+  font-size: 18px;
+  line-height: 1.5;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  max-height: 140px;
+}
+.unified-home .live-composer .dock-history,
+.unified-home .live-composer .help-start {
+  display: none;
+}
+.unified-home .live-composer .speech-actions {
+  gap: 12px;
+}
+.unified-home .live-composer .speech-hint {
+  display: none;
+}
+.unified-home .live-send {
+  min-width: 60px;
+  border-radius: 20px;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock[data-open='false'] {
+  flex: none;
+  min-height: 0;
+  padding: 16px 24px;
+}
+:root[data-source='live']
+  .workspace.unified-home
+  .conversation-dock[data-open='false']
+  .conversation-thread {
+  display: none;
+}
+.unified-home .conversation-dock[data-open='false'] .unified-presence {
+  width: 48px;
+  height: 48px;
+}
+.unified-home .conversation-dock[data-open='false'] .unified-dock-header {
+  min-height: 48px;
+  margin-bottom: 14px;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history {
+  min-height: 320px;
+  max-height: 500px;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock.history-open {
+  display: flex;
+}
+.unified-home :is(button, input, textarea):focus-visible {
+  outline: 2px solid var(--peach);
+  outline-offset: 4px;
+}
+.unified-home [hidden] {
+  display: none !important;
+}
+:root[data-source='live'] .workspace.unified-home .connection-statuses {
+  position: static;
+  align-self: flex-end;
+  flex-direction: row;
+  order: 20;
+  margin: 0;
+}
+@media (max-width: 800px) {
+  :root[data-source='live'] .workspace.unified-home {
+    padding: 132px 22px 22px;
+    gap: 18px;
+  }
+  :root[data-source='live'] .workspace.unified-home .scene-wordmark {
+    left: 24px;
+    top: 20px;
+    font-size: 40px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions {
+    top: 28px;
+    right: 22px;
+    gap: 6px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions .button {
+    padding: 9px 12px;
+    font-size: 14px;
+  }
+  :root[data-source='live'] .workspace.unified-home > .capture-controls {
+    top: 84px;
+    right: 24px;
+  }
+  .unified-summary {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .unified-card {
+    padding: 20px;
+    gap: 14px;
+    min-height: 150px;
+  }
+  .unified-card-title {
+    font-size: 20px;
+  }
+  .unified-card-meta {
+    font-size: 15px;
+  }
+  .unified-card-state {
+    font-size: 13px;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock {
+    padding: 20px;
+  }
+  .unified-prompt {
+    font-size: 24px;
+  }
+  .unified-replies .button {
+    min-width: 120px;
+    min-height: 48px;
+    padding: 10px 16px;
+    font-size: 16px;
+  }
+}
+@media (max-width: 540px) {
+  :root[data-source='live'] .workspace.unified-home {
+    padding: 168px 14px 18px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions {
+    top: 82px;
+    left: 14px;
+    right: 14px;
+    justify-content: flex-start;
+  }
+  :root[data-source='live'] .workspace.unified-home > .capture-controls {
+    top: 23px;
+    right: 14px;
+    max-width: 65%;
+  }
+  .unified-date {
+    font-size: 16px;
+  }
+  .unified-summary {
+    grid-template-columns: 1fr;
+  }
+  .unified-card {
+    min-height: 120px;
+  }
+  .unified-dock-header {
+    gap: 12px;
+  }
+  .unified-dock-header h2 {
+    font-size: 19px;
+  }
+  .unified-presence {
+    width: 48px;
+    height: 48px;
+  }
+  .unified-dock-tools {
+    gap: 3px;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock {
+    padding: 18px 14px;
+    border-radius: 21px;
+  }
+  .unified-prompt {
+    font-size: 22px;
+  }
+  .unified-replies {
+    gap: 8px;
+  }
+  .unified-replies .button {
+    flex: 1 1 100px;
+    min-width: 0;
+    padding: 10px 12px;
+  }
+  .unified-later {
+    flex-basis: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .unified-home *,
+  .unified-home *::before,
+  .unified-home *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+.reduce-motion .unified-home *,
+.reduce-motion .unified-home *::before,
+.reduce-motion .unified-home *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+:root[data-source='live'] .workspace.unified-home .conversation-dock > .live-chat {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  grid-area: auto;
+  justify-self: stretch;
+}
+:root[data-source='live'] .workspace.unified-home .unified-dock-header {
+  width: 100%;
+  height: auto;
+}
+
+:root[data-source='live'] .workspace.unified-home .conversation-dock.history-open > .live-chat {
+  display: none;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .live-composer {
+  border-radius: 36px;
+}
+.unified-presence .agent-orb {
+  transform: scale(1.65);
+}
+@media (min-width: 1000px) {
+  .unified-replies .button {
+    min-width: 220px;
+  }
+}
+
+:root[data-source='live'] .workspace.unified-home .conversation-dock > .live-chat {
+  flex: 1 1 0;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .conversation-thread {
+  flex: 1 1 0;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock {
+  flex-basis: 0;
+  min-height: 0;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock[data-open='false'] {
+  min-height: 0;
+}
+
+:root[data-source='live'] .workspace.unified-home > .home-header {
+  position: static;
+}
+
+:root[data-source='live'] .workspace.unified-home .connection-statuses {
+  flex-shrink: 0;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .live-chat {
+  overflow: hidden;
+}
+:root[data-source='live'] .workspace.unified-home .conversation-dock .conversation-thread {
+  scrollbar-width: thin;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+.unified-detail {
+  max-height: 24vh;
+  overflow: auto;
+}
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .board-scroll {
+  height: min(30vh, 300px);
+  min-height: 0;
+  overflow: auto;
+}
+@media (max-height: 850px) {
+  :root[data-source='live'] .workspace.unified-home {
+    padding-top: 78px;
+    gap: 8px;
+  }
+  :root[data-source='live'] .workspace.unified-home .home-header h1 {
+    font-size: 32px;
+    margin-top: 4px;
+  }
+  :root[data-source='live'] .workspace.unified-home .home-header {
+    margin-bottom: 4px;
+  }
+  :root[data-source='live'] .workspace.unified-home .scene-wordmark {
+    top: 14px;
+    font-size: 40px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions {
+    top: 20px;
+  }
+  :root[data-source='live'] .workspace.unified-home > .capture-controls {
+    top: 58px;
+  }
+  .unified-date {
+    font-size: 16px;
+  }
+  .unified-card {
+    min-height: 100px;
+    padding: 16px 22px;
+    gap: 16px;
+  }
+  .unified-card-title {
+    font-size: 21px;
+  }
+  .unified-card-meta {
+    font-size: 15px;
+  }
+  .unified-card-copy {
+    gap: 5px;
+  }
+  .unified-card-state {
+    font-size: 13px;
+  }
+
+  .unified-dock-header h2 {
+    font-size: 21px;
+  }
+  .unified-prompt {
+    font-size: 22px;
+    line-height: 1.3;
+    margin-bottom: 14px;
+  }
+  .unified-replies .button {
+    min-height: 42px;
+    padding-block: 8px;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock .live-composer {
+    padding: 10px 16px 6px;
+  }
+}
+@media (max-width: 540px) {
+  :root[data-source='live'] .workspace.unified-home {
+    padding: 126px 14px 10px;
+    gap: 8px;
+  }
+  :root[data-source='live'] .workspace.unified-home .header-actions {
+    top: 66px;
+  }
+  :root[data-source='live'] .workspace.unified-home > .capture-controls {
+    top: 20px;
+  }
+  .unified-card {
+    min-height: 86px;
+    padding: 12px;
+  }
+  .unified-summary {
+    gap: 8px;
+  }
+  .unified-card-eyebrow {
+    font-size: 13px;
+    margin: 0;
+  }
+  .unified-card-title {
+    font-size: 18px;
+  }
+  :root[data-source='live'] .workspace.unified-home .conversation-dock {
+    padding: 10px 12px;
+  }
+  .unified-presence {
+    width: 36px;
+    height: 36px;
+  }
+  .unified-dock-header {
+    min-height: 38px;
+  }
+  .unified-prompt {
+    font-size: 18px;
+  }
+  .unified-later {
+    flex-basis: auto;
+  }
+}
+
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .unified-summary,
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .unified-detail {
+  display: none;
+}
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .board-scroll {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 160px;
+}
+:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .conversation-dock {
+  display: none;
+}
+
+:root[data-source='live'] .workspace.unified-home .talk-entry {
+  display: none;
+}
+
+@media (min-width: 541px) and (max-width: 900px) {
+  .unified-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .unified-card {
+    padding: 14px;
+    gap: 8px;
+  }
+  .unified-card-title {
+    font-size: 18px;
+  }
+  .unified-card-meta {
+    font-size: 13px;
+  }
+}
+
+:root[data-source='live'] .workspace.unified-browsing > .board-scroll {
+  display: block;
+  flex: 1 1 0;
+  height: auto;
+  min-height: 160px;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+:root[data-source='live'] .workspace.unified-browsing > .home-pagination {
+  display: flex;
+  position: static;
+  flex: none;
+  transform: none;
+}
+:root[data-source='live'] .workspace.unified-browsing > .conversation-dock {
+  margin-top: auto;
+}
+:root[data-source='live'] .workspace.unified-browsing > .board-scroll {
+  padding: 8px;
+  margin-inline: -8px;
+  width: calc(100% + 16px);
+}

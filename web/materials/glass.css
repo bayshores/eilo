@@ -15,7 +15,9 @@
   initial-value: 135deg;
 }
 
-:root .eilo-glass {
+:root .eilo-glass,
+:root[data-source='live'] .workspace .eilo-glass-surface,
+:root[data-source='live'] .workspace .eilo-glass {
   isolation: isolate;
   background: transparent;
   color: var(--ink, #f3f2f4);
@@ -64,7 +66,7 @@
   backdrop-filter: blur(10px) saturate(1.1);
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
 }
-.eilo-glass::before {
+:is(.eilo-glass, .eilo-glass-surface)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -88,7 +90,7 @@
   backdrop-filter: var(--glass-refraction, blur(3px)) brightness(1.24) saturate(1.18);
   -webkit-backdrop-filter: var(--glass-refraction, blur(3px)) brightness(1.24) saturate(1.18);
 }
-.eilo-glass:not(.drag-ghost)::after {
+:is(.eilo-glass:not(.drag-ghost), .eilo-glass-surface)::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -199,14 +201,14 @@
   rotate: 0deg !important;
 }
 @media (prefers-reduced-transparency: reduce) {
-  .eilo-glass::before {
+  :is(.eilo-glass, .eilo-glass-surface)::before {
     background-color: #202624f5;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 }
 @supports not (backdrop-filter: blur(1px)) {
-  .eilo-glass::before {
+  :is(.eilo-glass, .eilo-glass-surface)::before {
     background-color: #202624eb;
   }
 }
@@ -218,7 +220,7 @@
     outline: 1px solid CanvasText;
   }
   .eilo-glass::before,
-  .eilo-glass:not(.drag-ghost)::after {
+  :is(.eilo-glass:not(.drag-ghost), .eilo-glass-surface)::after {
     display: none;
   }
   .eilo-glass.widget-content > h2,
@@ -227,5 +229,174 @@
     background: none;
     color: CanvasText;
     filter: none;
+  }
+}
+
+:root[data-source='live'] .workspace.unified-home .conversation-dock.eilo-glass-surface,
+:root[data-source='live'] .context-panel--embedded .context-panel__body.eilo-glass-surface {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    inset 0 1px 0 #ffffff18,
+    inset 0 -1px 0 #00000058,
+    0 16px 24px -10px #00000080;
+}
+.eilo-glass-control {
+  display: inline-flex;
+  min-width: 0;
+  border-radius: 14px;
+}
+:root[data-source='live'] .context-panel--embedded .eilo-glass-control > :is(input, select) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-source='live'] .context-panel--embedded input:is([type='checkbox'], [role='switch']) {
+  border: 1px solid #ffffff30;
+  background: linear-gradient(160deg, #ffffff20, #ffffff04 50%, #00000035);
+  box-shadow:
+    inset 0 1px 2px #ffffff30,
+    inset 0 -1px 2px #0008,
+    0 3px 7px #0004;
+}
+:root[data-source='live']
+  .context-panel--embedded
+  input:is([type='checkbox'], [role='switch']):checked {
+  background: linear-gradient(150deg, #cfbda77a, #8b796259);
+}
+:root[data-source='live']
+  .context-panel--embedded
+  input:is([type='checkbox'], [role='switch'])::after {
+  background: linear-gradient(145deg, #faf6f0, #beb8b0);
+  box-shadow:
+    inset 0 1px 1px #fff8,
+    0 1px 3px #0008;
+}
+.context-panel--embedded input[type='range'] {
+  appearance: none;
+  height: 6px;
+  border-radius: 8px;
+  background: linear-gradient(#ffffff20, #0003);
+  box-shadow:
+    inset 0 1px 2px #0008,
+    0 1px 0 #fff3;
+}
+.context-panel--embedded input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #ffffff50;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ebe3d8, #94877a);
+  box-shadow:
+    inset 0 1px 2px #fff8,
+    0 2px 5px #0008;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .eilo-glass-surface::before {
+    background-color: #202624f5;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .eilo-glass-surface::before,
+  .eilo-glass-surface::after {
+    display: none;
+  }
+  :root[data-source='live'] .workspace .eilo-glass-surface {
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+}
+
+:root[data-source='live'] .workspace .eilo-glass {
+  transition:
+    rotate 350ms var(--ease-settle, ease-out),
+    translate 180ms var(--ease-settle, ease-out),
+    border-color 180ms ease-out,
+    --glass-light-x 250ms ease-out,
+    --glass-light-y 250ms ease-out,
+    --glass-light-angle 250ms ease-out;
+}
+:root[data-source='live'] .workspace .eilo-glass.eilo-glass-hover {
+  transition-duration: 160ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  :root[data-source='live']
+    .workspace
+    .eilo-glass:is(button, .eilo-glass-control):hover:not(:disabled) {
+    border-color: #ffffff60;
+  }
+}
+:root[data-source='live'] .workspace button.eilo-glass:active:not(:disabled) {
+  translate: 0 1px;
+  transform: none;
+}
+:root[data-source='live'] .workspace .eilo-glass:focus-visible,
+:root[data-source='live'] .workspace .eilo-glass-control:focus-within {
+  outline: 2px solid var(--peach);
+  outline-offset: 3px;
+}
+:root[data-source='live'] .context-panel--embedded .context-panel__tab[aria-selected='true'] {
+  border-color: #e5c4a7;
+  color: #fff5eb;
+}
+.context-panel--embedded input:is([type='checkbox'], [role='switch'])::after {
+  transition:
+    transform 180ms var(--ease-settle, ease-out),
+    background 180ms ease-out;
+}
+.unified-disclosure {
+  transition: transform 180ms var(--ease-settle, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-source='live'] .workspace .eilo-glass {
+    transition: none;
+    rotate: 0deg !important;
+    translate: none;
+  }
+}
+:root[data-source='live'] .reduce-motion .workspace .eilo-glass {
+  transition: none;
+  rotate: 0deg !important;
+  translate: none;
+}
+
+:root[data-source='live'] .context-panel--embedded,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  > .workspace-page {
+  overflow: visible;
+}
+:root[data-source='live'] .workspace .workspace-inspector > .workspace-page {
+  padding: 12px;
+  margin: -12px;
+}
+
+:root[data-source='live'] .context-panel--embedded .context-panel__body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: visible;
+}
+.context-panel--embedded .context-panel__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 26px;
+  border-radius: inherit;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+@media (max-width: 800px) {
+  .context-panel--embedded .context-panel__scroll {
+    padding: 20px;
   }
 }

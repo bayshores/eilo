@@ -243,11 +243,39 @@ def sample_checkin(snapshot, phase):
     return snapshot
 
 
+def sample_return_workspace(snapshot):
+    """Inject one local-time Calendar event into the response-only fixture projection."""
+    local_now = datetime.now().astimezone()
+    start = local_now.replace(hour=15, minute=0, second=0, microsecond=0)
+    if start <= local_now:
+        start = (local_now + timedelta(minutes=30)).replace(second=0, microsecond=0)
+    end = start + timedelta(hours=1)
+    snapshot["integrations"]["google_calendar"] = {
+        "state": "connected",
+        "account": {"email": "sample@example.test"},
+        "selected_ids": ["sample-calendar"],
+        "last_synced_at": local_now.isoformat(),
+        "events": [
+            {
+                "id": "sample-study-group",
+                "calendar_id": "sample-calendar",
+                "calendar_name": "Sample Calendar",
+                "title": "Study group",
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "all_day": False,
+            }
+        ],
+    }
+    return snapshot
+
+
 class DemoChat(LocalChat):
     show_sample_activity = False
     show_sample_records = False
     checkin_phase = None
     chat_context_fixture = None
+    show_return_workspace = False
 
     def snapshot(self):
         snapshot = super().snapshot()
@@ -257,6 +285,8 @@ class DemoChat(LocalChat):
             snapshot = sample_activity(snapshot)
         if self.checkin_phase:
             snapshot = sample_checkin(snapshot, self.checkin_phase)
+        if self.show_return_workspace:
+            snapshot = sample_return_workspace(snapshot)
         return sample_records(snapshot) if self.show_sample_records else snapshot
 
     async def compress_context(self, body):
@@ -417,6 +447,11 @@ def main():
         help="Show generated legacy activity and check-in records",
     )
     parser.add_argument(
+        "--return-workspace",
+        action="store_true",
+        help="Seed a synthetic overdue goal and fresh Calendar event for workspace review",
+    )
+    parser.add_argument(
         "--onboarding", action="store_true", help="Exercise first setup with a synthetic model"
     )
     parser.add_argument(
@@ -449,6 +484,26 @@ def main():
         chat.show_sample_activity = args.sample_activity
         chat.show_sample_records = args.sample_records
         chat.checkin_phase = args.checkin_phase
+        chat.show_return_workspace = args.return_workspace
+        if args.return_workspace:
+            yesterday = (datetime.now().astimezone().date() - timedelta(days=1)).isoformat()
+            asyncio.run(
+                chat.control_tasks(
+                    [
+                        {
+                            "op": "add",
+                            "temp_id": "new_chapter",
+                            "title": "Read chapter 4",
+                            "due_text": yesterday,
+                            "target_count": None,
+                            "unit": None,
+                        },
+                        {"op": "focus", "task_id": "new_chapter"},
+                    ],
+                    "fixture-return-workspace",
+                    chat.meta["tasks"]["revision"],
+                )
+            )
         if args.chat_context:
             chat.chat_context_fixture = {
                 "window_tokens": 272000,
@@ -499,6 +554,7 @@ def main():
             args.chat_context
             or args.sample_activity
             or args.sample_records
+            or args.return_workspace
             or args.onboarding
             or args.checkin_phase
             or args.fail_checkin_toggle

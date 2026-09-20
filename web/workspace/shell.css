@@ -1561,3 +1561,140 @@
 :root[data-source='live'] .nav-label {
   font-size: 11px;
 }
+
+:root[data-source='live'] .workspace > .rail-zone {
+  display: none;
+}
+:root[data-source='live'] .workspace:not(.unified-home) {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: 40px;
+}
+:root[data-source='live'] .workspace > :is(.home-header, .workspace-page) {
+  grid-column: 1;
+}
+.workspace-inspector {
+  width: min(820px, calc(100vw - 48px));
+  height: auto;
+  min-height: min(360px, calc(100dvh - 72px));
+  max-width: none;
+  max-height: calc(100dvh - 72px);
+  margin: auto 24px auto auto;
+  padding: 24px;
+  color: var(--ink);
+  border: 1px solid #ffffff30;
+  border-radius: 26px;
+  background: #191715f5;
+  overflow: hidden;
+}
+.workspace-inspector[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.workspace-inspector::backdrop {
+  background: #09070566;
+  backdrop-filter: blur(3px);
+}
+.workspace-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  gap: 20px;
+}
+.workspace-inspector-header h2 {
+  margin: 0;
+  font-size: 27px;
+}
+:root[data-source='live'] .workspace .workspace-inspector > .workspace-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+  scrollbar-width: thin;
+}
+.workspace-inspector .goals-workspace {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+.workspace-inspector .activity-header-controls {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+.workspace-inspector .activity-header-controls[hidden] {
+  display: none;
+}
+.workspace-inspector .activity-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+.workspace-inspector :is(.goals-workspace, .activity-workspace)[hidden] {
+  display: none;
+}
+.workspace-inspector :is(.activity-overview, .activity-content, .activity-feed) {
+  min-height: 0;
+  overflow: visible;
+}
+.workspace-inspector .activity-first-use {
+  min-height: 180px;
+  padding: 28px;
+  border-radius: 20px;
+}
+.workspace-inspector :is(.goal-filter, .activity-day-button, .activity-manage) {
+  min-height: 42px;
+  border-radius: 14px;
+  padding: 9px 14px;
+}
+.workspace-inspector .activity-toolbar {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.workspace-inspector .activity-checkin-control {
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  :root[data-source='live'] .workspace:not(.unified-home) {
+    padding-inline: 18px;
+  }
+  .workspace-inspector {
+    width: calc(100vw - 20px);
+    height: calc(100dvh - 40px);
+    margin: auto;
+    padding: 16px;
+  }
+}
+
+.workspace-inspector .workspace-empty-state {
+  padding: 24px 4px;
+  min-height: 0;
+}
+.workspace-inspector .activity-feed:has(> .workspace-empty-state) {
+  min-height: 0;
+}
+.workspace-inspector .activity-manage {
+  margin-left: auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  body:not(.reduce-motion) .workspace-inspector[open] {
+    animation: inspector-enter 280ms var(--ease-settle, ease-out);
+  }
+}
+@keyframes inspector-enter {
+  from {
+    opacity: 0;
+    translate: 18px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}

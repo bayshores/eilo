@@ -1,6 +1,10 @@
 import { glassOffset, glassPose, mapSize } from './glass-math.js';
+const surfaceSelector =
+  '.context-panel--embedded .context-panel__body, .unified-home .conversation-dock';
+const fieldSelector =
+  '.context-panel--embedded select, .context-panel--embedded input[type="text"], .context-panel--embedded input[type="search"]';
 const selector =
-  ".home-widget:not(.widget-preview):not(.drag-ghost), .live-composer, .goals-index, .goal-detail, .activity-usage-card, .talk-history, :root[data-source='live'] :is(.nav-rail, .header-actions .button, .activity-header-controls > .button, .activity-timeline, .activity-record)";
+  ".home-widget:not(.widget-preview):not(.drag-ghost), .live-composer, .goals-index, .goal-detail, .activity-usage-card, .talk-history, .workspace-inspector .button, .workspace-inspector .goal-filter, .workspace-inspector .activity-first-use, .unified-card, .unified-detail, .unified-replies .button, .context-panel--embedded .context-panel__tab, .context-panel--embedded .button, :root[data-source='live'] :is(.nav-rail, .header-actions .button, .activity-header-controls > .button, .activity-timeline, .activity-record)";
 const records = new Map();
 const hoverAllowed = matchMedia(
   '(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)',
@@ -37,11 +41,13 @@ function resetPose() {
 function blocked(element) {
   return (
     !hoverAllowed.matches ||
+    element.matches(':disabled, [aria-disabled="true"]') ||
     document.body.classList.contains('reduce-motion') ||
     document.body.classList.contains('resize-active') ||
     !!element.closest(
       '.editing, .is-dragging, .is-resizing, .keyboard-moving, .holding-widget, .drag-ghost',
     ) ||
+    element.matches('input:focus, textarea:focus, select:focus, [contenteditable]:focus') ||
     !!element.querySelector('input:focus, textarea:focus, select:focus, [contenteditable]:focus')
   );
 }
@@ -152,7 +158,7 @@ function register(element) {
     element = face;
   }
   if (records.has(element) || element.closest('.drag-ghost, .widget-preview')) return;
-  if (element.parentElement.closest('.eilo-glass')) return;
+  if (element.parentElement.closest('.eilo-glass:not(.eilo-glass-surface)')) return;
   const id = `eilo-glass-depth-${++nextId}`;
   const filter = svgNode('filter', {
     id,
@@ -196,12 +202,29 @@ function register(element) {
 }
 function scan(root) {
   if (!(root instanceof Element)) return;
+  const surfaces = [...root.querySelectorAll(surfaceSelector)];
+  if (root.matches(surfaceSelector)) surfaces.push(root);
+  surfaces.forEach((surface) => {
+    surface.classList.add('eilo-glass-surface');
+    register(surface);
+  });
+  const fields = [...root.querySelectorAll(fieldSelector)];
+  if (root.matches(fieldSelector)) fields.push(root);
+  for (const field of fields) {
+    if (field.parentElement.classList.contains('eilo-glass-control')) continue;
+    const face = document.createElement('span');
+    face.className = 'eilo-glass-control';
+    field.before(face);
+    face.append(field);
+    register(face);
+  }
   if (root.matches(selector)) register(root);
   root.querySelectorAll(selector).forEach(register);
 }
 new MutationObserver((changes) => {
   for (const change of changes) {
     if (change.type === 'childList') change.addedNodes.forEach(scan);
+    else if (change.target.matches('.unified-home')) scan(change.target);
     else if (change.target.matches(selector)) register(change.target);
   }
   if (active && (!active.isConnected || blocked(active))) resetPose();

@@ -10,7 +10,7 @@ const FLAGS = [
   'ai_enabled',
 ];
 const SETTINGS_DESCRIPTIONS = {
-  general: 'Sidebar, microphone, and alerts.',
+  general: 'Appearance, microphone, and alerts.',
   overview: 'Your current work and the widgets on Home.',
   sources: 'Choose what activity to collect and what your AI can use.',
   connections: 'Connect and manage your apps and services.',
@@ -126,6 +126,8 @@ export function createContextPanel({
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', host ? 'Settings sections' : 'Context settings');
   const body = node('div', 'context-panel__body');
+  const scrollBody = host ? node('div', 'context-panel__scroll') : body;
+  if (host) body.append(scrollBody);
   const error = node('p', 'context-panel__error');
   error.setAttribute('role', 'alert');
   error.hidden = true;
@@ -155,7 +157,7 @@ export function createContextPanel({
     }
     if (id !== 'sources') desktopGuide?.pause();
     if (focus) tabButtons.get(id).focus();
-    body.scrollTop = 0;
+    scrollBody.scrollTop = 0;
     onSelectSection?.(id);
   }
   for (const [id, label] of [
@@ -205,7 +207,7 @@ export function createContextPanel({
     tabButtons.set(id, tab);
     panels.set(id, panel);
     tabs.append(tab);
-    body.append(panel);
+    scrollBody.append(panel);
   }
 
   async function run(lane, action, fields = {}) {

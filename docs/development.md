@@ -38,6 +38,18 @@ a delivered check-in and assistant history; it can run alone or with
 IDs are for rendering, not backend deletion/restoration tests. Use a goal created
 in an ordinary onboarding fixture to verify durable goal recovery.
 
+To review the return workspace without a real account, source, model call, or
+permission grant, run:
+
+```sh
+uv run --no-sync python scripts/preview-context.py --port 8799 --return-workspace
+```
+
+It creates an isolated saved focus goal, **Read chapter 4**, with yesterday's
+ISO date as its deadline. Its synthetic Calendar response contains **Study
+group** at 3–4 PM local time; if 3 PM has passed, the fixture moves it to the
+next upcoming local time. The sample-data banner remains visible.
+
 ## Home layout regression checks
 
 Run `python3 scripts/preview-home-layout.py` and open **http://127.0.0.1:8794/**.

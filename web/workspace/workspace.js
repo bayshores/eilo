@@ -20,7 +20,7 @@ import { createWorkspaceRouter } from './router.js';
 import { mountOrb, orbState } from '../orb/presence.js';
 import { mountOnboarding } from '../onboarding/onboarding.js';
 import { createInterfaceSound } from '../onboarding/sound.js';
-import { mountDailyStart } from '../home/daily-start.js';
+import { mountUnifiedWorkspace } from '../home/unified-workspace.js';
 import { selectTracking, recordingSummary } from '../home/tracking-data.js';
 
 const node = (tag, className, text) => {
@@ -45,7 +45,6 @@ export function createLiveHome({
   applyWorkspace = () => true,
   getSoundEnabled = () => true,
   getPreferences = () => ({ dailyGuidance: true, soundVolume: 0.5 }),
-  setDailyGuidance = () => {},
   setSoundEnabled = () => false,
 }) {
   let storage = null;
@@ -99,7 +98,7 @@ export function createLiveHome({
       /* The active view remains usable. */
     }
   }
-  let dailyStart = null;
+  let unified = null;
   let onboarding = null,
     chatContext = null;
   let current = client.view,
@@ -213,18 +212,9 @@ export function createLiveHome({
     },
     'text-button capture-pause',
   );
-  const mute = action(
-    'Mute sounds',
-    () => {
-      setSoundEnabled(!getSoundEnabled());
-      sound.sync();
-      updateCaptureControls();
-    },
-    'text-button interface-mute',
-  );
   const captureError = node('span', 'capture-error');
   captureError.setAttribute('role', 'status');
-  captureControls.append(pauseCapture, mute, captureError);
+  captureControls.append(pauseCapture, captureError);
   const connectionStatuses = node('div', 'connection-statuses');
   connectionStatuses.setAttribute('role', 'group');
   connectionStatuses.setAttribute('aria-label', 'Connection statuses');
@@ -267,12 +257,6 @@ export function createLiveHome({
       button.setAttribute('aria-label', `${summary}. Manage connection`);
     }
     pauseCapture.hidden = !tracking.online || !(configured || legacy);
-    mute.textContent = getSoundEnabled() ? 'Mute sounds' : 'Sounds off';
-    mute.setAttribute(
-      'aria-label',
-      getSoundEnabled() ? 'Mute interface sounds' : 'Turn on interface sounds',
-    );
-    mute.setAttribute('aria-pressed', String(!getSoundEnabled()));
   }
 
   header.tabIndex = -1;
@@ -313,7 +297,7 @@ export function createLiveHome({
   }
   const views = createWorkspaceViews({
     container: pages,
-    pageHeader: document.querySelector('.home-header'),
+    pageHeader: pages,
     onDiscuss: (text) => talk(text),
     onConnections: () => openDetail('connections'),
     onActivity: () => showPage('activity'),
@@ -358,7 +342,7 @@ export function createLiveHome({
   function syncHistoryLayout() {
     const chat = dock.querySelector('.live-chat');
     if (!chat) return;
-    const hidden = threadOpen && historyOpen && compactHistory.matches;
+    const hidden = threadOpen && historyOpen && (currentPage === 'home' || compactHistory.matches);
     const hadFocus = chat.contains(document.activeElement);
     chat.inert = hidden;
     if (hidden && hadFocus) libraryHost.querySelector('input')?.focus({ preventScroll: true });
@@ -424,13 +408,51 @@ export function createLiveHome({
     libraryPanel.update(current.snapshot);
     libraryPanel.show();
   }
+  const inspector = node('dialog', 'workspace-inspector');
+  inspector.id = 'workspace-inspector';
+  inspector.setAttribute('aria-labelledby', 'workspace-inspector-title');
+  const inspectorHeader = node('header', 'workspace-inspector-header');
+  const inspectorTitle = node('h2', '', '');
+  inspectorTitle.id = 'workspace-inspector-title';
+  inspectorTitle.tabIndex = -1;
+  let inspectorReturnFocus = null;
+  let inspectorDockOpen = false;
+  const closeInspector = () => {
+    const restore = inspectorReturnFocus;
+    const open = inspectorDockOpen;
+    showPage('home');
+    setThreadOpen(open, { focus: false });
+    if (restore?.isConnected && restore.getClientRects().length)
+      restore.focus({ preventScroll: true });
+  };
+  inspectorHeader.append(inspectorTitle, action('Close', closeInspector, 'button'));
+  inspector.append(inspectorHeader);
+  workspace.append(inspector);
+  inspector.addEventListener('cancel', (event) => {
+    if (event.defaultPrevented) return;
+    event.preventDefault();
+    closeInspector();
+  });
+  const settingsBack = action('Back to Home', () => showPage('home'), 'button workspace-back');
+  settingsBack.hidden = true;
+  document.querySelector('.header-actions').prepend(settingsBack);
+  let homeThreadOpen = threadOpen;
+  let returningHome = false;
   const router = createWorkspaceRouter({
     onPageChange: (page) => {
+      returningHome = page === 'home' && currentPage !== 'home';
+      if (currentPage === 'home' && !inspector.open) homeThreadOpen = threadOpen;
+      if (['goals', 'activity'].includes(page) && !inspector.open) {
+        inspectorReturnFocus = document.activeElement;
+        inspectorDockOpen = threadOpen;
+      }
+      if (inspector.open) inspector.close();
       onViewChange(page);
       if (['settings', 'connections'].includes(page)) speech?.cancel();
       if (dialog.open) dialog.close();
       setThreadOpen(false, { focus: false });
-      if (!['chats', 'projects'].includes(page)) currentPage = page;
+      if (!['chats', 'projects'].includes(page))
+        currentPage = ['goals', 'activity'].includes(page) ? 'home' : page;
       rememberPresentation();
     },
     renderPage: (
@@ -442,7 +464,12 @@ export function createLiveHome({
         setHistoryOpen(true);
         return;
       }
-      workspace.dataset.page = page;
+      const inspecting = ['goals', 'activity'].includes(page);
+      const homePage = inspecting ? 'home' : page;
+      settingsBack.hidden = !['settings', 'connections'].includes(page);
+      if (inspecting) inspector.append(pages);
+      else board.after(pages);
+      workspace.dataset.page = homePage;
       board.hidden = page !== 'home';
       pages.hidden = page === 'home';
       views.show(page, { goalFilter, activityTab });
@@ -458,8 +485,19 @@ export function createLiveHome({
         }
       }
       document.querySelector('.home-header').hidden = false;
-      onboarding?.update(current, page);
-      dailyStart?.update(current, page, threadOpen);
+      onboarding?.update(current, homePage);
+      unified?.update(current, homePage, threadOpen);
+      if (returningHome) setThreadOpen(homeThreadOpen, { focus: false });
+      if (inspecting) {
+        router.updateNavigation('home');
+        unified?.update(current, 'home', threadOpen);
+        inspectorTitle.textContent = page === 'goals' ? 'Your goals' : 'Activity';
+        inspector.dataset.view = page;
+        inspector.showModal();
+        queueMicrotask(() => {
+          if (inspector.open) inspectorTitle.focus();
+        });
+      }
     },
   });
   function showPage(page, options) {
@@ -526,11 +564,13 @@ export function createLiveHome({
   }
 
   function placeOrb() {
-    const target = threadOpen
-      ? onboarding?.active
-        ? workspace.querySelector('.onboarding-orb')
-        : dock.querySelector('.conversation-presence')
-      : talkOrb;
+    const target = workspace.classList.contains('unified-home')
+      ? dock.querySelector('.unified-presence')
+      : threadOpen
+        ? onboarding?.active
+          ? workspace.querySelector('.onboarding-orb')
+          : dock.querySelector('.conversation-presence')
+        : talkOrb;
     if (!target) {
       orbElement.remove();
       presence?.pause(true);
@@ -551,13 +591,13 @@ export function createLiveHome({
     threadOpen = open;
     dock.dataset.open = String(open);
     workspace.classList.toggle('conversation-active', open);
-    talkActions.hidden = !open;
+    talkActions.hidden = !open || currentPage === 'home';
     talkEntry.setAttribute('aria-pressed', String(open));
     returnWorkspace.setAttribute(
       'aria-label',
       `Return to ${currentPage === 'connections' ? 'Settings' : currentPage[0].toUpperCase() + currentPage.slice(1)}`,
     );
-    router.updateNavigation(currentPage, { talking: open });
+    router.updateNavigation(currentPage, { talking: open && currentPage !== 'home' });
     syncHistoryLayout();
     const thread = dock.querySelector('.conversation-thread');
     const toggle = dock.querySelector('.dock-history');
@@ -592,12 +632,13 @@ export function createLiveHome({
       else header.focus({ preventScroll: true });
     }
     rememberPresentation();
-    dailyStart?.update(current, currentPage, open);
+    unified?.update(current, currentPage, open);
     placeOrb();
     if (current.snapshot) updates.update(current);
   }
   const data = () => homeData(current.snapshot);
   function talk(text) {
+    if (inspector.open) closeInspector();
     if (typeof text === 'string' && text && !current.draft) client.setDraft(text);
     if (dialog.open) dialog.close();
     setThreadOpen(true);
@@ -752,6 +793,7 @@ export function createLiveHome({
         if (!client.canSend()) return;
         setThreadOpen(true);
         sound.prepare();
+        unified?.dismiss();
         void client.send().then(() => {
           if (!client.view.error && client.view.localPending?.status !== 'unconfirmed')
             sound.play('sent');
@@ -1081,7 +1123,7 @@ export function createLiveHome({
       setSoundEnabled,
       soundController: sound,
       onStarted: (goal) => {
-        dailyStart?.dismiss();
+        unified?.dismiss();
         if (!current.draft) {
           talk('Help me start “' + goal + '”. Help me find one small first step.');
           if (client.canSend()) void client.send();
@@ -1144,7 +1186,8 @@ export function createLiveHome({
       }
       renderConversation(dock);
       onboarding?.update(next, currentPage);
-      dailyStart?.update(next, currentPage, threadOpen);
+      unified?.update(next, currentPage, threadOpen);
+      placeOrb();
       if (restorePresentation && next.snapshot) {
         restorePresentation = false;
         if (
@@ -1173,15 +1216,23 @@ export function createLiveHome({
         dialog.scrollTop = top;
       }
     });
-    dailyStart = mountDailyStart(workspace, {
-      storage,
+    unified = mountUnifiedWorkspace({
+      workspace,
+      dock,
+      client,
       getPreferences,
-      onContinue: () => talk(),
-      onChange: () => talk('I want to change what I’m working on. '),
-      onDisable: () => setDailyGuidance(false),
+      storage,
+      setOpen: setThreadOpen,
+      isOpen: () => threadOpen,
+      talk,
+      showPage,
+      openCalendar: () => openDetail('calendar-day'),
+      onHistory: () => {
+        setThreadOpen(true, { focus: false });
+        setHistoryOpen(!historyOpen);
+      },
     });
-    board.before(workspace.querySelector('.daily-start'));
-    dailyStart.update(current, currentPage, threadOpen);
+    unified.update(current, currentPage);
     router.start();
     const connectDesktop = () => {
       stopDesktop = window.eiloDesktop?.onOpenCheckIn(async (target) => {
@@ -1213,7 +1264,7 @@ export function createLiveHome({
         presence?.destroy();
         presence = null;
         onboarding?.destroy();
-        dailyStart?.destroy();
+        unified?.destroy();
         sound.destroy();
       }
       calendarPanel?.destroy();
@@ -1241,7 +1292,7 @@ export function createLiveHome({
     sound,
     refreshPreferences() {
       sound.sync?.();
-      dailyStart?.refresh();
+      unified?.refresh();
       updateCaptureControls();
     },
     settingsHost,

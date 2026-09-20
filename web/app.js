@@ -558,7 +558,6 @@ function renderBoard() {
   $('.empty-home').hidden = layout.length !== 0;
   $('.overflow-toggle').hidden = true;
   $('.add-toggle').hidden = false;
-  $('.app-window').classList.toggle('editing', editing);
   renderPlacement(layout);
   if (menuId && !ids.has(menuId)) closeWidgetMenu();
 }
@@ -587,6 +586,7 @@ function setEditing(value) {
   if (keyboardMove) finishKeyboardMove(false);
   finishLandings();
   editing = value;
+  $('.app-window').classList.toggle('editing', editing);
   if (!editing) queueMicrotask(() => adaptiveHome?.flush());
   closeWidgetMenu();
   $('.add-toggle').hidden = false;
@@ -1848,6 +1848,32 @@ function createGeneralSettings() {
     profile.open = true;
     section.querySelector('.profile-form input').focus();
   });
+  const group = (title, elements) => {
+    const container = document.createElement('section');
+    container.className = 'settings-group';
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    container.append(heading, ...elements);
+    return container;
+  };
+  const keyboard = section.querySelector('details');
+  section.querySelector('h2').remove();
+  section.querySelector('h3').remove();
+  guidance.lastChild.textContent = 'Daily welcome-back briefing';
+  section.append(
+    group('Appearance', [
+      section.querySelector('.pin-setting').parentElement,
+      section.querySelector('.motion-setting').parentElement,
+    ]),
+    group('Conversation', [
+      guidance,
+      section.querySelector('.speech-preference'),
+      section.querySelector('.settings-checkins'),
+    ]),
+    group('Sound', [soundOption, soundControls]),
+    group('Personal & shortcuts', [profile, keyboard]),
+  );
+  section.querySelector('.pin-setting').parentElement.remove();
   return section;
 }
 function updateContextGallery() {

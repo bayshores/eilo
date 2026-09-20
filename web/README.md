@@ -32,4 +32,4 @@ Changes to DOM markup must preserve safe text rendering for external content, vi
 
 `npm run test:js` discovers colocated feature tests, extension checks, and desktop tests. `npm run typecheck` checks the typed browser boundaries listed in `jsconfig.json`. Tests use fixtures; they do not grant activity, microphone, account, or notification access.
 
-For layout changes, also exercise direct resizing, fast and slow hold-to-drag, reversal, release/Escape, keyboard movement, gallery/overflow recovery, and sidebar collapse at wide and compact sizes. For navigation, check reload and Back across Home, Goals, Activity, Connections, Chats, and Projects. A passing pure-layout test does not establish visual correctness.
+For layout changes, also exercise direct resizing, fast and slow hold-to-drag, reversal, release/Escape, keyboard movement, gallery/overflow recovery, and compact Home at wide and compact sizes. For navigation, check reload and Back across Home, Goals/Activity detail panels, and Settings. A passing pure-layout test does not establish visual correctness.

@@ -18,14 +18,15 @@ priorities, breaks, and external actions.
   of up to three existing widgets. Approval saves the goal and reveals that Home;
   optional source setup follows with separate collection, AI-sharing, check-in
   and alert choices. Existing profiles retain their current workspace.
-- **Home** combines a daily return point with configurable,
-  content-specific widgets. Tracking shows current browser, Calendar, and Gmail
+- **Home** combines a date-aware goal/event/activity summary with an expandable
+  conversation dock. Collapsing the conversation reveals the saved widget area and keeps the compact dock at the bottom. Returning from Settings preserves whether the conversation was open. Goal details open in place; **Edit home** opens the
+  saved widget arrangement directly, and Done restores the briefing and dock. Tracking shows current browser, Calendar, and Gmail
   access; Browser usage shows retained recorded time by site and day.
-- **Talk** opens the conversation over the current workspace page, with History
-  inside it and a Workspace control to return. The composer appears only in Talk.
-- **Goals** provides an optional direct view of active, completed, cancelled,
+- **Talk** expands within Home, keeping the summary cards visible. Goals and Activity open as detail panels over this workspace. History stays inside the
+  dock; drafts and the selected conversation survive collapsing and reopening.
+- **Goals** opens from its Home widget and provides a detail view of active, completed, cancelled,
   and recoverable deleted goals.
-- **Activity** starts with a useful source setup action and the explicit check-in
+- **Activity** opens from its Home widget and starts with a useful source setup action and the explicit check-in
   control. Recorded usage, check-in filters, audit history and recoverable deleted
   items appear when they contain data. Observed time is evidence of an admitted
   signal, never proof of attention, progress, or completion.
@@ -54,13 +55,13 @@ input.
 
 Every card on Home is a normal widget with the same move, resize, remove, and keyboard controls. Permitted context can add relevant widgets and update their contents; it must not hide existing widgets or replace the board with a separate fixed layout. Preserve saved positions and sizes through content updates. Removed automatic widgets stay removed until explicitly added again; whole-card pages use a compact arrow-and-dot control when all widgets cannot fit. A chosen note remains editable and separate from the layout.
 
-**Settings** is available in the floating navigation, organized into General, Widgets & layout, Permissions, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Guided first setup replaces the empty Home before approval. After approval, its optional support invitation sits beside the conversation, and connection steps open inline. Settings stays outside the widget canvas. Keep the Check-ins switch in the Activity header across its views. Put status details and desktop alerts behind the adjacent settings icon. Empty Activity has one source action; recorded sessions must not open to a blank Overview. Expose history filters and recovery categories when they contain records.
+**Settings** remains a separate page reached from Home, with an explicit Back to Home control, organized into General, Widgets & layout, Permissions, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Guided first setup replaces the empty Home before approval. After approval, its optional support invitation sits beside the conversation, and connection steps open inline. Settings stays outside the widget canvas. Keep the Check-ins switch in the Activity header across its views. Put status details and desktop alerts behind the adjacent settings icon. Empty Activity has one source action; recorded sessions must not open to a blank Overview. Expose history filters and recovery categories when they contain records.
 
-The ordinary starter Home uses warm surfaces and Continue, Help me start, and Change plan actions; an approved first workspace starts with only its chosen widgets. The launcher adapts to widget dimensions, and its Today summary stays inside the card. Talk opens as a full-height view with a Workspace return control; the previous page is hidden until the conversation closes. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
+The ordinary starter Home uses warm surfaces and Continue, Help me start, and Change plan actions; an approved first workspace starts with only its chosen widgets. The launcher adapts to widget dimensions, and its Today summary stays inside the card. On Home, Talk expands as a dock while the day summary remains visible; collapsing it reveals saved widgets and keeps the compact dock available. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
 
 ### Frontend instructions
 
-Use familiar controls, alignment, and selected states to make interactions apparent. Home, Goals, Activity and Settings share the page gutters and header baseline; Talk keeps that frame. The orb identifies Talk in navigation and remains part of first setup. Keep populated messages and the composer free of decorative logos and extra branding bars; History stays within Talk. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
+Use familiar controls, alignment, and selected states to make interactions apparent. Home is the primary workspace; Goals and Activity expand over it without a sidebar. Settings is separate. The orb remains in the Home conversation dock and first setup. Keep populated messages and the composer free of decorative logos and extra branding bars; History stays within Talk. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
 
 Do not use thin line dividers as a section-separation component. Group related content with spacing, alignment, typography, material, shape, or a meaningful visual instead. Lines remain valid only when they encode data or define a control's necessary boundary; they must not be decorative separators between stacked content.
 
@@ -82,14 +83,13 @@ Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actua
   reflect the person's actual task and available evidence: a meaningful status,
   next step, or an appropriate unit when a count is useful. Do not default every
   task to problems solved, a fixed checklist, or a universal focus score.
-- Preserve the floating sidebar. Its hover target includes a forgiving gutter,
-  it stays open while the pointer or keyboard is using it, and it waits before
-  hiding after pointer exit. Keep full Home cards within the page; never
-  slice a widget at the canvas boundary.
+- Do not restore the floating sidebar. Keep Goals and Activity accessible from
+  Home widgets, with Close and Escape returning to the workspace. Keep full
+  Home cards within the page; never slice a widget at the canvas boundary.
 - Favor automatic upkeep from conversation and explicitly permitted context over
   repetitive forms.
-- Keep Home, Goals, and Activity distinct: a configurable daily surface, a goal
-  management workspace, and a record of consented context.
+- Consolidate goals, activity, and conversation into Home. Preserve their controls
+  in in-place detail panels; keep Settings as the only separate settings destination.
 - Make control boundaries legible. Enabling one connection does not silently
   enable another collection, model-data flow, or notification route.
 - Present uncertainty honestly. The UI only claims facts supplied by its current
@@ -107,7 +107,13 @@ First setup centers one real goal and **Save goal & start**, which saves the goa
 and asks for a small first step in the ordinary conversation. No mandatory timer,
 daily planning ritual or widget arrangement precedes ordinary use.
 
-A daily inline return point is on by default. It uses confirmed task state and
+A daily return briefing is on by default. On the first connected Home visit of
+a local day it expands the conversation only when no draft, pending reply or
+break is active. A blocked first visit does not trigger delayed guidance after
+work clears. Dismissal persists for the local day. The opening is currently a
+local projection of saved goal and date state, not an automatic model turn or
+new mailbox read. Exact ISO goal dates may be identified as passed; ambiguous
+wording is shown for confirmation without inventing a deadline. It uses confirmed task state and
 only explicitly linked next-step context. Calendar information requires a current
 connected cache (under fifteen minutes old); this UI performs no new AI source
 read. Continue, Change and Not now remain optional. Dismissal applies across chats

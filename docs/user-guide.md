@@ -138,13 +138,13 @@ setup begins with only the chosen widgets. Your custom arrangement is kept.
 
 Choose **Edit home → Tidy layout** to align cards while keeping their sizes, or **Settings → Widgets & layout → Restore starter layout**. Both offer Undo and keep saved contents. The upgrade makes a one-time backup of old layout metadata, removes identical source cards, and aligns the source widgets; later custom placement is kept.
 
-**Settings → General → Interface sounds** controls short cues for sent messages and confirmed actions. New profiles start with sounds on; saved off choices stay off. **Interface sound volume**, **Play test sound**, and the header mute control make playback easy to check. Sounds stay silent during microphone recording and while the page is hidden. Desktop alerts remain separate.
+**Settings → General → Interface sounds** controls short cues for sent messages and confirmed actions. New profiles start with sounds on; saved off choices stay off. **Interface sound volume** and **Play test sound** make playback easy to check. Sounds stay silent during microphone recording and while the page is hidden. Desktop alerts remain separate.
 
 eïlo uses one monochrome dark appearance. There is no accent picker or Light-mode control.
 
 Until you save a name, **Add your name** on Home or Settings opens **General → Your name**. The field starts empty; the old “You” placeholder is treated as missing. Names are saved locally in this browser or desktop app.
 
-The labeled floating sidebar starts pinned for new profiles. **Settings → General → Keep sidebar open** controls this choice. If unpinned, it opens from the left edge and waits before hiding.
+Home is the primary workspace. **Your goals** and **Activity** open from their Home cards in a detail panel; use Close or Escape to return to the same spot. **Settings** is the only separate page and has a visible **Back to Home** control.
 
 Home widgets can be rearranged with the supported hold gesture and resized from
 their corner grips. Layout editing is optional. You can leave it through the
@@ -153,9 +153,9 @@ goals or conversation content.
 
 ## Context and automatic widgets
 
-Open **Settings** in the floating navigation. **Permissions → Let AI use recorded activity** separately lets the existing AI use your conversation and permitted activity. Capture, AI sharing, and check-ins each keep their own controls.
+Open **Settings** from Home. **Permissions → Let AI use recorded activity** separately lets the existing AI use your conversation and permitted activity. Capture, AI sharing, and check-ins each keep their own controls.
 
-**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards; the composer appears only in Talk. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
+**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. Collapsing the conversation reveals the saved widget area; a compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
 
 A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Widgets & layout returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
 
