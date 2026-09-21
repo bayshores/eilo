@@ -3,6 +3,7 @@ import './styles/focus.js';
 import { createHomeStorage, HOME_STORAGE_KEYS, normalizeHomePreferences } from './home/storage.js';
 import { createLiveHome } from './workspace/workspace.js';
 import { mountSettingsController } from './adaptive/controller.js';
+import { mountCapabilitiesManager } from './capabilities/manager.js';
 
 const detail = document.querySelector('.detail-dialog');
 const openInlineDetail = createInlineDialog(detail);
@@ -19,6 +20,7 @@ document.body.classList.toggle('reduce-motion', preferences.reducedMotion);
 
 let live = null;
 let settings = null;
+let capabilityManager = null;
 let detailReturnFocus = null;
 
 function savePreferences() {
@@ -232,22 +234,42 @@ live = createLiveHome({
     savePreferences();
     return enabled;
   },
-  onSettingsSection: (id) => settings?.selectSettings(id),
+  onSettingsSection: (id, capabilityKind) => {
+    if (id === 'capabilities') capabilityManager?.show({ kind: capabilityKind });
+    settings?.selectSettings(id);
+  },
 });
 live.start();
+
+const capabilitiesHost = document.createElement('div');
+capabilitiesHost.className = 'settings-capabilities';
+capabilityManager = mountCapabilitiesManager(capabilitiesHost, {
+  onManageGlobal: () => live.showPage('connections'),
+});
 
 settings = mountSettingsController({
   client: live.client,
   settingsHost: live.settingsHost,
   settingsSections: [
     { id: 'general', label: 'General', element: createGeneralSettings() },
+    { id: 'capabilities', label: 'Capabilities', element: capabilitiesHost },
     ...live.settingsSections,
   ],
-  onSettingsSection: (id) => live.settingsSectionSelected(id),
+  onSettingsSection: (id) => {
+    live.settingsSectionSelected(id);
+    if (id === 'capabilities') void capabilityManager.refresh({ quiet: true });
+  },
   onOpenConnections: (source) =>
     source === 'browser' ? showDetail('browser-setup') : live.showPage('connections'),
 });
 
 if (!live.settingsHost.hidden)
   settings.selectSettings(location.hash === '#connections' ? 'connections' : 'general');
-window.addEventListener('pagehide', () => settings?.destroy(), { once: true });
+window.addEventListener(
+  'pagehide',
+  () => {
+    settings?.destroy();
+    capabilityManager?.destroy();
+  },
+  { once: true },
+);

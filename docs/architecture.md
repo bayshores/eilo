@@ -57,6 +57,7 @@ older browser state from silently replacing newer state.
 | Activity observations                       | Activity ledger           | Keep only admitted, minimized observations under its retention policy.                   |
 | Browser drafts and presentation preferences | Browser storage           | Convenience state only; it cannot create or overwrite durable commitments.               |
 | Model/runtime sign-in                       | Hermes private home       | Never read, copy, publish, or infer it from source configuration.                        |
+| Per-chat capability profile                 | app/capabilities.py       | May narrow machine availability; it never installs, connects, signs in, or grants.       |
 
 ## Chat context and compaction
 
@@ -108,7 +109,7 @@ preferences and never alter OS audio.
 
 `web/` contains production browser source. Feature folders such as `home/`,
 `workspace/`, `chat/`, `onboarding/`, `goals/`, `connections/`,
-`calendar/`, `activity/`, and `speech/` keep UI behavior close to their
+`capabilities/`, `calendar/`, `activity/`, and `speech/` keep UI behavior close to their
 styles and tests. `styles/` holds shared tokens and base rules; `assets/`
 contains local assets. `web/asset-manifest.json` is the explicit allowlist used
 by the live and fixture servers; update it whenever a served source file changes. Public `/home/` and `/activity-connect` routes are

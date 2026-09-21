@@ -22,6 +22,7 @@ from aiohttp import web
 
 from app.account_service import AccountService
 from app.briefing import TOOL_NAMES, Briefing
+from app.capabilities import Capabilities
 from app.chat_catalog import (
     CONVERSATION_KEYS,
     CatalogError,
@@ -125,6 +126,7 @@ class LocalChat:
         self.connections = Connections(
             self, ROOT if meta_path == META else meta_path.parent / "calendar"
         )
+        self.capabilities = Capabilities(self)
         self.context = ContextService(
             self.meta_path.parent / "context",
             get_tasks=lambda: public_state(self.meta["tasks"])["tasks"],
@@ -236,6 +238,7 @@ class LocalChat:
             "onboarding": public_onboarding(self.meta.get("onboarding")),
             "workspace": snapshot_catalog(self.meta),
             "connections_revision": self.connections.snapshot()["revision"],
+            "capabilities_revision": self.capabilities.snapshot()["revision"],
             "integrations": {
                 "google_calendar": self.calendar.snapshot(),
                 "briefing_sources": self.briefing.mail.snapshot(),
@@ -850,7 +853,10 @@ class LocalChat:
         source_turn = None
         try:
             request_id = self.meta["pending_turn"]["request_id"]
-            source_turn = await self.briefing.open(request_id)
+            capability_profile = self.capabilities.active()
+            source_turn = await self.briefing.open(
+                request_id, allowed_sources=set(capability_profile["sources"])
+            )
             write_private(
                 path,
                 {
@@ -874,6 +880,11 @@ class LocalChat:
                         else {}
                     ),
                     "context_bridge": source_turn.capability(),
+                    "capabilities": {
+                        "skills": capability_profile["skills"],
+                        "mcp_servers": capability_profile["mcp_servers"],
+                        "plugins": capability_profile["plugins"],
+                    },
                 },
             )
             timing["native_process"] = {}
@@ -923,7 +934,10 @@ class LocalChat:
                 if (
                     audit.get("model") != MODEL
                     or audit.get("provider") != PROVIDER
-                    or audit.get("tool_schema_count") != len(TOOL_NAMES)
+                    or audit.get("tool_schema_count", 0) < len(TOOL_NAMES)
+                    or audit.get("mcp_servers") != capability_profile["mcp_servers"]
+                    or audit.get("skills") != capability_profile["skills"]
+                    or audit.get("plugins") != capability_profile["plugins"]
                     or receipt.get("request_id") != request_id
                     or type(receipt.get("assistant_id")) is not int
                     or type(receipt.get("user_id")) is not int

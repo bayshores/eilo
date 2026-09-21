@@ -32,8 +32,7 @@ The conversation stays on Home and expands without covering the status panels.
 Use **Open** or the composer directly. **Replies** shows or hides recent messages;
 History opens saved conversations. Drafts stay with their conversation.
 
-Slash commands appear when a message begins with `/`. Use `/goal` for
-goal-focused help and `/help` to see the current command list.
+Slash commands appear when a message begins with /. Use /goal for goal-focused help, /capabilities to choose what this chat can use on its next turn, and /help to see the current command list. The focused shortcuts /skills, /plugins, /mcp, and /connectors open the same manager with the relevant filter.
 
 ## Recorded activity and check-ins
 
@@ -53,10 +52,13 @@ opening a work page completed a goal.
 
 ## Settings and permissions
 
-Settings has four current areas:
+Settings has five current areas:
 
 - **General**: motion, return briefing, spoken replies, microphone mode, interface
   sounds, and your local display name.
+- **Capabilities**: what the current chat may use on its next turn. Switch to
+  **this Mac** to enable or disable installed skills and plugins for felis;
+  connector and MCP setup remains under **Manage connections**.
 - **Permissions**: recording, desktop and Chrome sources, visible text, visual
   context, AI access, and excluded websites.
 - **Memory**: local retention windows and the explicit activity/context deletion
@@ -65,8 +67,10 @@ Settings has four current areas:
 
 Calendar, Gmail, Chrome, desktop recording, visible text, visual context, AI
 sharing, check-ins, microphone capture, and desktop alerts are separate choices.
-Opening a setup view grants nothing. Each control reports its current state and
-keeps its consequence visible.
+Opening a setup view grants nothing. Machine-wide installation, connection, or
+permission is separate from a chat capability switch. A per-chat profile can
+remove access but cannot enable a source or tool that is unavailable on this Mac.
+Each control reports its current state and keeps its consequence visible.
 
 ## Recovery and privacy
 

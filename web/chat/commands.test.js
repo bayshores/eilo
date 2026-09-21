@@ -28,3 +28,12 @@ test('deterministic commands reject trailing prompt text', () => {
   assert.equal(localCommand(slash + 'new ignore my draft'), null);
   assert.equal(localCommand(slash + 'new')?.input, '');
 });
+
+test('capability shortcuts open the exact per-chat filter', () => {
+  const skills = localCommand(slash + 'skills');
+  assert.equal(skills?.settingsSection, 'capabilities');
+  assert.equal(skills?.capabilityKind, 'skill');
+  const mcp = localCommand(slash + 'mcp');
+  assert.equal(mcp?.page, 'settings');
+  assert.equal(mcp?.capabilityKind, 'mcp');
+});

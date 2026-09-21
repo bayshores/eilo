@@ -176,7 +176,7 @@ def validate_input(value: Any) -> dict[str, Any]:
     if (
         not isinstance(value, dict)
         or not required <= set(value)
-        or set(value) - required - {"context_bridge", "onboarding"}
+        or set(value) - required - {"context_bridge", "onboarding", "capabilities"}
     ):
         raise InputError("invalid human input")
     session_id = value["session_id"]
@@ -225,6 +225,30 @@ def validate_input(value: Any) -> dict[str, Any]:
             normalized["context_bridge"] = validate_bridge(value["context_bridge"])
         except (ValueError, TypeError, KeyError):
             raise InputError("invalid context bridge") from None
+    if "capabilities" in value:
+        capabilities = value["capabilities"]
+        if not isinstance(capabilities, dict) or set(capabilities) != {
+            "skills",
+            "mcp_servers",
+            "plugins",
+        }:
+            raise InputError("invalid capabilities")
+        clean_capabilities = {}
+        for key in ("skills", "mcp_servers", "plugins"):
+            items = capabilities[key]
+            if (
+                not isinstance(items, list)
+                or len(items) > 100
+                or any(
+                    not isinstance(item, str)
+                    or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,159}", item)
+                    for item in items
+                )
+                or len(set(items)) != len(items)
+            ):
+                raise InputError("invalid capabilities")
+            clean_capabilities[key] = list(items)
+        normalized["capabilities"] = clean_capabilities
     if "onboarding" in value:
         setup = value["onboarding"]
         if (
@@ -265,6 +289,7 @@ def _runtime_and_agent(
     session_db: Any = None,
     ephemeral_system_prompt: str | None = None,
     read_tools=None,
+    capability_config=None,
 ):
     """Resolve only felis's configured Codex subscription route and make a zero-tool agent."""
     isolate_account()
@@ -273,6 +298,8 @@ def _runtime_and_agent(
 
     if read_tools is not None:
         read_tools.register()
+    capability_config = capability_config or {"skills": [], "mcp_servers": [], "plugins": []}
+    enabled_toolsets = (["eilo_context"] if read_tools else []) + capability_config["mcp_servers"]
     runtime = resolve_runtime_provider(requested=PROVIDER, target_model=MODEL)
     if not isinstance(runtime, dict) or runtime.get("provider") != PROVIDER:
         raise RuntimeError("configured human provider is unavailable")
@@ -287,14 +314,14 @@ def _runtime_and_agent(
         session_id=session_id,
         platform="cli",
         session_db=session_db,
-        enabled_toolsets=["eilo_context"] if read_tools else [],
+        enabled_toolsets=enabled_toolsets,
         disabled_toolsets=["kanban"],
         quiet_mode=True,
         skip_context_files=True,
         skip_memory=True,
         skip_background_review=True,
-        max_iterations=20 if read_tools else 1,
-        run_budget_seconds=180 if read_tools else 60,
+        max_iterations=20 if enabled_toolsets else 1,
+        run_budget_seconds=180 if enabled_toolsets else 60,
         save_trajectories=False,
         providers_allowed=[PROVIDER],
         fallback_model=None,
@@ -305,16 +332,22 @@ def _runtime_and_agent(
     names = {schema.get("function", schema).get("name") for schema in schemas}
     if read_tools is not None:
         read_tools.attach(agent)
+    context_names = TOOL_NAMES if read_tools else set()
     if (
         agent.model != MODEL
         or agent.provider != PROVIDER
-        or names != (TOOL_NAMES if read_tools else set())
+        or not context_names.issubset(names)
+        or (not capability_config["mcp_servers"] and names != context_names)
+        or (capability_config["mcp_servers"] and len(names) <= len(context_names))
     ):
         raise RuntimeError("human route audit failed")
     return agent, {
         "model": agent.model,
         "provider": agent.provider,
         "tool_schema_count": len(schemas),
+        "skills": capability_config["skills"],
+        "mcp_servers": capability_config["mcp_servers"],
+        "plugins": capability_config["plugins"],
     }
 
 
@@ -388,6 +421,19 @@ def run_human(event: dict[str, Any], on_preview=None, on_context=None) -> dict[s
         base_policy = _policy_for_state(
             event["task_state"], event["request_id"], event.get("onboarding")
         )
+        capability_config = event.get(
+            "capabilities", {"skills": [], "mcp_servers": [], "plugins": []}
+        )
+        if capability_config["skills"]:
+            from agent.skill_commands import build_preloaded_skills_prompt
+
+            skills_prompt, loaded, missing = build_preloaded_skills_prompt(
+                capability_config["skills"], task_id=session_id
+            )
+            if missing or len(loaded) != len(capability_config["skills"]):
+                raise RuntimeError("selected skills are unavailable")
+            if skills_prompt:
+                base_policy += "\n\n" + skills_prompt
         read_tools = (
             ReadTools(event["context_bridge"], base_policy) if event.get("context_bridge") else None
         )
@@ -396,6 +442,7 @@ def run_human(event: dict[str, Any], on_preview=None, on_context=None) -> dict[s
             session_id=session_id,
             session_db=db,
             ephemeral_system_prompt=base_policy,
+            capability_config=capability_config,
             **runtime_options,
         )
 

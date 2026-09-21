@@ -64,6 +64,9 @@ class PendingRequestTests(unittest.IsolatedAsyncioTestCase):
                                 "model": MODEL,
                                 "provider": PROVIDER,
                                 "tool_schema_count": len(TOOL_NAMES),
+                                "skills": [],
+                                "mcp_servers": [],
+                                "plugins": [],
                             },
                         }
                     ),

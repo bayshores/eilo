@@ -64,8 +64,8 @@ class Briefing:
                     return_turn.on_invalidated()
         self.chat.changed()
 
-    async def open(self, request_id):
-        turn = SourceTurn(self, request_id)
+    async def open(self, request_id, allowed_sources=None):
+        turn = SourceTurn(self, request_id, allowed_sources=allowed_sources)
         self.current = turn
         await turn.open()
         return turn
@@ -77,6 +77,7 @@ class Briefing:
             delivery_id,
             report=False,
             on_invalidated=on_invalidated,
+            allowed_sources=set(self.chat.capabilities.active()["sources"]),
             limits={"calls": 8, "threads": 2, "context": 24_000, "mail_days": 14, "seconds": 150},
         )
         self.return_turns.add(turn)
@@ -105,12 +106,26 @@ class Briefing:
 
 
 class SourceTurn:
-    def __init__(self, owner, request_id, *, report=True, limits=None, on_invalidated=None):
+    def __init__(
+        self,
+        owner,
+        request_id,
+        *,
+        report=True,
+        limits=None,
+        on_invalidated=None,
+        allowed_sources=None,
+    ):
         self.owner, self.mail, self.chat = owner, owner.mail, owner.chat
         self.context = getattr(self.chat, "context", None)
         self.id = request_id
         self.report = report
         self.on_invalidated = on_invalidated
+        self.allowed_sources = set(
+            allowed_sources
+            if allowed_sources is not None
+            else {"gmail", "google-calendar", "browser-activity"}
+        )
         limits = limits or {}
         self.max_calls = limits.get("calls", MAX_CALLS)
         self.max_threads = limits.get("threads", MAX_THREADS)
@@ -151,6 +166,8 @@ class SourceTurn:
         return epoch if isinstance(epoch, int) and not isinstance(epoch, bool) else None
 
     def _work_context_status(self):
+        if "browser-activity" not in self.allowed_sources:
+            return {"enabled": False, "available": False}
         state = getattr(self.context, "state", None)
         if not isinstance(state, dict):
             return {"enabled": False, "available": False}
@@ -276,15 +293,21 @@ class SourceTurn:
             if args:
                 raise CalendarError("Invalid source request.", "invalid_request", 400)
             available = self.mail.snapshot()
+            mail_accounts = (
+                [a for a in available["accounts"] if a["enabled"]]
+                if "gmail" in self.allowed_sources
+                else []
+            )
+            calendar = dict(available["calendar"])
+            if "google-calendar" not in self.allowed_sources:
+                calendar["enabled"] = False
             data = {
                 "now": datetime.now().astimezone().isoformat(),
                 "time_zone": str(datetime.now().astimezone().tzinfo),
-                "mail_accounts": [a for a in available["accounts"] if a["enabled"]],
-                "disabled_inbox_count": sum(not a["enabled"] for a in available["accounts"]),
+                "mail_accounts": mail_accounts,
+                "disabled_inbox_count": len(available["accounts"]) - len(mail_accounts),
                 "calendar": {
-                    k: v
-                    for k, v in available["calendar"].items()
-                    if k != "account_label" or available["calendar"]["enabled"]
+                    k: v for k, v in calendar.items() if k != "account_label" or calendar["enabled"]
                 },
                 "mail_default_window_days": min(30, self.max_mail_days),
                 "mail_max_read_threads_per_turn": self.max_threads,
@@ -292,8 +315,8 @@ class SourceTurn:
                 "limitations": "Only connected, enabled sources can be checked. These tools cannot send messages, edit Calendar, or create tasks.",
             }
             if (
-                not any(a["enabled"] and a["state"] == "connected" for a in available["accounts"])
-                and not available["calendar"]["enabled"]
+                not any(a["state"] == "connected" for a in mail_accounts)
+                and not calendar["enabled"]
                 and not self._work_context_status()["enabled"]
             ):
                 self.had_gaps = True
@@ -348,6 +371,13 @@ class SourceTurn:
             if set(args) - {"account_id", "query", "days"} or not {"account_id"} <= set(args):
                 raise CalendarError("Invalid mail search.", "invalid_request", 400)
             identity = args["account_id"]
+            if "gmail" not in self.allowed_sources:
+                return self.gap(
+                    "inbox",
+                    "Check inbox",
+                    "Gmail is disabled for this chat.",
+                    skipped=True,
+                )
             account = self.mail.account(identity)
             if not account or not account["enabled"] or account["state"] != "connected":
                 return self.gap(
@@ -403,6 +433,13 @@ class SourceTurn:
             if set(args) != {"account_id", "thread_id"}:
                 raise CalendarError("Invalid thread request.", "invalid_request", 400)
             identity, thread_id = args["account_id"], args["thread_id"]
+            if "gmail" not in self.allowed_sources:
+                return self.gap(
+                    "read",
+                    "Read relevant emails",
+                    "Gmail is disabled for this chat.",
+                    skipped=True,
+                )
             account = self.mail.account(identity)
             if (
                 not account
@@ -470,6 +507,13 @@ class SourceTurn:
                 )
         if args:
             raise CalendarError("Invalid calendar request.", "invalid_request", 400)
+        if "google-calendar" not in self.allowed_sources:
+            return self.gap(
+                "calendar",
+                "Check selected calendars",
+                "Google Calendar is disabled for this chat.",
+                skipped=True,
+            )
         if not self.mail.calendar_enabled():
             return self.gap(
                 "calendar",

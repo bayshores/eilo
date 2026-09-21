@@ -389,6 +389,132 @@
   box-shadow: inset 0 1px 0 #f5eef007;
   overflow: hidden;
 }
+:root[data-source='live']
+  .workspace.unified-home
+  .conversation-dock:has(.local-commands:not([hidden])) {
+  z-index: 80;
+  overflow: visible;
+}
+:root[data-source='live']
+  .workspace.unified-home
+  .conversation-dock:has(.local-commands:not([hidden]))
+  > .live-chat {
+  overflow: visible;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history {
+  padding: 14px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #100e13;
+  box-shadow: none;
+  color: var(--home-text);
+  font-family: var(--home-mono);
+}
+:root[data-source='live'] .workspace.unified-home .talk-history::before,
+:root[data-source='live'] .workspace.unified-home .talk-history::after {
+  display: none;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library {
+  scrollbar-color: var(--home-rose) transparent;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__header {
+  gap: 8px;
+  padding-bottom: 12px;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library h2 {
+  color: var(--home-text);
+  font: 450 16px/1.2 var(--home-mono);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace.unified-home
+  .talk-history
+  :is(.chat-library__button, .chat-library__filter, .chat-library__project-chip) {
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #171319;
+  color: var(--home-text);
+  box-shadow: none;
+  font: 450 11px/1.2 var(--home-mono);
+  text-transform: lowercase;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+:root[data-source='live']
+  .workspace.unified-home
+  .talk-history
+  :is(.chat-library__filter, .chat-library__project-chip)[aria-pressed='true'] {
+  border-color: var(--home-rose);
+  background: #e85d9215;
+  color: var(--home-rose-hot);
+}
+:root[data-source='live']
+  .workspace.unified-home
+  .talk-history
+  :is(input[type='search'], .chat-library__inline-editor input, .chat-library__move) {
+  min-height: 40px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #0b0a0e;
+  color: var(--home-text);
+  box-shadow: none;
+  font: 400 12px/1.3 var(--home-mono);
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__chat {
+  min-height: 50px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__chat:hover {
+  border-color: var(--home-line);
+  background: #171319;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__chat.is-active {
+  border-color: var(--home-rose);
+  background: #e85d9210;
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__chat-open,
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__more {
+  color: var(--home-text);
+  font-family: var(--home-mono);
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__chat-copy strong {
+  color: var(--home-text);
+  font: 450 12px/1.3 var(--home-mono);
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__chat-copy small,
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__empty {
+  color: var(--home-quiet);
+  font: 400 11px/1.3 var(--home-mono);
+}
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__menu,
+:root[data-source='live'] .workspace.unified-home .talk-history .chat-library__project-actions {
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #100e13;
+  box-shadow: 0 12px 28px #0008;
+}
+@media (hover: hover) {
+  :root[data-source='live']
+    .workspace.unified-home
+    .talk-history
+    :is(.chat-library__button, .chat-library__filter, .chat-library__project-chip):hover:not(
+      :disabled
+    ) {
+    border-color: #f7a8c477;
+    background: #241820;
+  }
+}
 :root[data-source='live'] .workspace.unified-home .unified-dock-header {
   grid-column: 1;
   grid-row: 1;
@@ -1706,7 +1832,7 @@
   .workspace:is([data-page='settings'], [data-page='connections'])
   .context-panel__tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   padding: 0;
   border: 0;

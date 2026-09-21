@@ -397,47 +397,75 @@
 }
 .local-commands {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   left: 0;
-  width: min(400px, 100%);
-  padding: 7px;
-  border-radius: 17px;
-  background: #303238;
-  box-shadow: 0 8px 35px #0006;
-  z-index: 4;
+  width: min(520px, 100%);
+  max-height: clamp(180px, 42dvh, 336px);
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--home-line, #e85d922e);
+  border-radius: 2px;
+  background: #100e13f5;
+  box-shadow: 0 18px 48px #00000080;
+  backdrop-filter: blur(18px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--home-rose, #e85d92) transparent;
+  z-index: 80;
+  animation: local-commands-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .local-command {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(104px, max-content) minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 10px;
-  color: var(--ink);
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 1px;
+  color: var(--home-text, var(--ink));
   background: transparent;
-  font: inherit;
+  font-family: var(--home-mono, inherit);
   text-align: left;
   cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
 }
 .local-command:hover,
 .local-command:focus-visible {
-  background: #41434b;
+  border-color: var(--home-line, #e85d922e);
+  background: #e85d9212;
 }
 .local-command strong {
-  min-width: 92px;
-  font-size: 14px;
-  font-weight: 500;
+  min-width: 0;
+  color: var(--home-rose-hot, #f7a8c4);
+  font-size: 13px;
+  font-weight: 550;
 }
 .local-command span {
-  font-size: 14px;
-  color: var(--muted);
+  overflow: hidden;
+  color: var(--home-quiet, var(--muted));
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .local-command:focus-visible,
 .dock-library:focus-visible {
-  outline: 3px solid var(--peach);
+  outline: 2px solid var(--home-rose-hot, var(--peach));
   outline-offset: 2px;
+}
+@keyframes local-commands-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 :root[data-source='live'] .workspace {
   grid-template-rows: auto minmax(0, 1fr) auto;

@@ -11,6 +11,7 @@ const FLAGS = [
 ];
 const SETTINGS_DESCRIPTIONS = {
   general: 'Appearance, microphone, and alerts.',
+  capabilities: 'Choose what the current chat may use on its next turn.',
   sources: 'Choose what activity to collect and what your AI can use.',
   connections: 'Connect and manage your apps and services.',
   memory: 'Review what stays on this Mac and clear saved activity.',
@@ -133,10 +134,13 @@ export function createContextPanel({
   }
   for (const [id, label] of [
     ...extraSections.filter((item) => item.id === 'general').map(({ id, label }) => [id, label]),
+    ...extraSections
+      .filter((item) => item.id === 'capabilities')
+      .map(({ id, label }) => [id, label]),
     ['sources', 'Permissions'],
     ['memory', 'Memory'],
     ...extraSections
-      .filter((item) => !['general', 'connections'].includes(item.id))
+      .filter((item) => !['general', 'capabilities', 'connections'].includes(item.id))
       .map(({ id, label }) => [id, label]),
   ]) {
     const tab = button(label, 'context-panel__tab');

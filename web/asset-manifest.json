@@ -35,6 +35,8 @@
     "brand/wordmark.css",
     "brand/wordmark.js",
     "calendar/agenda.js",
+    "capabilities/manager.css",
+    "capabilities/manager.js",
     "chat/client.js",
     "chat/commands.js",
     "chat/context.css",

@@ -30,9 +30,10 @@ priorities, breaks, and external actions.
   check-in history, and recording controls. Pausing leaves a visible **Resume
   recording** action. Recorded time never proves attention, progress, or
   completion.
-- **Settings** is the only separate destination. General, Permissions, Memory,
-  and Account keep presentation, source collection, AI sharing, retention, and
-  sign-in decisions explicit and separate.
+- **Settings** is the only separate destination. General, Capabilities,
+  Permissions, Memory, and Account keep presentation, per-chat agent access,
+  source collection, AI sharing, retention, and sign-in decisions explicit and
+  separate.
 - **Speech** includes user-started transcription into an editable draft and
   optional spoken felis replies. Spoken replies run only while Home is active
   and stop through a visible control.
@@ -97,11 +98,11 @@ Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actua
 - Consolidate goals, activity, and conversation into Home. Preserve their controls
   in in-place detail panels; keep Settings as the only separate settings destination.
 - Make control boundaries legible. Enabling one connection does not silently
-  enable another collection, model-data flow, or notification route.
+  enable another collection, model-data flow, notification route, or chat
+  capability. Machine-wide availability and current-chat use are separate.
 - Present uncertainty honestly. The UI only claims facts supplied by its current
   backend and records.
-- Preserve visual restraint: readable Source Sans body text and Bricolage headings, calm surfaces,
-  and interactions that can be exited easily.
+- Preserve visual restraint: readable Geist Sans and Mono typography, the black-and-rose instrument system, calm surfaces, and interactions that can be exited easily.
 
 Longer research, alternatives, and dated design rationale live in
 [design records](design/). A record can explain why a decision was made; the

@@ -12,10 +12,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
+import yaml
+
 from app.context_service import FLAGS, ContextError
 from app.google_calendar import CalendarError
-from app.paths import runtime_directory, state_directory
-from app.persistence import write_private
+from app.paths import STATE, runtime_directory, state_directory
+from app.persistence import write_private, write_private_text
 
 
 class ConnectionError(ValueError):
@@ -122,6 +124,7 @@ class Connections:
             if len({item["id"] for item in value["servers"]}) != len(value["servers"]):
                 raise ConnectionError("Saved MCP configuration needs attention.")
             self.data = value
+        self._sync_runtime_config()
         self.lock = asyncio.Lock()
         self.revision = int(time.time() * 1000)
         self.fingerprint = ""
@@ -199,7 +202,7 @@ class Connections:
         for server in self.data["servers"]:
             item = deepcopy(server)
             item.update(
-                description="MCP connection setup · conversation tools not enabled",
+                description="Configured tool server; choose which chats may use it",
                 state="Testing"
                 if server["id"] in self.jobs
                 else "Needs attention"
@@ -215,10 +218,35 @@ class Connections:
             self.fingerprint = signature
         return {"revision": self.revision, "apps": apps, "mcps": mcps}
 
+    def _sync_runtime_config(self):
+        if self.path.parent != STATE:
+            return
+        config_path = STATE / "hermes/config.yaml"
+        if not config_path.exists():
+            return
+        config = yaml.safe_load(config_path.read_text()) or {}
+        servers = {}
+        for item in self.data["servers"]:
+            if not item["enabled"]:
+                continue
+            servers[item["id"]] = (
+                {"url": item["url"]}
+                if item["transport"] == "http"
+                else {"command": item["command"], "args": item.get("args", [])}
+            )
+        config["mcp_servers"] = servers
+        write_private_text(config_path, yaml.safe_dump(config, sort_keys=False))
+
     def commit(self, servers):
         candidate = {**self.data, "servers": servers}
         write_private(self.path, candidate)
-        self.data = candidate
+        previous, self.data = self.data, candidate
+        try:
+            self._sync_runtime_config()
+        except Exception:
+            self.data = previous
+            write_private(self.path, previous)
+            raise
         self.chat.changed()
 
     async def control(self, body):

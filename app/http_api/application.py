@@ -10,7 +10,16 @@ from aiohttp import web
 from app.chat_catalog import CatalogError
 from app.chat_service import LocalChat
 from app.errors import ChatError
-from app.http_api import account, activity, assets, context, conversations, integrations, speech
+from app.http_api import (
+    account,
+    activity,
+    assets,
+    capabilities,
+    context,
+    conversations,
+    integrations,
+    speech,
+)
 from app.native_bridge import NativeBridgeError
 from app.paths import ROOT
 from app.transcription import Transcriber
@@ -59,6 +68,7 @@ def create_app(chat: LocalChat, port: int) -> web.Application:
     app.on_response_prepare.append(headers)
     assets.register(app)
     integrations.register(app, chat)
+    capabilities.register(app, chat)
     speech.register(app, transcriber)
     conversations.register(app, chat)
     activity.register(app, chat)

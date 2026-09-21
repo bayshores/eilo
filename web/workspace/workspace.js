@@ -335,6 +335,10 @@ export function createLiveHome({
       inline.close();
     }
     rememberPresentation();
+    if (open) {
+      commandsHidden = true;
+      renderCommands();
+    }
     historyOpen = open;
     libraryHost.hidden = !open;
     dock.classList.toggle('history-open', open);
@@ -470,6 +474,7 @@ export function createLiveHome({
         connectionsTab,
         activityTab,
         settingsSection,
+        capabilityKind,
         connectionId,
       } = {},
     ) => {
@@ -488,7 +493,10 @@ export function createLiveHome({
       views.show(page, { goalFilter, goalId, editGoal, newGoal, activityTab });
       settingsHost.hidden = !['settings', 'connections'].includes(page);
       if (page === 'connections' || page === 'settings') {
-        onSettingsSection(settingsSection || (page === 'connections' ? 'connections' : 'general'));
+        onSettingsSection(
+          settingsSection || (page === 'connections' ? 'connections' : 'general'),
+          capabilityKind,
+        );
         if (connectionsTab || connectionId) {
           ensureConnections();
           connectionsPanel.show({
@@ -552,7 +560,11 @@ export function createLiveHome({
         const mode = command.command.slice(1);
         chatContext?.open(mode === 'compress' ? 'context' : mode);
       } else if (command.page)
-        showPage(command.page, { connectionsTab: command.command === '/mcp' ? 'mcps' : 'all' });
+        showPage(command.page, {
+          settingsSection: command.settingsSection,
+          capabilityKind: command.capabilityKind,
+          connectionsTab: command.command === '/connections' ? 'all' : undefined,
+        });
       else {
         await client.controlCatalog('new_chat');
         messageFingerprint = '';

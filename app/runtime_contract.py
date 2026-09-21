@@ -28,14 +28,26 @@ def check_config() -> None:
         if raw.get("model", {}).get("default") != MODEL or raw["model"].get("provider") != PROVIDER:
             raise ValueError("model")
         cfg = load_config()
-        if cfg.get("fallback_providers") or cfg.get("mcp_servers"):
+        expected_mcp = {}
+        connection_path = STATE / "mcp-connections.json"
+        if connection_path.exists():
+            saved = json.loads(connection_path.read_text())
+            for item in saved.get("servers", []):
+                if not item.get("enabled"):
+                    continue
+                expected_mcp[item["id"]] = (
+                    {"url": item["url"]}
+                    if item.get("transport") == "http"
+                    else {"command": item["command"], "args": item.get("args", [])}
+                )
+        if cfg.get("fallback_providers") or raw.get("mcp_servers", {}) != expected_mcp:
             raise ValueError("external providers/tools")
-        enabled = _get_platform_tools(cfg, "cli")
+        enabled = _get_platform_tools(cfg, "cli", include_default_mcp_servers=False)
         if enabled or get_tool_definitions(enabled_toolsets=list(enabled), quiet_mode=True):
             raise ValueError("tools")
     except Exception as exc:
         raise ChatError(
-            "The local configuration needs attention. This chat requires Luna, the Codex subscription, and no action tools or fallback providers."
+            "The local configuration needs attention. This chat requires Luna, the Codex subscription, and no default action tools or fallback providers."
         ) from exc
 
 
