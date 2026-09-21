@@ -160,7 +160,18 @@ export function createLiveHome({
     isConversationOpen: () => threadOpen,
   });
   const workspace = document.querySelector('.workspace'),
+    appWindow = document.querySelector('.app-window'),
     board = document.querySelector('.board-scroll');
+  let workspaceRevealed = false;
+  function revealWorkspace(next) {
+    if (workspaceRevealed || !next.snapshot) return;
+    workspaceRevealed = true;
+    requestAnimationFrame(() => {
+      workspace.classList.add('live-ready');
+      appWindow.classList.add('live-ready');
+      appWindow.setAttribute('aria-busy', 'false');
+    });
+  }
   const pages = node('div', 'workspace-page');
   pages.hidden = true;
   board.after(pages);
@@ -1244,6 +1255,7 @@ export function createLiveHome({
       renderConversation(dock);
       onboarding?.update(next, currentPage);
       unified?.update(next, currentPage, threadOpen);
+      revealWorkspace(next);
       speechOutput?.update(next);
       placeOrb();
       if (restorePresentation && next.snapshot) {

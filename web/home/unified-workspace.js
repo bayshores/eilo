@@ -919,7 +919,7 @@ export function mountUnifiedWorkspace({
     launcher.disabled = open;
     launcher.setAttribute(
       'aria-label',
-      open ? 'Conversation is open' : 'Open conversation with eilo',
+      open ? 'Conversation is open' : 'Open conversation with felis',
     );
     setText(dockStatus, checkins.title);
     history.hidden = !open;

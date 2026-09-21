@@ -32,7 +32,86 @@
   isolation: isolate;
 }
 :root[data-source='live'] .app-window {
+  position: relative;
+  isolation: isolate;
   background: transparent;
+}
+:root[data-source='live'] .app-window::before,
+:root[data-source='live'] .app-window::after {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  transition:
+    opacity 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 320ms;
+}
+:root[data-source='live'] .app-window::before {
+  content: '';
+  inset: 0;
+  background:
+    radial-gradient(circle at 28% 22%, #a313383d, transparent 38%),
+    radial-gradient(circle at 70% 72%, #540c2424, transparent 44%), #0b0a0e;
+}
+:root[data-source='live'] .app-window::after {
+  content: 'felis';
+  top: 50%;
+  left: 50%;
+  color: #f5eef0;
+  font:
+    450 24px/1 'Geist Mono',
+    'SFMono-Regular',
+    Menlo,
+    monospace;
+  letter-spacing: 0.2em;
+  transform: translate(-50%, -50%);
+  animation: felis-boot-pulse 1200ms ease-in-out infinite alternate;
+}
+:root[data-source='live'] .workspace:not(.live-ready) {
+  visibility: hidden;
+  opacity: 0;
+}
+:root[data-source='live'] .app-window.live-ready::before,
+:root[data-source='live'] .app-window.live-ready::after {
+  visibility: hidden;
+  opacity: 0;
+}
+:root[data-source='live'] .app-window.live-ready::after {
+  animation: none;
+}
+:root[data-source='live'] .workspace.live-ready {
+  animation: felis-workspace-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes felis-boot-pulse {
+  from {
+    opacity: 0.58;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes felis-workspace-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-source='live'] .app-window::before,
+  :root[data-source='live'] .app-window::after,
+  :root[data-source='live'] .workspace.live-ready {
+    animation: none;
+    transition: none;
+  }
+}
+.reduce-motion .app-window::before,
+.reduce-motion .app-window::after,
+.reduce-motion .workspace.live-ready {
+  animation: none;
+  transition: none;
 }
 .hero-gradient {
   position: fixed;
