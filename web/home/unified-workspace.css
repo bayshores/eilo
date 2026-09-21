@@ -896,16 +896,14 @@
 .unified-home [hidden] {
   display: none !important;
 }
-:root[data-source='live'] .workspace-page > :not([hidden]) {
+:root[data-source='live'] .workspace > .workspace-page > :not([hidden]) {
   animation: unified-page-reveal 360ms var(--ease) both;
 }
 @keyframes unified-page-reveal {
   from {
-    opacity: 0;
     transform: translateY(9px) scale(0.992);
   }
   to {
-    opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
@@ -1092,7 +1090,7 @@
   .unified-home *,
   .unified-home *::before,
   .unified-home *::after,
-  :root[data-source='live'] .workspace-page > :not([hidden]) {
+  :root[data-source='live'] .workspace > .workspace-page > :not([hidden]) {
     animation: none !important;
     transition: none !important;
   }

@@ -166,25 +166,16 @@ export function createLiveHome({
     appWindow = document.querySelector('.app-window');
   let workspaceRevealed = false;
   let snapshotReady = false;
-  let windowShown = !window.eiloDesktop?.onWindowShown;
-  let bootTimer = 0;
+  appWindow.classList.add('boot-visible');
   function revealWorkspace(next) {
     if (next?.snapshot) snapshotReady = true;
-    if (workspaceRevealed || !snapshotReady || !windowShown) return;
+    if (workspaceRevealed || !snapshotReady) return;
     workspaceRevealed = true;
-    const reducedMotion =
-      getPreferences().reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const reveal = () =>
-      requestAnimationFrame(() => {
-        workspace.classList.add('live-ready');
-        appWindow.classList.add('live-ready');
-        appWindow.setAttribute('aria-busy', 'false');
-      });
-    appWindow.classList.add('boot-visible');
-    bootTimer = setTimeout(reveal, reducedMotion ? 0 : 1000);
+    workspace.classList.add('live-ready');
+    appWindow.classList.add('live-ready');
+    appWindow.setAttribute('aria-busy', 'false');
   }
   const stopWindowShown = window.eiloDesktop?.onWindowShown?.(() => {
-    windowShown = true;
     revealWorkspace();
   });
   const pages = node('div', 'workspace-page');
@@ -396,6 +387,7 @@ export function createLiveHome({
   inspector.id = 'workspace-inspector';
   inspector.setAttribute('aria-labelledby', 'workspace-inspector-title');
   inspector.setAttribute('aria-modal', 'true');
+  const overlayLayer = node('div', 'workspace live-ready workspace-overlay-layer');
   const inspectorBackdrop = node('div', 'workspace-inspector-backdrop');
   inspectorBackdrop.hidden = true;
   inspectorBackdrop.setAttribute('aria-hidden', 'true');
@@ -407,8 +399,7 @@ export function createLiveHome({
   let inspectorDockOpen = false;
   let inspectorClosing = false;
   const setInspectorBackgroundInert = (value) => {
-    for (const child of workspace.children)
-      if (child !== inspector && child !== inspectorBackdrop) child.inert = value;
+    workspace.inert = value;
   };
   const closeInspector = () => {
     if (inspectorClosing) return;
@@ -431,21 +422,22 @@ export function createLiveHome({
       return;
     }
     inspectorClosing = true;
-    const closing = inspector.animate(
-      [
-        { opacity: 1, translate: '0 0' },
-        { opacity: 0, translate: '12px 0' },
-      ],
-      { duration: 180, easing: 'ease-in', fill: 'forwards' },
-    );
+    const closing = inspector.animate([{ translate: '0 0' }, { translate: '12px 0' }], {
+      duration: 180,
+      easing: 'ease-in',
+    });
     Promise.race([
       closing.finished.catch(() => {}),
       new Promise((resolve) => setTimeout(resolve, 220)),
-    ]).then(finish);
+    ]).then(() => {
+      closing.cancel();
+      finish();
+    });
   };
   inspectorHeader.append(inspectorTitle, action('Close', closeInspector, 'button'));
   inspector.append(inspectorHeader);
-  workspace.append(inspectorBackdrop, inspector);
+  overlayLayer.append(inspectorBackdrop, inspector);
+  document.querySelector('.app-window').append(overlayLayer);
   inspectorBackdrop.addEventListener('click', closeInspector);
   inspector.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
@@ -612,7 +604,7 @@ export function createLiveHome({
   }
 
   function placeOrb() {
-    const returnTarget = workspace.querySelector(
+    const returnTarget = document.querySelector(
       '.unified-return-foreground[open] .unified-return-orb',
     );
     const target =
@@ -1371,7 +1363,6 @@ export function createLiveHome({
       client.stop();
       stopDesktop?.();
       stopWindowShown?.();
-      clearTimeout(bootTimer);
       router.dispose();
     });
     window.addEventListener('pageshow', (event) => {

@@ -387,9 +387,14 @@ export function mountUnifiedWorkspace({
   );
   returnFrame.append(returnOrb, returnContent);
   foreground.append(returnFrame);
-  workspace.append(foreground);
-  foreground.addEventListener('cancel', (event) => {
+  (document.querySelector('.workspace-overlay-layer') || workspace).append(foreground);
+  const setForegroundBackgroundInert = (value) => {
+    workspace.inert = value;
+  };
+  foreground.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
     event.preventDefault();
+    event.stopPropagation();
     closeForeground();
   });
 
@@ -505,6 +510,7 @@ export function mountUnifiedWorkspace({
     foregroundClosing = true;
     const finish = () => {
       foreground.close();
+      setForegroundBackgroundInert(false);
       foregroundClosing = false;
       foregroundEligible = false;
       onForegroundChange();
@@ -512,16 +518,19 @@ export function mountUnifiedWorkspace({
       enter([overview, dock], { y: 8, duration: 0.38 });
     };
     if (preference.matches || getPreferences().reducedMotion) finish();
-    else
-      foreground
-        .animate(
-          [
-            { opacity: 1, translate: '0 0' },
-            { opacity: 0, translate: '0 -10px' },
-          ],
-          { duration: 260, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' },
-        )
-        .finished.then(finish, finish);
+    else {
+      const closing = foreground.animate([{ translate: '0 0' }, { translate: '0 -10px' }], {
+        duration: 260,
+        easing: 'cubic-bezier(.4,0,1,1)',
+      });
+      Promise.race([
+        closing.finished.catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 300)),
+      ]).then(() => {
+        closing.cancel();
+        finish();
+      });
+    }
   }
   function showForeground() {
     if (
@@ -564,7 +573,8 @@ export function mountUnifiedWorkspace({
           ? 'Your focus is ready when you are.'
           : 'Start by telling e\u00eflo what matters now.',
     );
-    foreground.showModal();
+    setForegroundBackgroundInert(true);
+    foreground.show();
     onForegroundChange();
     continueButton.focus({ preventScroll: true });
   }
@@ -1030,6 +1040,7 @@ export function mountUnifiedWorkspace({
     destroy() {
       destroyed = true;
       stopMotion();
+      setForegroundBackgroundInert(false);
       clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', onPageHide);

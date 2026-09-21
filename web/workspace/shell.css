@@ -1332,12 +1332,32 @@
   background: #191715f5;
   overflow: hidden;
 }
+:root[data-source='live'] .workspace.workspace-overlay-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: block;
+  visibility: visible;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  opacity: 1;
+  transform: none;
+  animation: none;
+  pointer-events: none;
+  background: transparent;
+}
+.workspace-overlay-layer > * {
+  pointer-events: auto;
+}
 .workspace-inspector-backdrop {
   position: fixed;
   inset: 0;
   z-index: 999;
   background: #090705b8;
-  backdrop-filter: blur(3px);
 }
 .workspace-inspector-backdrop[hidden] {
   display: none;
