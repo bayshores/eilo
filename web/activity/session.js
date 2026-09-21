@@ -44,7 +44,7 @@ export function createActivitySession(client) {
   async function enable() {
     if (!capable())
       throw new Error(
-        'Install or enable the eïlo extension in Chrome, then reload the Chrome connection page.',
+        'Install or enable the felis extension in Chrome, then reload the Chrome connection page.',
       );
     const connected = await globalThis.EiloActivityBridge.connect(
       globalThis.EILO_ACTIVITY_EXTENSION_ID,
@@ -69,10 +69,10 @@ export function createActivitySession(client) {
       const reason = connected.reason;
       throw new Error(
         reason === 'browser_permission_required'
-          ? 'Open the eïlo extension and choose Allow Chrome.'
+          ? 'Open the felis extension and choose Allow Chrome.'
           : reason === 'extension_update_required'
-            ? 'Reload eïlo in Chrome’s extensions page, then reload this page.'
-            : 'The eïlo extension could not connect. Reload this page and try again.',
+            ? 'Reload felis in Chrome’s extensions page, then reload this page.'
+            : 'The felis extension could not connect. Reload this page and try again.',
       );
     }
     allowed = true;

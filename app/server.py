@@ -1,4 +1,4 @@
-"""Direct-invocation launcher for the loopback eïlo application."""
+"""Direct-invocation launcher for the loopback felis application."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from app.persistence import write_private
 
 def stop_server() -> None:
     if not PID_FILE.exists():
-        print("The local eïlo app is not running.")
+        print("The local felis app is not running.")
         return
     record = json.loads(PID_FILE.read_text())
     try:
@@ -37,10 +37,10 @@ def stop_server() -> None:
             raise RuntimeError("The process record is stale; no process was stopped.")
         process.terminate()
         process.wait(timeout=15)
-        print("Stopped the local eïlo app.")
+        print("Stopped the local felis app.")
     except psutil.NoSuchProcess:
         PID_FILE.unlink(missing_ok=True)
-        print("The local eïlo app has already stopped.")
+        print("The local felis app has already stopped.")
 
 
 def main() -> None:
@@ -57,12 +57,12 @@ def main() -> None:
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        raise SystemExit("The local eïlo app is already running.") from None
+        raise SystemExit("The local felis app is already running.") from None
     write_private(
         PID_FILE, {"pid": os.getpid(), "created": psutil.Process().create_time(), "port": args.port}
     )
     try:
-        print(f"eïlo is available at http://127.0.0.1:{args.port} (Ctrl+C to stop).", flush=True)
+        print(f"felis is available at http://127.0.0.1:{args.port} (Ctrl+C to stop).", flush=True)
         web.run_app(
             create_app(LocalChat(), args.port),
             host="127.0.0.1",

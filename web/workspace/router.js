@@ -39,8 +39,8 @@ export function createWorkspaceRouter({
       heading.textContent = pageName;
       heading.tabIndex = -1;
     }
-    document.title = `eïlo — ${pageName}`;
-    document.querySelector('.app-window')?.setAttribute('aria-label', `eïlo ${pageName}`);
+    document.title = `felis — ${pageName}`;
+    document.querySelector('.app-window')?.setAttribute('aria-label', `felis ${pageName}`);
     const headline = document.querySelector('.home-header p');
     const showStatus = !talking && page === 'home' && Boolean(headline?.textContent);
     headline?.toggleAttribute('hidden', !showStatus);

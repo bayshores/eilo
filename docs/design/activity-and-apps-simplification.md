@@ -75,7 +75,7 @@ These are recorded interaction patterns, not proof of usability or permission to
 | [Claude Google Calendar connection](https://mobbin.com/flows/97688333-b64c-4242-8a8b-852e3e50ce33) | Connector entry near the composer, one-service detail, then visible success in the original conversation context. | Connect near the point of use, explain the source, and return with an explicit result and preserved draft.                                                                                        |
 | [Midday connected apps](https://mobbin.com/flows/df7cd658-5fab-433d-8fb7-1cb0d0f56414)             | A small app picker opens directly from the assistant area.                                                        | Give the composer an Apps entry into the same manager used elsewhere. Adapt the compact picker; do not reproduce its full catalog.                                                                |
 
-Perplexity's connection catalog, Basecamp activity, Stripe events, and ClickUp planner were also previewed. Their denser catalogs, diagnostic data, or calendar organization are less suitable as eïlo's default foreground.
+Perplexity's connection catalog, Basecamp activity, Stripe events, and ClickUp planner were also previewed. Their denser catalogs, diagnostic data, or calendar organization are less suitable as felis's default foreground.
 
 ## Proposed experience
 
@@ -83,7 +83,7 @@ Perplexity's connection catalog, Basecamp activity, Stripe events, and ClickUp p
 
 The implemented Recorded view above is the current baseline. The remaining ideas in this section are future review material, not claims about the present UI.
 
-The main job is to answer what eïlo observed and when it checked in. Use one chronological feed with an optional All activity / Check-ins / Observed filter. Keep those record types labeled and distinguishable; a unified view must not conflate observation with a delivered message or progress.
+The main job is to answer what felis observed and when it checked in. Use one chronological feed with an optional All activity / Check-ins / Observed filter. Keep those record types labeled and distinguishable; a unified view must not conflate observation with a delivered message or progress.
 
 - Header: Activity, one short description, Activity settings, and More.
 - State: one quiet line with the relevant collection status and a direct Manage route. Paused, off, disconnected, waiting, and error must remain accurate backend states. An actionable failure earns a specific recovery action.

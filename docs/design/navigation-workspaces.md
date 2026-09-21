@@ -4,7 +4,7 @@ Implemented September 9, 2026 after the user accepted the navigation proposal an
 
 ## Reference and direction
 
-The inspected [Height project screen](https://mobbin.com/screens/fb1724c6-793f-43ca-8077-de6eb6a62f11) keeps its collection visible beside the selected item's details. That relationship is adapted for Goals using eïlo's selected IBM Plex, charcoal/peach palette, rounded surfaces and spacing. [Airtable's project/detail screen](https://mobbin.com/screens/adc1654e-88de-4d34-8004-cee263a224a2) provided another inspected example of persistent collection/detail context. Mobbin images were examined directly; no screenshot pixels or reference-app text are embedded in the product.
+The inspected [Height project screen](https://mobbin.com/screens/fb1724c6-793f-43ca-8077-de6eb6a62f11) keeps its collection visible beside the selected item's details. That relationship is adapted for Goals using felis's selected IBM Plex, charcoal/peach palette, rounded surfaces and spacing. [Airtable's project/detail screen](https://mobbin.com/screens/adc1654e-88de-4d34-8004-cee263a224a2) provided another inspected example of persistent collection/detail context. Mobbin images were examined directly; no screenshot pixels or reference-app text are embedded in the product.
 
 The rail now has Home, Goals and Activity, with text labels, an accurate active state and account/preferences/connections at the bottom. Today and Progress remain Home widgets and route their detail actions into Goals. Navigation changes the main workspace; it does not open another conversation or task-list popup. Hash destinations, direct reload and Back preserve the page identity. The approved floating rail and optional Home arrangement remain.
 

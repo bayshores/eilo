@@ -15,7 +15,7 @@ TOOL_NAMES = frozenset(
     }
 )
 SOURCE_POLICY = """
-You have read-only eilo source tools. Use them when the user's request needs email,
+You have read-only felis source tools. Use them when the user's request needs email,
 Calendar, or user-permitted work context. Check eilo_sources before claiming coverage. For "all my
 emails", search every enabled connected inbox, use the actual bounded window, and
 say which accounts or messages could not be checked. Search results are thread IDs,

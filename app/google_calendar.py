@@ -95,7 +95,7 @@ class MacCredentialStore:
     async def read(self):
         if not self.available:
             raise CalendarError(
-                "Secure sign-in storage is unavailable. Reopen eïlo after updating the app.",
+                "Secure sign-in storage is unavailable. Reopen felis after updating the app.",
                 "secure_storage",
             )
         try:
@@ -115,7 +115,7 @@ class MacCredentialStore:
             )
         except Exception as exc:
             raise CalendarError(
-                "eïlo couldn't save the sign-in securely. Unlock your Mac's keychain and try again.",
+                "felis couldn't save the sign-in securely. Unlock your Mac's keychain and try again.",
                 "secure_storage",
             ) from exc
 
@@ -135,7 +135,7 @@ class MacCredentialStore:
                     raise
         except Exception as exc:
             raise CalendarError(
-                "eïlo couldn't remove the saved sign-in. Unlock your Mac's keychain and try again.",
+                "felis couldn't remove the saved sign-in. Unlock your Mac's keychain and try again.",
                 "secure_storage",
             ) from exc
 
@@ -365,7 +365,7 @@ class GoogleCalendarConnection:
                         )
                     if response.status in (429, 500, 502, 503, 504):
                         raise CalendarError(
-                            "Google is temporarily unavailable. eïlo will try syncing again.",
+                            "Google is temporarily unavailable. felis will try syncing again.",
                             "temporary",
                         )
                     try:
@@ -649,7 +649,7 @@ class GoogleCalendarConnection:
                 or not hmac.compare_digest(request.query.get("state", ""), flow["state"])
             ):
                 return web.Response(
-                    text="This sign-in link is no longer active. Return to eïlo and connect again.",
+                    text="This sign-in link is no longer active. Return to felis and connect again.",
                     status=400,
                 )
             flow["used"] = True
@@ -717,7 +717,7 @@ class GoogleCalendarConnection:
                 )
             async with self.lock:
                 if epoch != self.epoch or self.flow is not flow:
-                    return web.Response(text="Sign-in was cancelled. Return to eïlo.")
+                    return web.Response(text="Sign-in was cancelled. Return to felis.")
                 previous = await self.store.read()
                 credentials = {
                     **token,
@@ -768,11 +768,11 @@ class GoogleCalendarConnection:
         if not self.flow or request.host != self.flow["host"]:
             raise web.HTTPNotFound()
         successful = self.data["state"] in ("choosing", "connected")
-        title = "You're connected to Google" if successful else "Return to eïlo to continue"
+        title = "You're connected to Google" if successful else "Return to felis to continue"
         message = (
-            "Choose the calendars you want in eïlo. You can close this tab."
+            "Choose the calendars you want in felis. You can close this tab."
             if successful
-            else "Your calendar has not been added. You can try again in eïlo whenever you're ready."
+            else "Your calendar has not been added. You can try again in felis whenever you're ready."
         )
 
         async def finish(flow):
@@ -787,7 +787,7 @@ class GoogleCalendarConnection:
         style = "html{color-scheme:dark;background:#191a1d;color:#f1f0ed;font:17px/1.5 system-ui,sans-serif}body{margin:0;min-height:100vh;display:grid;place-items:center}main{max-width:34rem;margin:2rem;padding:2.5rem;border-radius:24px;background:#292b30}h1{font-size:28px;font-weight:550;line-height:1.2}p{color:#c7c7cd}.brand{color:#fac8a3;font-size:24px}"
         digest = base64.b64encode(hashlib.sha256(style.encode()).digest()).decode()
         return web.Response(
-            text=f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width'><title>{title}</title><style>{style}</style><main><div class=brand>eïlo</div><h1>{title}</h1><p>{message}</p></main></html>",
+            text=f"<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width'><title>{title}</title><style>{style}</style><main><div class=brand>felis</div><h1>{title}</h1><p>{message}</p></main></html>",
             content_type="text/html",
             headers={
                 "Cache-Control": "no-store",
@@ -865,7 +865,7 @@ class GoogleCalendarConnection:
                         self._commit(
                             error={
                                 "code": "revoke_offline",
-                                "message": "Disconnected on this Mac. Google couldn't be reached to remove its permission; you can also remove eïlo in your Google Account connections.",
+                                "message": "Disconnected on this Mac. Google couldn't be reached to remove its permission; you can also remove felis in your Google Account connections.",
                                 "retryable": False,
                             }
                         )

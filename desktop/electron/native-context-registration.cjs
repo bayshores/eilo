@@ -23,7 +23,7 @@ function registrationPaths({ resourcesPath, workspacePath, pythonPath }) {
       python: path.join(resourcesPath, 'runtime', 'run-python'),
     };
   if (!path.isAbsolute(workspacePath || '') || !path.isAbsolute(pythonPath || ''))
-    throw new Error('The eïlo native context host requires absolute local runtime paths.');
+    throw new Error('The felis native context host requires absolute local runtime paths.');
   return { workspace: workspacePath, python: pythonPath };
 }
 function registerNativeContext({
@@ -60,7 +60,7 @@ function registerNativeContext({
     JSON.stringify(
       {
         name: 'app.eilo.context',
-        description: 'eïlo local context bridge',
+        description: 'felis local context bridge',
         path: wrapper,
         type: 'stdio',
         allowed_origins: [origin],

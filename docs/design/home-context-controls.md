@@ -33,7 +33,7 @@ Exclusions use the supported configuration endpoint and display server validatio
 Reference calibration used [Amie's contextual details](https://mobbin.com/screens/ff9b0ff4-cdf3-465c-9959-eba67c46fa3f)
 and [Notion's agent source controls](https://mobbin.com/screens/ff8e618b-a9a8-487b-a3f4-07ec75a397ef).
 Their inspected screens informed grouping and disclosure, not a replacement visual
-identity for eïlo. Motion uses transform/opacity, respects reduced motion and retains
+identity for felis. Motion uses transform/opacity, respects reduced motion and retains
 the existing local GSAP layout animator.
 
 ## Verification
@@ -75,7 +75,7 @@ separate live binding refreshes from composition animations, preserve unchanged 
 bodies, gate mode/pin updates and reuse geometry already measured by the board.
 
 A separate 122.5-second native idle sample measured cumulative CPU time and RSS for
-eïlo's five app/backend processes. Mean combined CPU was about 0.30%. Renderer RSS
+felis's five app/backend processes. Mean combined CPU was about 0.30%. Renderer RSS
 went from 56.1 to 34.5 MiB; backend RSS from 28.8 to 17.1 MiB. This observed no upward
 trend during the sample. RSS is process resident memory, not exclusive allocation;
 the instrumented browser's heap values across reloads are not a leak test.

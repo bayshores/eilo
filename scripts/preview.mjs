@@ -57,6 +57,6 @@ http
   })
   .listen(port, '127.0.0.1', () => {
     process.stdout.write(
-      `eïlo sample Home: http://127.0.0.1:${port}\nServing ${fileURLToPath(root)}\n`,
+      `felis sample Home: http://127.0.0.1:${port}\nServing ${fileURLToPath(root)}\n`,
     );
   });

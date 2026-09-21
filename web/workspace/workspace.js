@@ -122,7 +122,7 @@ export function createLiveHome({
   let presence = null;
   const activity = createActivitySession(client);
   const dock = node('section', 'conversation-dock');
-  dock.setAttribute('aria-label', 'Talk to eïlo');
+  dock.setAttribute('aria-label', 'Talk to felis');
   dock.dataset.open = 'false';
   document.querySelector('.workspace').append(dock);
   const talkEntry = action(
@@ -131,7 +131,7 @@ export function createLiveHome({
     'nav-item talk-entry',
   );
   talkEntry.dataset.detail = 'talk';
-  talkEntry.setAttribute('aria-label', 'Talk to eïlo');
+  talkEntry.setAttribute('aria-label', 'Talk to felis');
   talkEntry.setAttribute('aria-pressed', 'false');
   const talkOrb = node('span', 'talk-entry-orb');
   talkEntry.append(talkOrb);
@@ -319,10 +319,10 @@ export function createLiveHome({
   client.subscribe((next) => {
     accountStatus.textContent =
       next.snapshot?.account?.state === 'connected'
-        ? 'Connected. eïlo uses your ChatGPT account for conversations.'
+        ? 'Connected. felis uses your ChatGPT account for conversations.'
         : next.snapshot?.account?.state === 'unknown'
           ? 'Account status is unavailable. Reconnect to the local service to check it.'
-          : 'Connect your account to talk with eïlo.';
+          : 'Connect your account to talk with felis.';
   });
   const connectionsHost = node('div', 'connections-page'),
     libraryHost = node('div', 'library-page');
@@ -561,6 +561,9 @@ export function createLiveHome({
         commandsHidden = false;
         client.setDraft('/');
         dock.querySelector('.live-input')?.focus();
+      } else if (command.command === '/goal') {
+        showPage('home');
+        unified?.startGoal(command.input);
       } else if (['context', 'compress', 'usage'].includes(command.command.slice(1))) {
         const mode = command.command.slice(1);
         chatContext?.open(mode === 'compress' ? 'context' : mode);
@@ -770,11 +773,11 @@ export function createLiveHome({
       log.addEventListener('scroll', rememberPresentation, { passive: true });
       thread.append(node('div', 'conversation-presence'), log);
       const form = node('form', 'live-composer');
-      const label = node('label', 'sr-only', 'Message eïlo');
+      const label = node('label', 'sr-only', 'Message felis');
       label.htmlFor = 'live-message-input';
       const input = node('textarea', 'live-input');
       input.id = label.htmlFor;
-      input.placeholder = 'Tell eïlo what’s on your mind…';
+      input.placeholder = 'Tell felis what’s on your mind…';
       input.maxLength = 12000;
       input.rows = 1;
       input.addEventListener('select', rememberPresentation);
@@ -962,7 +965,7 @@ export function createLiveHome({
       : busy
         ? current.snapshot?.chat_context?.status === 'compressing'
           ? 'Summarizing older messages…'
-          : 'eïlo is replying…'
+          : 'felis is replying…'
         : current.connection === 'loading'
           ? 'Connecting…'
           : current.connection === 'offline'
@@ -997,7 +1000,7 @@ export function createLiveHome({
       today: 'Your commitments',
       goals: 'Your goals',
       progress: 'Your progress',
-      conversation: 'eïlo',
+      conversation: 'felis',
       activity: 'Conversation updates',
       connections: 'Connections & privacy',
     }[type];
@@ -1070,7 +1073,7 @@ export function createLiveHome({
           node(
             'p',
             'live-empty',
-            'No activity recorded yet. Connect an approved source to let eïlo build this view automatically.',
+            'No activity recorded yet. Connect an approved source to let felis build this view automatically.',
           ),
           action('Connections & privacy', () => openDetail('connections'), 'button'),
         );
@@ -1122,7 +1125,7 @@ export function createLiveHome({
             ? 'You are on a break. Your commitments are kept.'
             : type === 'progress'
               ? 'Saved progress across your commitments.'
-              : 'Tell eïlo when something changes. It keeps this view in sync.',
+              : 'Tell felis when something changes. It keeps this view in sync.',
         ),
       );
       const list = node('div', 'live-detail-tasks');
@@ -1137,14 +1140,14 @@ export function createLiveHome({
         );
       body.append(
         list,
-        action('Talk to eïlo', () => talk(), 'button live-bottom'),
+        action('Talk to felis', () => talk(), 'button live-bottom'),
       );
     }
     return true;
   }
   function start() {
-    document.title = 'eïlo — Home';
-    document.querySelector('.app-window').setAttribute('aria-label', 'eïlo Home');
+    document.title = 'felis — Home';
+    document.querySelector('.app-window').setAttribute('aria-label', 'felis Home');
     document.querySelector('.account-name span').textContent = 'Local profile';
     for (const item of document.querySelectorAll('.nav-item')) {
       if (['today', 'progress'].includes(item.dataset.detail)) {

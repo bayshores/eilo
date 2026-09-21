@@ -21,7 +21,7 @@ async function main() {
   );
   const outputs = await packager({
     dir: source,
-    name: 'eïlo',
+    name: 'felis',
     platform: 'darwin',
     arch: process.arch,
     electronVersion: require('../package.json').devDependencies.electron,
@@ -42,10 +42,10 @@ async function main() {
     ],
     extendInfo: {
       NSMicrophoneUsageDescription:
-        'eïlo uses your microphone when you choose Speak. Audio is transcribed locally into an editable message.',
+        'felis uses your microphone when you choose Speak. Audio is transcribed locally into an editable message.',
       NSHighResolutionCapable: true,
     },
-    usageDescription: { Microphone: 'eïlo transcribes recordings locally when you choose Speak.' },
+    usageDescription: { Microphone: 'felis transcribes recordings locally when you choose Speak.' },
   });
   for (const output of outputs) process.stdout.write(output + '\n');
 }

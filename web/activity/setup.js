@@ -126,7 +126,7 @@ export function mountChromeSetup(
   const help = make(
     'p',
     '',
-    'Can’t open setup? In Chrome’s extensions, choose eïlo → Details → Extension options.',
+    'Can’t open setup? In Chrome’s extensions, choose felis → Details → Extension options.',
   );
   const address = make('code', 'chrome-setup__folder', EXTENSIONS_ADDRESS);
   const repair = button(
@@ -170,7 +170,7 @@ export function mountChromeSetup(
   }
   async function copyValue(value, message) {
     if (!value) {
-      feedback.textContent = 'The extension folder is unavailable. Reopen eïlo and try again.';
+      feedback.textContent = 'The extension folder is unavailable. Reopen felis and try again.';
       return false;
     }
     try {
@@ -203,7 +203,7 @@ export function mountChromeSetup(
         return value;
       } catch {
         if (!destroyed)
-          feedback.textContent = 'The extension folder is unavailable. Reopen eïlo and try again.';
+          feedback.textContent = 'The extension folder is unavailable. Reopen felis and try again.';
         return null;
       } finally {
         clearTimeout(timeout);
@@ -240,7 +240,7 @@ export function mountChromeSetup(
     if (!bridge.available)
       return copyValue(CONNECTION_ADDRESS, 'Paste this connection address into Chrome.');
     if (bridge.setupURL) return copyValue(bridge.setupURL, 'Paste the setup address into Chrome.');
-    feedback.textContent = 'In Chrome’s extensions, choose eïlo → Details → Extension options.';
+    feedback.textContent = 'In Chrome’s extensions, choose felis → Details → Extension options.';
     details.open = true;
     return false;
   }
@@ -313,11 +313,11 @@ export function mountChromeSetup(
           ? 'Update connection'
           : state.stage === 3
             ? 'Ready to go'
-            : ['Chrome → eïlo', 'Install once', 'Connect once'][Math.min(state.stage, 2)];
+            : ['Chrome → felis', 'Install once', 'Connect once'][Math.min(state.stage, 2)];
       heading.textContent = state.title;
       copy.textContent =
         returnToDesktop && state.id === 'connected'
-          ? 'Chrome is connected. Return to the eïlo desktop app; you can close this tab.'
+          ? 'Chrome is connected. Return to the felis desktop app; you can close this tab.'
           : state.copy;
       primary.textContent =
         ['reload', 'extensions'].includes(state.action) && typeof openExtensions !== 'function'

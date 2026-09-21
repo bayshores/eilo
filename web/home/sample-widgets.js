@@ -59,7 +59,7 @@ export function renderSampleWidget(
     container.innerHTML = `<h2>This week</h2><div class="practice-count"><strong>${SAMPLE.week.filter(Boolean).length}</strong><span>practice days</span></div>${weekMarkup()}`;
   } else if (widget.type === 'conversation') {
     container.innerHTML =
-      '<h2 class="conversation-title">eïlo</h2><p class="sample-message"></p><div class="composer-preview"><input placeholder="Message eïlo" aria-label="Conversation appearance only; agent is not connected in this prototype" disabled><p class="chat-preview-note">Conversation preview</p></div>';
+      '<h2 class="conversation-title">felis</h2><p class="sample-message"></p><div class="composer-preview"><input placeholder="Message felis" aria-label="Conversation appearance only; agent is not connected in this prototype" disabled><p class="chat-preview-note">Conversation preview</p></div>';
     container.querySelector('.sample-message').textContent = SAMPLE.message;
   } else if (widget.type === 'clock') {
     container.innerHTML = '<h2>Local time</h2><p class="clock-time"></p><p class="clock-day"></p>';

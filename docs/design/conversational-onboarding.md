@@ -122,14 +122,14 @@ does not undo a durably approved goal, and presentation remains convenience stat
 | Calendar        | Reuse Calendar authorization and selection. Connection requires selected calendars. Sharing selected events with AI is a separate existing control.                                                       |
 | AI context      | Explicitly explain that the connected AI can receive the conversation and permitted context. Preserve the full current policy while changing only the requested field. Verify the returned sharing state. |
 | Check-ins       | Use the dedicated check-in command and verify enabled state. Calendar alone does not provide activity check-ins; offer activity setup or finish.                                                          |
-| Desktop alerts  | Use the existing native alert control and read its state back. Report eïlo’s saved alert preference separately from macOS delivery settings. Browser previews cannot grant native notifications.          |
+| Desktop alerts  | Use the existing native alert control and read its state back. Report felis’s saved alert preference separately from macOS delivery settings. Browser previews cannot grant native notifications.         |
 
 A source revoked during setup returns to its connection step. Sharing revoked
 during later steps returns to sharing. A delayed response cannot move the dialog
 after Back, dismissal or closure. No step infers a grant from an opened dialog,
 installed transport, or click alone.
 
-The existing native alert API exposes support, eïlo’s enabled preference and
+The existing native alert API exposes support, felis’s enabled preference and
 delivery error state. It does not attest the current macOS authorization setting.
 The copy therefore does not claim that an OS grant or actual notification delivery
 has been verified.
@@ -164,13 +164,13 @@ runtime, animation, sound, or onboarding effectiveness.
 The September 12 QC pass also inspected [Linear's empty Inbox](https://mobbin.com/screens/5e4be052-1838-45d0-b850-fd7306cd4bff)
 and [Notion's task-source setup](https://mobbin.com/screens/9cb6b951-3dc3-49f3-a82d-1e7fd7951d72).
 The applicable pattern is one small content state with configuration kept in the
-header, using eïlo's own controls and typography.
+header, using felis's own controls and typography.
 
 [Apple’s onboarding guidance](https://developer.apple.com/design/human-interface-guidelines/onboarding)
 and [progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/)
 support contextual learning and deferring secondary choices.
 [Apple’s audio guidance](https://developer.apple.com/design/human-interface-guidelines/playing-audio)
-informed the sound constraints. The exact eïlo experience still needs observation
+informed the sound constraints. The exact felis experience still needs observation
 with new users.
 
 ## Verification and limits

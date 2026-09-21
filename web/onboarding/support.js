@@ -239,21 +239,21 @@ export function mountOnboardingSupport({
       notificationState = latest;
       if (!latest?.enabled || result?.enabled === false) {
         setStatus(
-          'Desktop alerts are still off. You can enable them later in the eïlo Mac app.',
+          'Desktop alerts are still off. You can enable them later in the felis Mac app.',
           true,
         );
         return;
       }
       if (latest.error) {
         setStatus(
-          'Alerts are enabled in eïlo, but delivery needs attention in macOS notification settings.',
+          'Alerts are enabled in felis, but delivery needs attention in macOS notification settings.',
           true,
         );
         return;
       }
       onConfirmed({ source, step: 'notifications' });
       setStatus(
-        'Desktop alerts are enabled in eïlo. macOS notification settings control delivery.',
+        'Desktop alerts are enabled in felis. macOS notification settings control delivery.',
       );
     } catch {
       if (!destroyed && dialog.open && generation === attempt)
@@ -274,7 +274,7 @@ export function mountOnboardingSupport({
       notificationState = latest;
     } catch {
       if (!destroyed && dialog.open && generation === attempt)
-        setStatus('Alert status is unavailable. You can keep check-ins inside eïlo.', true);
+        setStatus('Alert status is unavailable. You can keep check-ins inside felis.', true);
     } finally {
       notificationRead = false;
       if (generation === attempt) sync();
@@ -295,7 +295,7 @@ export function mountOnboardingSupport({
       primary.disabled =
         busy || !notificationState?.supported || notificationState.enabled === true;
       primary.textContent = notificationState?.enabled
-        ? 'Enabled in eïlo'
+        ? 'Enabled in felis'
         : notificationState?.supported === false
           ? 'Alerts unavailable on this device'
           : 'Enable desktop alerts';
@@ -351,11 +351,11 @@ export function mountOnboardingSupport({
       body.append(title, copy, guideHost, actions);
       mountGuide(guideHost);
     } else if (phase === 'sharing') {
-      title.textContent = 'Let eïlo use this context?';
+      title.textContent = 'Let felis use this context?';
       copy.textContent =
         source === 'calendar'
           ? 'Calendar access and sending selected events to your AI are separate choices.'
-          : 'Send your conversation and permitted activity context to your connected AI so eïlo can relate it to your goal.';
+          : 'Send your conversation and permitted activity context to your connected AI so felis can relate it to your goal.';
       add('Back', () => change('connect'));
       add('Later', () => leave(true));
       add(
@@ -363,7 +363,7 @@ export function mountOnboardingSupport({
           ? 'Continue'
           : view?.snapshot?.adaptive?.policy?.ai_enabled === true
             ? 'Continue'
-            : 'Allow eïlo to use it',
+            : 'Allow felis to use it',
         allowSharing,
         true,
       );
@@ -378,7 +378,7 @@ export function mountOnboardingSupport({
       copy.textContent =
         source === 'calendar'
           ? 'Calendar alone does not create activity check-ins. You can still get useful answers about selected events.'
-          : 'eïlo can offer occasional in-app support when your permitted context warrants it.';
+          : 'felis can offer occasional in-app support when your permitted context warrants it.';
       add('Back', () => change('sharing'));
       add('Later', () => leave(true));
       if (source === 'calendar' && !browserReady(view) && !desktopReady(view)) {
@@ -394,8 +394,8 @@ export function mountOnboardingSupport({
         typeof native?.setCheckInNotifications === 'function';
       title.textContent = supported ? 'Desktop alerts are optional' : 'You’re ready to go';
       copy.textContent = supported
-        ? 'Check-ins stay in eïlo unless you turn on desktop alerts. macOS notification settings also control delivery.'
-        : 'Desktop alerts are available in the eïlo Mac app. In-app check-ins stay available here.';
+        ? 'Check-ins stay in felis unless you turn on desktop alerts. macOS notification settings also control delivery.'
+        : 'Desktop alerts are available in the felis Mac app. In-app check-ins stay available here.';
       add('Back', () => change('checkins'));
       if (supported) add('Enable desktop alerts', enableNotifications, true);
       add(

@@ -1,4 +1,4 @@
-"""Pure workspace catalog state for eïlo's local chat metadata.
+"""Pure workspace catalog state for felis's local chat metadata.
 
 The catalog deliberately owns only conversation pointers and display metadata.
 Goals, tasks, activity, and source permissions remain top-level global state.

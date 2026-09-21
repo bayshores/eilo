@@ -325,7 +325,7 @@ export function mountConnectionsManager(
         make(
           'p',
           '',
-          `Remove “${item.name}” from eïlo? This removes its local configuration only.`,
+          `Remove “${item.name}” from felis? This removes its local configuration only.`,
         ),
       );
       confirm.append(
@@ -643,7 +643,7 @@ export function mountConnectionsManager(
         '',
         embeddedPermissions
           ? 'Manage each account and what AI can read.'
-          : 'Choose what eïlo can work with.',
+          : 'Choose what felis can work with.',
       ),
     );
     const add = button(

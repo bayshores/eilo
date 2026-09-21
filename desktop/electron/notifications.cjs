@@ -1,7 +1,7 @@
 'use strict';
 
 const MAX_SEEN_KEYS = 256;
-const GENERIC_BODY = 'eïlo has a check-in for you.';
+const GENERIC_BODY = 'felis has a check-in for you.';
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 function createNotificationPolicy({
@@ -168,7 +168,7 @@ function createNotificationPolicy({
           messageId: latest.messageId,
           body: GENERIC_BODY,
         };
-        // A native eïlo overlay can render the already-delivered assistant
+        // A native felis overlay can render the already-delivered assistant
         // message locally. Notification preferences and diagnostics retain IDs only.
         if (includeText) record.text = latest.text;
         show(record);

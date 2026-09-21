@@ -133,7 +133,7 @@ test('install uses the current folder and a failed lookup cannot copy a guessed 
     fetcher: async () => ({ ok: true, json: async () => (++calls === 1 ? {} : identity) }),
   });
   await h.button('Copy extensions address').click();
-  assert.equal(h.heading(), 'Add the eïlo extension');
+  assert.equal(h.heading(), 'Add the felis extension');
   await h.button('Copy extension folder').click();
   assert.deepEqual(h.copied, ['chrome://extensions/']);
   await h.button('Copy extension folder').click();
@@ -239,7 +239,7 @@ test('desktop handoff completes without a browser Home or activity navigation', 
   assert.ok(
     h.host
       .querySelectorAll('p')
-      .some((node) => node.textContent.includes('Return to the eïlo desktop app')),
+      .some((node) => node.textContent.includes('Return to the felis desktop app')),
   );
 });
 
@@ -252,11 +252,11 @@ test('an old extension gets a truthful reload step when Chrome settings must be 
     },
   });
   await new Promise(setImmediate);
-  assert.equal(h.heading(), 'Reload the eïlo extension once');
+  assert.equal(h.heading(), 'Reload the felis extension once');
   assert.ok(h.host.querySelectorAll('p').some((node) => node.textContent === 'Update connection'));
   await h.button('Copy extensions address').click();
   assert.deepEqual(h.copied, ['chrome://extensions/']);
   assert.deepEqual(h.opened, []);
   assert.deepEqual(h.controls, []);
-  assert.equal(h.heading(), 'Reload the eïlo extension once');
+  assert.equal(h.heading(), 'Reload the felis extension once');
 });

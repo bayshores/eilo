@@ -46,7 +46,7 @@ test('daily start does not choose an arbitrary goal', () => {
     now,
   );
   assert.equal(data.task, null);
-  assert.equal(data.detail, 'Tell eïlo what you want to get started on.');
+  assert.equal(data.detail, 'Tell felis what you want to get started on.');
 });
 
 test('daily start is unavailable during onboarding or while offline', () => {

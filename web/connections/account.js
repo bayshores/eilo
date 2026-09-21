@@ -105,7 +105,7 @@ export function mountAccount(container, { client, fetcher = fetch } = {}) {
           ? 'Getting your sign-in code…'
           : state === 'unavailable'
             ? 'Get a new code to continue signing in.'
-            : 'Use your ChatGPT account with eïlo.';
+            : 'Use your ChatGPT account with felis.';
     code.hidden = state !== 'awaiting_sign_in' || typeof current.user_code !== 'string';
     // Polls must not disturb a code the person is selecting to copy.
     const value = code.hidden ? '' : current.user_code;

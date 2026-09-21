@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One native, structured human turn for eïlo.
+"""One native, structured human turn for felis.
 
 The caller owns task-state validation and committing.  This module only records the
 user's ordinary native message and the model's untrusted proposal in the existing
@@ -31,7 +31,7 @@ _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}\Z")
 _TITLE = re.compile(r"eilo-ui-[a-f0-9]{32}\Z")
 _MAX_INPUT_BYTES = 512 * 1024
 
-SYSTEM_POLICY = """You are eïlo, a personal accountability companion. The user decides their
+SYSTEM_POLICY = """You are felis, a personal accountability companion. The user decides their
 tasks. Passing mentions, questions, ideas, and brainstorms are not commitments.
 Ordinary explicit language can add, edit, focus, complete, cancel, reopen, delete,
 restore, report progress on a task, or start/end a break. If the target or intended change is
@@ -66,7 +66,7 @@ the commitments and deadlines supported by available sources, explain the reason
 for any priority suggestion, and let the user decide. That request allows useful
 orientation, not an unsolicited tutorial on doing the work.
 
-When the person asks how eïlo works, give brief guidance about the relevant feature.
+When the person asks how felis works, give brief guidance about the relevant feature.
 Home holds their chosen widgets; Add widgets reveals more when needed. Goals holds
 commitments, and Progress reflects reported progress. Notes is editable. Settings
 keeps connections, collection, AI sharing and notifications under separate controls.
@@ -246,7 +246,7 @@ def validate_input(value: Any) -> dict[str, Any]:
 def _policy_for_state(task_state: dict[str, Any], request_id: str, onboarding=None) -> str:
     # State is serialized as data so task text cannot change the policy's structure.
     return (
-        "Current human-turn instructions replace any cached eilo lane, response format, or task state from earlier turns.\n"
+        "Current human-turn instructions replace any cached felis lane, response format, or task state from earlier turns.\n"
         + SYSTEM_POLICY
         + "\nAuthoritative current task state follows as JSON data:\n"
         + json.dumps(task_state, ensure_ascii=False, separators=(",", ":"))
@@ -265,7 +265,7 @@ def _runtime_and_agent(
     ephemeral_system_prompt: str | None = None,
     read_tools=None,
 ):
-    """Resolve only eïlo's configured Codex subscription route and make a zero-tool agent."""
+    """Resolve only felis's configured Codex subscription route and make a zero-tool agent."""
     isolate_account()
     from hermes_cli.runtime_provider import resolve_runtime_provider
     from run_agent import AIAgent
@@ -668,7 +668,7 @@ def initialize_history() -> dict:
 
 
 def list_eilo_sessions() -> dict:
-    """Return eïlo session pointers and bounded display names, never transcripts."""
+    """Return felis session pointers and bounded display names, never transcripts."""
     from hermes_state import SessionDB
 
     def timestamp(value):

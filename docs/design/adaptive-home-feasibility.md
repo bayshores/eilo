@@ -42,7 +42,7 @@ keyboard focus. A proposed pin/keep control and undo should make adjustments che
 Changing presentation must never silently change a commitment or source permission.
 
 The implementation can use a validated presentation description, rendered through
-eïlo's own components. A2UI documents this general pattern: agents compose surfaces
+felis's own components. A2UI documents this general pattern: agents compose surfaces
 from a catalog, bind data, and update components by stable identifiers. This is a
 reference pattern, not a decision to adopt its SDK or replace the current frontend.
 [A2UI component documentation](https://a2ui.org/concepts/components/).

@@ -191,7 +191,7 @@ class ProactiveStatusTests(unittest.IsolatedAsyncioTestCase):
 
         # The browser is allowed to go quiet after publishing. That should
         # block another model decision, but not the short native delivery of
-        # the message eïlo already saved.
+        # the message felis already saved.
         self.chat.context = SimpleNamespace(check_in_context=lambda: None)
         self.loop.latest = None
         self.assertEqual(self.loop.notification_events(), ["event-delivered"])

@@ -41,7 +41,7 @@ export function mountOnboarding({
 }) {
   const shell = el('section', 'onboarding-shell');
   shell.hidden = true;
-  shell.setAttribute('aria-label', 'Set up your eïlo workspace');
+  shell.setAttribute('aria-label', 'Set up your felis workspace');
   const top = el('header', 'onboarding-top');
   const actions = el('div', 'onboarding-top-actions');
   const soundToggle = button('Sound off', 'onboarding-sound', () => {
@@ -56,7 +56,7 @@ export function mountOnboarding({
   });
   const skip = button('Skip setup', 'text-button onboarding-skip', () => void command('skip'));
   actions.append(soundToggle, skip);
-  top.append(el('span', 'onboarding-mark', 'eïlo'), actions);
+  top.append(el('span', 'onboarding-mark', 'felis'), actions);
   const columns = el('div', 'onboarding-columns');
   const chat = el('section', 'onboarding-chat');
   const intro = el('div', 'onboarding-intro');
@@ -155,9 +155,9 @@ export function mountOnboarding({
     if (account() === 'unknown')
       return ['Account status is unavailable.', 'Check connection', 'refresh'];
     if (account() !== 'connected')
-      return ['Connect ChatGPT to talk with eïlo.', 'Connect ChatGPT', 'account'];
+      return ['Connect ChatGPT to talk with felis.', 'Connect ChatGPT', 'account'];
     if (view?.sending || view?.changing || snapshot.status === 'busy')
-      return ['eïlo is updating your workspace.'];
+      return ['felis is updating your workspace.'];
     if (snapshot.recovery_pending)
       return ['A saved reply needs recovery before this workspace can be approved.'];
     return null;
@@ -204,7 +204,7 @@ export function mountOnboarding({
     const detail = [focus.due_text, progress(focus)].filter(Boolean).join(' · ');
     if (detail) goalCard.append(el('p', 'context-caption', detail));
     goalCard.append(
-      el('p', '', 'eïlo will help you find one small first step. You can change it as you go.'),
+      el('p', '', 'felis will help you find one small first step. You can change it as you go.'),
     );
     cards.append(goalCard);
     const accept = button(
@@ -349,7 +349,7 @@ export function mountOnboarding({
         : 'What would you like help getting started on?';
       stale.hidden = !(onboarding?.status === 'draft' && onboarding?.proposal?.tasks?.length);
       if (!stale.hidden)
-        stale.textContent = 'Your earlier workspace is visible while eïlo updates the plan.';
+        stale.textContent = 'Your earlier workspace is visible while felis updates the plan.';
       renderReadiness();
       renderPreview(onboarding);
     }

@@ -466,7 +466,7 @@ export function createHomeClient({
     // A permission can be revoked even while a human reply is in progress.
     const pending = adaptiveQueue.then(async () => {
       if (connection !== 'connected' || !snapshot?.adaptive)
-        throw new Error('Connect to eïlo to change context settings.');
+        throw new Error('Connect to felis to change context settings.');
       abortPoll();
       try {
         const next = await request(path, {

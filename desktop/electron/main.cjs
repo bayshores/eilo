@@ -32,7 +32,7 @@ const {
 const CHECK_IN_OVERLAY_DURATION_MS = 45_000;
 
 function runDesktop() {
-  app.setName('eïlo');
+  app.setName('felis');
   process.umask(0o077);
   let root,
     supervisor,
@@ -70,8 +70,8 @@ function runDesktop() {
   } catch {
     void app.whenReady().then(() => {
       dialog.showErrorBox(
-        'eïlo could not open its workspace',
-        'This development build needs its original eïlo checkout and local runtime. Rebuild it from the project if the checkout has moved. Your saved conversation is kept.',
+        'felis could not open its workspace',
+        'This development build needs its original felis checkout and local runtime. Rebuild it from the project if the checkout has moved. Your saved conversation is kept.',
       );
       app.exit(1);
     });
@@ -430,7 +430,7 @@ function runDesktop() {
           height: 840,
           minWidth: 860,
           minHeight: 600,
-          title: 'eïlo',
+          title: 'felis',
           show: false,
           backgroundColor: '#191a1d',
           autoHideMenuBar: true,
@@ -483,16 +483,16 @@ function runDesktop() {
         updateMenus();
         recordStatus();
       } catch {
-        serviceError = 'eïlo could not connect to its local workspace.';
+        serviceError = 'felis could not connect to its local workspace.';
         updateMenus();
         recordStatus();
         if (!quitting) {
           const result = await dialog.showMessageBox({
             type: 'error',
-            title: 'Open eïlo',
+            title: 'Open felis',
             message: 'The local workspace could not start.',
             detail:
-              'Your saved conversation is kept. Check that the eïlo checkout and its Python runtime are available, and that the local port belongs to eïlo.',
+              'Your saved conversation is kept. Check that the felis checkout and its Python runtime are available, and that the local port belongs to felis.',
             buttons: ['Quit', 'Retry'],
             defaultId: 1,
             cancelId: 0,
@@ -513,10 +513,10 @@ function runDesktop() {
     if (!policy.status().enabled || !Notification.isSupported())
       throw new Error('Notifications are unavailable.');
     const notification = new Notification({
-      title: 'eïlo',
+      title: 'felis',
       body: test
-        ? 'Desktop notifications are ready. Open eïlo to continue.'
-        : 'A new check-in is ready. Open eïlo to read it.',
+        ? 'Desktop notifications are ready. Open felis to continue.'
+        : 'A new check-in is ready. Open felis to read it.',
       silent: true,
     });
     activeNotifications.add(notification);
@@ -540,8 +540,8 @@ function runDesktop() {
     if (enabled) {
       const response = await dialog.showMessageBox({
         type: 'question',
-        title: 'eïlo notifications',
-        message: 'Show new check-ins when eïlo is out of view?',
+        title: 'felis notifications',
+        message: 'Show new check-ins when felis is out of view?',
         detail:
           'Notifications use a private preview. Clicking one returns to that check-in. You can turn them off here at any time.',
         buttons: ['Enable notifications', 'Not now'],
@@ -571,12 +571,12 @@ function runDesktop() {
     const connectionLabel = serviceError
       ? 'Workspace unavailable'
       : backend.ownsChild
-        ? 'Local service · managed by eïlo'
+        ? 'Local service · managed by felis'
         : backend.phase === 'attached'
           ? 'Local service · already running'
           : 'Connecting to workspace…';
     const controls = () => [
-      { label: 'Open eïlo', accelerator: 'CmdOrCtrl+1', click: () => showWindow() },
+      { label: 'Open felis', accelerator: 'CmdOrCtrl+1', click: () => showWindow() },
       { label: connectionLabel, enabled: false },
       {
         label: 'Check-in notifications',
@@ -623,12 +623,12 @@ function runDesktop() {
         },
       },
       { type: 'separator' },
-      { role: 'quit', label: 'Quit eïlo' },
+      { role: 'quit', label: 'Quit felis' },
     ];
     tray?.setContextMenu(Menu.buildFromTemplate(controls()));
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
-        { label: 'eïlo', submenu: [{ role: 'about', label: 'About eïlo' }, ...controls()] },
+        { label: 'felis', submenu: [{ role: 'about', label: 'About felis' }, ...controls()] },
         { role: 'fileMenu' },
         { role: 'editMenu' },
         {
@@ -759,7 +759,7 @@ function runDesktop() {
           await supervisor.stop();
         } catch {
           dialog.showErrorBox(
-            'eïlo could not finish stopping',
+            'felis could not finish stopping',
             'The service started by this desktop app did not exit normally. Your saved conversation is kept.',
           );
         } finally {
@@ -795,7 +795,7 @@ function runDesktop() {
     });
     ipcMain.handle('eilo:open-chrome-extensions', async (event) => {
       if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
-      // This is the sole Chrome settings destination eïlo can open. The
+      // This is the sole Chrome settings destination felis can open. The
       // renderer cannot supply a browser, URL, option, or shell command.
       return runFixedOpen(['-b', 'com.google.Chrome', 'chrome://extensions/']);
     });
@@ -803,7 +803,7 @@ function runDesktop() {
       if (!trustedFocusedHome(event) || process.platform !== 'darwin') return false;
       const directory = extensionDirectory();
       if (!directory) return false;
-      // Reveal only the extension bundled with this eïlo workspace.
+      // Reveal only the extension bundled with this felis workspace.
       return runFixedOpen(['-R', directory]);
     });
     ipcMain.handle('eilo:google-authorization', (event, url) =>
@@ -985,7 +985,7 @@ function runDesktop() {
       );
       trayIcon.setTemplateImage(true);
       tray = new Tray(trayIcon);
-      tray.setToolTip('eïlo');
+      tray.setToolTip('felis');
       tray.on('double-click', () => showWindow());
       updateMenus();
       recordStatus();

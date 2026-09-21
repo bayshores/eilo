@@ -10,7 +10,7 @@ BREAKDOWN_KEY = "_eilo_context_breakdown"
 _CATEGORY_LABELS = {
     "system_prompt": "System prompt",
     "tool_definitions": "Tools",
-    "rules": "eïlo guidance",
+    "rules": "felis guidance",
     "skills": "Skills",
     "mcp": "MCP",
     "subagent_definitions": "Subagents",

@@ -196,7 +196,7 @@ class LocalChat:
         """Keep the short native commit in the same turn as authority validation."""
         expected = (self.meta_path.parent / "hermes").resolve()
         if Path(os.environ.get("HERMES_HOME", "")).resolve() != expected:
-            raise ChatError("The native publication store is outside this eïlo profile.")
+            raise ChatError("The native publication store is outside this felis profile.")
         from app.event_driver import find_publication, publish, validate_publication
 
         # ponytail: this local append briefly blocks the loop so a permission change
@@ -208,7 +208,7 @@ class LocalChat:
         """Keep one automatic return append inside the same native profile guard."""
         expected = (self.meta_path.parent / "hermes").resolve()
         if Path(os.environ.get("HERMES_HOME", "")).resolve() != expected:
-            raise ChatError("The native publication store is outside this eilo profile.")
+            raise ChatError("The native publication store is outside this felis profile.")
         from app.return_driver import find_publication, publish, validate_publication
 
         operation = find_publication if lookup else publish

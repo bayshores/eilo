@@ -1,6 +1,6 @@
-# eïlo evaluation fixtures
+# felis evaluation fixtures
 
-eïlo (AY-loh) is a proposed context-aware accountability app. These two sanitized seeds and six hypothetical cases are **draft evaluation materials, not benchmark results**. Neither Hermes nor OpenClaw has been selected, installed or tested here.
+felis (AY-loh) is a proposed context-aware accountability app. These two sanitized seeds and six hypothetical cases are **draft evaluation materials, not benchmark results**. Neither Hermes nor OpenClaw has been selected, installed or tested here.
 
 ## Evidence boundary
 

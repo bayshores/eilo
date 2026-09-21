@@ -4,7 +4,7 @@ import { activityReflection } from './activity-reflection-data.js';
 
 test('self-observations do not masquerade as useful work context', () => {
   const result = activityReflection([
-    { kind: 'episode', appName: 'eïlo', title: 'Home', recordedSeconds: 30 },
+    { kind: 'episode', appName: 'felis', title: 'Home', recordedSeconds: 30 },
     { kind: 'episode', appName: 'eilo Service', recordedSeconds: 60 },
   ]);
   assert.equal(result.kind, 'setup');

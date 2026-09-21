@@ -30,7 +30,7 @@ export function mountCheckinCenter(host, { onToggle, onConnect, onDiscuss }) {
 
   const description = el('p', 'checkin-description');
   const cta = button(
-    'Talk to eïlo',
+    'Talk to felis',
     () => {
       settings.close();
       if (cta.dataset.action === 'discuss') onDiscuss('');
@@ -116,7 +116,7 @@ export function mountCheckinCenter(host, { onToggle, onConnect, onDiscuss }) {
         ? 'Turn off alerts'
         : 'Enable alerts';
     deliveryText.textContent = !capable
-      ? 'Available in the eïlo Mac app.'
+      ? 'Available in the felis Mac app.'
       : !deliveryState
         ? 'Alert status unavailable.'
         : !deliveryState.supported
@@ -192,7 +192,7 @@ export function mountCheckinCenter(host, { onToggle, onConnect, onDiscuss }) {
     cta.hidden = true;
     if (value.enabled && ['no_goals', 'no_conversation', 'on_break'].includes(value.phase)) {
       cta.hidden = false;
-      cta.textContent = 'Talk to eïlo';
+      cta.textContent = 'Talk to felis';
       cta.dataset.action = 'discuss';
     } else if (value.enabled && ['activity_off', 'activity_paused'].includes(value.phase)) {
       cta.hidden = false;

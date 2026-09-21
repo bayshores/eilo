@@ -1,12 +1,12 @@
 # Product direction
 
-eïlo supports people who struggle with focus and motivation, including people
+felis supports people who struggle with focus and motivation, including people
 with ADHD, in starting, staying with, and returning to any task on their laptop.
 Writing, studying, research, creative work, personal administration, and coding
 are all valid contexts. The experience adapts to the person's chosen work;
 interview practice and LeetCode are examples, not the product's default purpose.
 
-eïlo helps a person keep continuity with commitments they chose. Conversation is
+felis helps a person keep continuity with commitments they chose. Conversation is
 the primary way to create, correct, and discuss those commitments; direct goal
 controls exist for quick corrections. The product should reduce reporting and
 replanning overhead while leaving the person in charge of their methods,
@@ -43,13 +43,13 @@ priorities, breaks, and external actions.
   separate from goals; source access does not automatically authorize sharing
   that data with the model.
 - **Speech** includes local transcription into an editable draft and optional
-  spoken eïlo replies. Spoken replies run only while the Home conversation is
-  open and the eïlo window is active; a visible Stop voice control ends the
+  spoken felis replies. Spoken replies run only while the Home conversation is
+  open and the felis window is active; a visible Stop voice control ends the
   current reply.
 
 ## Product limits
 
-eïlo does not infer a schedule from loose wording, invent deadlines, treat an
+felis does not infer a schedule from loose wording, invent deadlines, treat an
 app or page as proof of distraction, declare work complete from activity, or
 automatically block access. It does not make purchases, send messages, enroll
 the user, or act in external systems through ordinary conversation.
@@ -68,7 +68,7 @@ The saved Home board holds normal widgets with the same move, resize, remove, an
 
 **Settings** remains a separate page reached from Home, with an explicit Back to Home control, organized into General, Widgets & layout, Permissions, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Guided first setup replaces the empty Home before approval. After approval, its optional support invitation sits beside the conversation, and connection steps open inline. Settings stays outside the widget canvas. Keep the Check-ins switch and recording state/control in the Activity header across its views. Put status details and desktop alerts behind the adjacent settings icon. Empty Activity has one source action; recorded sessions must not open to a blank Overview. Expose history filters and recovery categories when they contain records.
 
-The ordinary starter Home uses warm surfaces, a **Next move** action, and a separate progress card; an approved first workspace starts with only its chosen widgets. The action card exposes only a reviewable planning draft and a focus review, so it never implies that eïlo has started work or sent a message. Its title stays visible at compact widget heights, and long summary labels clamp rather than overlap nearby metadata. On Home, Talk expands as a dock while the day summary remains visible; collapsing it reveals saved widgets and keeps the compact dock available. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
+The ordinary starter Home uses warm surfaces, a **Next move** action, and a separate progress card; an approved first workspace starts with only its chosen widgets. The action card exposes only a reviewable planning draft and a focus review, so it never implies that felis has started work or sent a message. Its title stays visible at compact widget heights, and long summary labels clamp rather than overlap nearby metadata. On Home, Talk expands as a dock while the day summary remains visible; collapsing it reveals saved widgets and keeps the compact dock available. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
 
 ### Frontend instructions
 
@@ -84,11 +84,11 @@ Keep the consequence of a permission or destructive action visible at the decisi
 
 ### Browser setup and focus
 
-Browser context works across regular HTTP and HTTPS sites. Do not require users to pick from a fixed site list or label sites as productive/distracting. eïlo interprets permitted context alongside the person's conversation and commitments; the site alone is not evidence of intent or completion. One optional Chrome permission covers the browser. Site exclusions are optional controls, not an onboarding prerequisite.
+Browser context works across regular HTTP and HTTPS sites. Do not require users to pick from a fixed site list or label sites as productive/distracting. felis interprets permitted context alongside the person's conversation and commitments; the site alone is not evidence of intent or completion. One optional Chrome permission covers the browser. Site exclusions are optional controls, not an onboarding prerequisite.
 
-When a focused task's distinctive terms appear in one permitted work context and a later stable context matches no open task, eïlo may ask whether it is a quick break or whether a small nudge back would help. It does not call that change procrastination, assume a site was off-task, or infer an outcome.
+When a focused task's distinctive terms appear in one permitted work context and a later stable context matches no open task, felis may ask whether it is a quick break or whether a small nudge back would help. It does not call that change procrastination, assume a site was off-task, or infer an outcome.
 
-When a new eligible check-in arrives while eïlo is out of focus, a small native glass overlay can show the already-delivered eïlo message without activating its window. A delivered check-in remains eligible for that short handoff even when the source observation later ages out; a reply, goal change, new conversation, explicit pause, recovery, or its delivery window suppresses it. The overlay stays long enough to read, disappears on its own, or opens the existing conversation only after a deliberate click. Desktop alerts remain a separate optional preference.
+When a new eligible check-in arrives while felis is out of focus, a small native glass overlay can show the already-delivered felis message without activating its window. A delivered check-in remains eligible for that short handoff even when the source observation later ages out; a reply, goal change, new conversation, explicit pause, recovery, or its delivery window suppresses it. The overlay stays long enough to read, disappears on its own, or opens the existing conversation only after a deliberate click. Desktop alerts remain a separate optional preference.
 
 Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actual selected states, editing carets, Home arrangement cues, and visible focus when navigating by keyboard.
 

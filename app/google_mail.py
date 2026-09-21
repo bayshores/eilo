@@ -1,4 +1,4 @@
-"""On-demand Gmail access through eilo's own Desktop OAuth client and Keychain."""
+"""On-demand Gmail access through felis's own Desktop OAuth client and Keychain."""
 
 from __future__ import annotations
 
@@ -359,7 +359,7 @@ class GoogleMail:
                 or not hmac.compare_digest(request.query.get("state", ""), flow["state"])
             ):
                 return web.Response(
-                    text="This sign-in is no longer active. Return to eilo.", status=400
+                    text="This sign-in is no longer active. Return to felis.", status=400
                 )
             flow["used"] = True
         try:
@@ -407,7 +407,7 @@ class GoogleMail:
             identity = "mail_" + hashlib.sha256(user["sub"].encode()).hexdigest()[:24]
             async with self.lock:
                 if self.flow is not flow or self.epoch != flow["epoch"]:
-                    return web.Response(text="Sign-in cancelled. Return to eilo.")
+                    return web.Response(text="Sign-in cancelled. Return to felis.")
                 credentials = {
                     **token,
                     "refresh_token": refresh,
@@ -455,9 +455,9 @@ class GoogleMail:
         if not flow or request.host != flow["host"]:
             raise web.HTTPNotFound()
         message = (
-            "Your inbox is connected. Return to eilo and ask for a catch-up. You can close this tab."
+            "Your inbox is connected. Return to felis and ask for a catch-up. You can close this tab."
             if flow["success"]
-            else "The inbox was not connected. Return to eilo to try again."
+            else "The inbox was not connected. Return to felis to try again."
         )
 
         async def finish():

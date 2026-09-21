@@ -68,5 +68,5 @@ http
     }
   })
   .listen(41974, '127.0.0.1', () =>
-    process.stdout.write('eïlo typography study: http://127.0.0.1:41974/\n'),
+    process.stdout.write('felis typography study: http://127.0.0.1:41974/\n'),
   );

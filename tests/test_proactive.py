@@ -1,4 +1,4 @@
-"""No-inference regression tests for eïlo's explicit-goal and event-delivery gates."""
+"""No-inference regression tests for felis's explicit-goal and event-delivery gates."""
 
 from __future__ import annotations
 

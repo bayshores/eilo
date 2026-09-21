@@ -520,7 +520,7 @@ def main():
                     "estimated": True,
                     "categories": [
                         {"id": "system_prompt", "label": "System prompt", "tokens": 14000},
-                        {"id": "rules", "label": "eïlo guidance", "tokens": 12000},
+                        {"id": "rules", "label": "felis guidance", "tokens": 12000},
                         {"id": "tool_definitions", "label": "Tools", "tokens": 18000},
                         {"id": "skills", "label": "Skills", "tokens": 9000},
                         {"id": "mcp", "label": "MCP", "tokens": 21000},

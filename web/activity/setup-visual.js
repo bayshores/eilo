@@ -12,7 +12,7 @@ export function setupVisual(source = 'browser') {
   for (let index = 0; index < 3; index++) link.append(document.createElement('span'));
   const eilo = document.createElement('div');
   eilo.className = 'source-setup-visual__eilo';
-  eilo.textContent = 'eïlo';
+  eilo.textContent = 'felis';
   visual.append(app, link, eilo);
   return visual;
 }

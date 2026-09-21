@@ -31,7 +31,7 @@ Calendar, Gmail, work context, notification, or spoken delivery.
 
 Returning after time away leaves the person with old commitments and no clear
 opening from the assistant. The person must initiate, explain and replan before
-eïlo provides useful help. A generic Continue card does not resolve stale goals.
+felis provides useful help. A generic Continue card does not resolve stale goals.
 
 ## Confirmed behavior
 
@@ -100,7 +100,7 @@ Recheck exact interactions during prototyping.
 - [Oura overview](https://mobbin.com/screens/85150daf-308e-41a4-b98c-5e6a6ee2fad0):
   atmospheric surface, prominent visual summary and contextual Confirm/Edit
   card. Use its hierarchy and material direction; do not invent a focus or
-  wellness score for eïlo.
+  wellness score for felis.
 - [Oura readiness flow](https://mobbin.com/flows/cd0b2e3e-e462-4d9d-ba87-f0c214fe47ca):
   inspected sampled overview/detail screens show layered explanation and metric
   tiles. It still uses separate views; it is not proof of a one-page workspace.
@@ -133,7 +133,7 @@ native-provider delivery.
 ### 0. Select the unified workspace design
 
 Use Product Design to create three grounded visual directions from the inspected
-references and current eïlo screen. Include the briefing, widget detail and
+references and current felis screen. Include the briefing, widget detail and
 expanded dock states. Select a direction before changing the app shell. The
 information architecture is shared across options; avoid cosmetic-only variants.
 

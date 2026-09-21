@@ -38,7 +38,7 @@ export function formatCheckedAt(value) {
 }
 
 function messageFor(error) {
-  if (error?.status === 401) return 'Your session expired. Reopen eïlo, then try again.';
+  if (error?.status === 401) return 'Your session expired. Reopen felis, then try again.';
   if (error?.status === 409) return 'This changed elsewhere. Review the latest state below.';
   if (error?.name === 'AbortError') return 'That took too long. Try again when ready.';
   if (typeof navigator !== 'undefined' && !navigator.onLine)
@@ -212,7 +212,7 @@ export function mountBriefingSources(
         el(
           'p',
           'briefing-sources__copy',
-          'Connected sources are unavailable here. You can keep using eïlo.',
+          'Connected sources are unavailable here. You can keep using felis.',
         ),
       );
     } else {
@@ -220,7 +220,7 @@ export function mountBriefingSources(
         const description = el(
           'p',
           'briefing-sources__copy',
-          'Turn on only the sources you want eïlo to use in answers.',
+          'Turn on only the sources you want felis to use in answers.',
         );
         content.append(description);
       }

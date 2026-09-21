@@ -1,4 +1,4 @@
-"""Private Unix-socket bridge between eïlo and its Chrome native host."""
+"""Private Unix-socket bridge between felis and its Chrome native host."""
 
 from __future__ import annotations
 

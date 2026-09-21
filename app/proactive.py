@@ -242,7 +242,7 @@ class ProactiveLoop:
         elif any(event.get("status") == "publishing" for event in self.state["events"].values()):
             phase = "unavailable"
         elif context is not None and not self.decision_active():
-            # The resident collector deliberately has no page lease.  When eïlo
+            # The resident collector deliberately has no page lease.  When felis
             # is foreground, its freshest browser sample may already have aged out;
             # that means wait for new admitted context, not that sharing was revoked.
             phase = "awaiting_observation"

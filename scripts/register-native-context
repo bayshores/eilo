@@ -22,7 +22,7 @@ def main() -> int:
     if not re.fullmatch(r"[a-p]{32}", args.extension_id):
         parser.error("--extension-id must be Chrome's 32-character extension id")
     origin = f"chrome-extension://{args.extension_id}/"
-    manifest = {"name": HOST_NAME, "description": "eïlo local context bridge", "path": str((ROOT / "scripts" / "native-context-host").resolve()), "type": "stdio", "allowed_origins": [origin]}
+    manifest = {"name": HOST_NAME, "description": "felis local context bridge", "path": str((ROOT / "scripts" / "native-context-host").resolve()), "type": "stdio", "allowed_origins": [origin]}
     if not args.install:
         print(json.dumps(manifest, indent=2, sort_keys=True))
         return 0

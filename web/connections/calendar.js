@@ -295,7 +295,7 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Calendar setup is unavailable here. You can keep using eïlo.',
+          'Calendar setup is unavailable here. You can keep using felis.',
         ),
       );
     } else if (snapshot.state === 'disconnected') {
@@ -303,14 +303,14 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Connect Google Calendar, then choose calendars eïlo can read.',
+          'Connect Google Calendar, then choose calendars felis can read.',
         ),
       );
       content.append(
         element(
           'p',
           'calendar-connection__permission',
-          'Read-only. eïlo reads only calendars you select; sharing with answers stays separate.',
+          'Read-only. felis reads only calendars you select; sharing with answers stays separate.',
         ),
       );
       const disclosure = element('details', 'calendar-disclosure');
@@ -319,7 +319,7 @@ export function mountCalendarConnection(
         element(
           'p',
           '',
-          'eïlo reads selected calendars and keeps them on this Mac. It cannot edit Google events. Sending events to the AI is a separate choice under Use calendars in answers.',
+          'felis reads selected calendars and keeps them on this Mac. It cannot edit Google events. Sending events to the AI is a separate choice under Use calendars in answers.',
         ),
       );
       content.append(disclosure);
@@ -341,7 +341,7 @@ export function mountCalendarConnection(
         element(
           'p',
           'calendar-connection__detail',
-          'Select calendars eïlo can read. Save to confirm.',
+          'Select calendars felis can read. Save to confirm.',
         ),
       );
       if (snapshot.loading_calendars) {

@@ -73,9 +73,10 @@ export function mountDesktopSetup(
     try {
       if (state.action === 'permission') {
         if (!requestPermission)
-          feedback.textContent = 'In the eïlo Mac app, choose Continue to macOS.';
+          feedback.textContent = 'In the felis Mac app, choose Continue to macOS.';
         else if (!(await requestPermission('text')))
-          feedback.textContent = 'The permission window could not open. Reopen eïlo and try again.';
+          feedback.textContent =
+            'The permission window could not open. Reopen felis and try again.';
         else
           feedback.textContent =
             'Follow the macOS prompt, then return here. We’ll check automatically.';

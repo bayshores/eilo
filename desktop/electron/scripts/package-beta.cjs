@@ -126,7 +126,7 @@ async function main() {
     verifyStage();
     const apps = await packager({
       dir: path.join(workspace, 'desktop/electron'),
-      name: 'eïlo Beta',
+      name: 'felis Beta',
       platform: 'darwin',
       arch: process.arch,
       electronVersion: require('../package.json').devDependencies.electron,
@@ -152,7 +152,7 @@ async function main() {
     verifyStage();
     process.stdout.write(`${apps[0]}\n`);
     if (release) {
-      const bundle = path.join(apps[0], 'eïlo Beta.app');
+      const bundle = path.join(apps[0], 'felis Beta.app');
       for (const [command, args] of [
         ['codesign', ['--verify', '--deep', '--strict', bundle]],
         ['xcrun', ['stapler', 'validate', bundle]],

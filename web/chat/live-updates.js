@@ -26,9 +26,9 @@ export function createLiveUpdates({
   const panel = document.createElement('aside');
   panel.className = 'live-update';
   panel.hidden = true;
-  panel.setAttribute('aria-label', 'New update from eïlo');
+  panel.setAttribute('aria-label', 'New update from felis');
   panel.innerHTML =
-    '<div class="live-update-heading"><span>eïlo</span><span class="live-update-kind"></span><span class="live-update-state"></span><button class="icon-button live-update-dismiss" aria-label="Dismiss this update">×</button></div><p class="live-update-text"></p><div class="live-update-footer"><button class="text-button live-update-open">Open</button><span class="live-update-count"></span></div>';
+    '<div class="live-update-heading"><span>felis</span><span class="live-update-kind"></span><span class="live-update-state"></span><button class="icon-button live-update-dismiss" aria-label="Dismiss this update">×</button></div><p class="live-update-text"></p><div class="live-update-footer"><button class="text-button live-update-open">Open</button><span class="live-update-count"></span></div>';
   (container || document.querySelector('.app-window')).append(panel);
   const announce = document.createElement('div');
   announce.className = 'sr-only';
@@ -95,7 +95,7 @@ export function createLiveUpdates({
       shownId = active.id;
       finishedId = null;
       queue.markDisplayed(active.id);
-      announce.textContent = 'A new update from eïlo is appearing.';
+      announce.textContent = 'A new update from felis is appearing.';
     }
     panel.querySelector('.live-update-text').textContent = active.text;
     panel.querySelector('.live-update-kind').textContent =

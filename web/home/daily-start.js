@@ -38,7 +38,7 @@ export function dailyStartData(view, now = new Date()) {
       : task
         ? 'Pick up where you left off'
         : 'One thing to start with',
-    detail: nextStep || task?.title || 'Tell eïlo what you want to get started on.',
+    detail: nextStep || task?.title || 'Tell felis what you want to get started on.',
     commitment: event ? calendarTime(event) + ' · ' + event.title : '',
     onBreak: goals.onBreak,
   };

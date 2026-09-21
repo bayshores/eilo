@@ -1,4 +1,4 @@
-"""Keep the pinned runtime inside eïlo's independently authorized account."""
+"""Keep the pinned runtime inside felis's independently authorized account."""
 
 
 def isolate_account():

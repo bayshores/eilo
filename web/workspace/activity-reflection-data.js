@@ -4,7 +4,8 @@ const ownActivity = (record) => {
     .join(' ')
     .toLocaleLowerCase();
   return (
-    text.includes('eïlo') ||
+    text.includes('felis') ||
+    text.includes('felis') ||
     text.includes('eilo') ||
     text.includes('127.0.0.1') ||
     text.includes('localhost')
@@ -34,7 +35,7 @@ export function activityReflection(records) {
     return {
       kind: 'setup',
       title: 'No work context yet',
-      detail: 'eïlo has only recorded its own setup and conversation activity so far.',
+      detail: 'felis has only recorded its own setup and conversation activity so far.',
       recordCount: items.length,
       otherCount: 0,
       seconds,

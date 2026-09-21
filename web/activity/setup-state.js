@@ -7,7 +7,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
   if (!online)
     return {
       id: 'offline',
-      title: 'Open eïlo to connect',
+      title: 'Open felis to connect',
       copy: 'Your workspace needs to be running on this Mac.',
       action: 'retry',
       label: 'Try again',
@@ -17,7 +17,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
     return {
       id: 'error',
       title: 'Chrome needs attention',
-      copy: 'eïlo couldn’t record the latest activity. We’ll try again.',
+      copy: 'felis couldn’t record the latest activity. We’ll try again.',
       action: 'retry',
       label: 'Check status',
       stage: 2,
@@ -62,7 +62,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
   )
     return {
       id: 'repair',
-      title: 'Reopen eïlo to connect',
+      title: 'Reopen felis to connect',
       copy: 'Chrome’s local connection needs to be prepared again.',
       action: 'retry',
       label: 'Check connection',
@@ -71,8 +71,8 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
   if (extension?.installed && extension.setup_protocol !== 2)
     return {
       id: 'update',
-      title: 'Reload the eïlo extension once',
-      copy: 'eïlo is already installed. In Chrome’s extensions, find eïlo and click Reload to use the updated connection flow.',
+      title: 'Reload the felis extension once',
+      copy: 'felis is already installed. In Chrome’s extensions, find felis and click Reload to use the updated connection flow.',
       action: 'reload',
       label: 'Open Chrome extensions',
       stage: 1,
@@ -81,7 +81,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
     return {
       id: 'grant',
       title: 'Allow Chrome access',
-      copy: 'Share the active website and page title with eïlo.',
+      copy: 'Share the active website and page title with felis.',
       action: 'grant',
       label: 'Open permission step',
       stage: 2,
@@ -90,7 +90,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
     return {
       id: 'pair',
       title: 'Finish the desktop connection',
-      copy: 'Chrome access is already allowed. Keep the eïlo desktop app open while we reconnect.',
+      copy: 'Chrome access is already allowed. Keep the felis desktop app open while we reconnect.',
       action: !policy.browser_enabled ? 'connect' : !policy.enabled ? 'resume' : 'retry',
       label: !policy.browser_enabled
         ? 'Connect Chrome'
@@ -103,7 +103,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
     return {
       id: 'pair',
       title: 'Checking the Chrome connection',
-      copy: 'The extension has reached eïlo. Waiting for Chrome access to be verified.',
+      copy: 'The extension has reached felis. Waiting for Chrome access to be verified.',
       action: 'retry',
       label: 'Check connection',
       stage: 2,
@@ -120,7 +120,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
   if (step === 1)
     return {
       id: 'install',
-      title: 'Add the eïlo extension',
+      title: 'Add the felis extension',
       copy: 'Turn on Developer mode, then choose Load unpacked.',
       action: 'folder',
       label: 'Copy extension folder',
@@ -137,7 +137,7 @@ export function browserSetupState({ online, current, extension, step = 0, inChro
     };
   return {
     id: 'extensions',
-    title: 'Add eïlo to Chrome',
+    title: 'Add felis to Chrome',
     copy: 'Open Chrome’s extensions page to install the local extension.',
     action: 'extensions',
     label: 'Copy extensions address',
@@ -151,7 +151,7 @@ export function desktopSetupState(current, { text = false } = {}) {
   if (text && health.permissions?.accessibility_permission !== true)
     return {
       id: 'permission',
-      title: 'Let eïlo read your work',
+      title: 'Let felis read your work',
       copy: 'Allow Accessibility in the macOS prompt. Private browser windows stay protected.',
       action: 'permission',
       label: 'Continue to macOS',
@@ -192,7 +192,7 @@ export function desktopSetupState(current, { text = false } = {}) {
       id: 'connected',
       title: text ? 'Text access is ready' : 'Desktop connected',
       copy: text
-        ? 'eïlo can use text from permitted apps.'
+        ? 'felis can use text from permitted apps.'
         : 'App sessions will appear in Activity.',
       action: 'done',
       label: 'Done',

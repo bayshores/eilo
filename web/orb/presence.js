@@ -17,14 +17,14 @@ export function orbState(view = {}, speech = 'idle', speaking = false) {
 }
 
 const LABELS = {
-  idle: 'eïlo',
-  listening: 'eïlo · Listening',
-  processing: 'eïlo · Preparing your message',
-  connecting: 'eïlo · Connecting',
-  offline: 'eïlo · Offline',
-  attention: 'eïlo · Needs attention',
-  thinking: 'eïlo · Replying',
-  speaking: 'eïlo · Speaking',
+  idle: 'felis',
+  listening: 'felis · Listening',
+  processing: 'felis · Preparing your message',
+  connecting: 'felis · Connecting',
+  offline: 'felis · Offline',
+  attention: 'felis · Needs attention',
+  thinking: 'felis · Replying',
+  speaking: 'felis · Speaking',
 };
 
 export function mountOrb(

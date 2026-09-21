@@ -60,7 +60,7 @@ Use your public GitHub handle and its GitHub-provided privacy email for commit
 authorship. Configure this per repository, leaving other projects unaffected.
 
 The installer preserves unrelated hooks and custom hook configurations. If it
-reports a conflict, integrate the two eïlo checks into the existing hook setup
+reports a conflict, integrate the two felis checks into the existing hook setup
 instead of overwriting it. Both hooks use Python's standard library.
 
 ```sh

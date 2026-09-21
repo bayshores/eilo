@@ -1,4 +1,4 @@
-# eïlo documentation
+# felis documentation
 
 This directory describes the current codebase and durable product decisions.
 It replaces root-level status logs as the place to learn how the project works.

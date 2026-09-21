@@ -113,7 +113,7 @@ export function createVoiceOrb(container, { detail = 14, interactive = true } = 
       powerPreference: 'low-power',
     });
   } catch (error) {
-    throw new Error('WebGL is unavailable for the eïlo orb.', { cause: error });
+    throw new Error('WebGL is unavailable for the felis orb.', { cause: error });
   }
   renderer.setClearColor(0, 0);
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2));

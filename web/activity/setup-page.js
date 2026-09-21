@@ -9,7 +9,7 @@ const guide = mountChromeSetup(document.querySelector('[data-chrome-setup]'), {
   onRefresh: () => refreshSetupHealth('browser', () => client.refresh()),
   onNativeControl: (action) => {
     const policy = client.view?.snapshot?.adaptive?.policy;
-    if (!policy) throw new Error('Open eïlo on this Mac, then try again.');
+    if (!policy) throw new Error('Open felis on this Mac, then try again.');
     return client.contextCommand('configure', {
       ...policy,
       ...(action === 'resume'

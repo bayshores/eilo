@@ -79,7 +79,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     runDevelopment(process.argv[2]);
   } catch (error) {
-    process.stderr.write(`eïlo startup: ${error.message}\n`);
+    process.stderr.write(`felis startup: ${error.message}\n`);
     process.exitCode = 1;
   }
 }

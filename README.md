@@ -1,6 +1,6 @@
-# eïlo
+# felis
 
-eïlo is a local, conversation-led workspace for maintaining commitments and
+felis is a local, conversation-led workspace for maintaining commitments and
 returning to them. It keeps a durable goal projection beside an auditable native
 conversation, then adds assistance only where the person has granted the needed
 context and permission.
@@ -25,7 +25,7 @@ npm run setup:runtime
 npm start
 ```
 
-Runtime setup is a one-time download of the pinned Hermes source and Python dependencies. Sign in with **your own account inside eïlo**. Chrome and desktop permissions are optional and are connected through the app. Each developer keeps their own data locally; never copy another developer’s `.state`, credentials, or runtime folder.
+Runtime setup is a one-time download of the pinned Hermes source and Python dependencies. Sign in with **your own account inside felis**. Chrome and desktop permissions are optional and are connected through the app. Each developer keeps their own data locally; never copy another developer’s `.state`, credentials, or runtime folder.
 
 ### Before sharing changes
 

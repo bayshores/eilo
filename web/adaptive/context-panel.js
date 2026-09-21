@@ -15,7 +15,7 @@ const SETTINGS_DESCRIPTIONS = {
   sources: 'Choose what activity to collect and what your AI can use.',
   connections: 'Connect and manage your apps and services.',
   memory: 'Review what stays on this Mac and clear saved activity.',
-  account: 'Manage the ChatGPT account eïlo uses for conversations.',
+  account: 'Manage the ChatGPT account felis uses for conversations.',
 };
 const KIND_LABELS = {
   intention: 'Current intention',
@@ -125,7 +125,7 @@ export function createContextPanel({
   const heading = node('div');
   heading.append(
     node('h2', '', 'Context & privacy'),
-    node('p', '', 'What eïlo knows and can use.'),
+    node('p', '', 'What felis knows and can use.'),
   );
   heading.querySelector('h2').id = 'context-panel-title';
   const close = iconButton('x', 'Close context settings');
@@ -273,7 +273,7 @@ export function createContextPanel({
   const provenance = node('p', 'context-caption');
   const returnPoint = node('p', 'context-work__return');
   const workActions = node('div', 'context-actions');
-  const talk = button('Tell eïlo', 'button context-primary');
+  const talk = button('Tell felis', 'button context-primary');
   talk.addEventListener('click', () => closeThen(onTalk));
   const correct = button('Edit', 'button context-work__edit');
   const correction = node('form', 'context-correction');
@@ -346,7 +346,7 @@ export function createContextPanel({
   }
   const chooseSources = button('Choose context sources', 'context-navigation-row');
   chooseSources.innerHTML =
-    '<span>Permissions<small>Choose what eïlo can collect and use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
+    '<span>Permissions<small>Choose what felis can collect and use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
   chooseSources.addEventListener('click', () => selectTab('sources', true));
   overview.append(work, layout, chooseSources);
 

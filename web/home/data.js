@@ -46,7 +46,7 @@ export function progressText(task) {
 export const deliveryLabel = (status) =>
   ({
     sending: 'Sending…',
-    accepted: 'Accepted · waiting for eïlo',
+    accepted: 'Accepted · waiting for felis',
     failed: 'Reply failed',
     interrupted: 'Reply interrupted',
     unconfirmed: 'Delivery not confirmed',

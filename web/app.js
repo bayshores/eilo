@@ -886,7 +886,7 @@ function toggleWidgetMenu(id, trigger) {
   if (widget.componentId) {
     const pinAction = document.createElement('button');
     const pinned = contextInput?.pins.includes(widget.componentId);
-    pinAction.textContent = pinned ? 'Let eïlo replace this widget' : 'Keep on Home';
+    pinAction.textContent = pinned ? 'Let felis replace this widget' : 'Keep on Home';
     pinAction.addEventListener('click', async () => {
       pinAction.disabled = true;
       await adaptiveHome.setPinned(widget.componentId, !pinned);
@@ -1657,7 +1657,7 @@ function showDetail(type) {
     if (!live) {
       const link = document.createElement('a');
       link.className = 'button';
-      link.textContent = 'Use this layout in eïlo';
+      link.textContent = 'Use this layout in felis';
       link.href = 'http://127.0.0.1:8765/home/' + layoutTransferHash(state, prefs);
       body.append(link);
     }
@@ -1817,7 +1817,7 @@ function createGeneralSettings() {
   const spokenRepliesInput = document.createElement('input');
   spokenRepliesInput.type = 'checkbox';
   spokenRepliesInput.checked = prefs.spokenReplies;
-  spokenReplies.append(spokenRepliesInput, document.createTextNode('Speak eïlo replies'));
+  spokenReplies.append(spokenRepliesInput, document.createTextNode('Speak felis replies'));
   spokenRepliesInput.addEventListener('change', () => {
     prefs.spokenReplies = spokenRepliesInput.checked;
     writeStorage(PREFS_KEY, prefs);

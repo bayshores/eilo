@@ -25,7 +25,7 @@ def main():
             raise ValueError("The desktop client file is incomplete.")
         saved["client_secret"] = client["client_secret"]
     write_private(ROOT / ".state" / "google-calendar-client.json", saved)
-    print("Google Calendar developer setup saved. Open Connections in eïlo to sign in.")
+    print("Google Calendar developer setup saved. Open Connections in felis to sign in.")
 
 
 if __name__ == "__main__":

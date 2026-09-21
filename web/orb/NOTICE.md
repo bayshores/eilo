@@ -4,7 +4,7 @@ The renderer adapts the point-cloud geometry, dot texture, simplex noise and def
 
 Source commit: `3463a01185fd9c6d9dee19da3107893effd5e187`.
 
-Adaptations remove React, global voice/severity stores and diagnostics; connect eïlo's accent and real speech/conversation state; and add visibility, reduced-motion and cleanup handling. The original shader equations and particle texture are retained. Three.js is pinned and vendored separately under `web/vendor/three`.
+Adaptations remove React, global voice/severity stores and diagnostics; connect felis's accent and real speech/conversation state; and add visibility, reduced-motion and cleanup handling. The original shader equations and particle texture are retained. Three.js is pinned and vendored separately under `web/vendor/three`.
 
 MIT License
 

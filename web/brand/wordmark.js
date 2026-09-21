@@ -38,7 +38,7 @@ export async function mountGlassWordmark(host) {
   svg.setAttribute('aria-hidden', 'true');
   svg.innerHTML = [
     '<defs>',
-    '<text id="ID-letters" x="10" y="100" font-family="EiloWordmark" font-size="100" font-weight="500" letter-spacing="-6.6">eïlo</text>',
+    '<text id="ID-letters" x="10" y="100" font-family="EiloWordmark" font-size="100" font-weight="500" letter-spacing="-4.2">felis</text>',
     '<linearGradient id="ID-face" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stop-color="#f5f4e8" stop-opacity=".8"/><stop offset=".26" stop-color="#cad7dc" stop-opacity=".58"/><stop offset=".52" stop-color="#8b9dad" stop-opacity=".30"/><stop offset=".79" stop-color="#e4e7e2" stop-opacity=".66"/><stop offset="1" stop-color="#a1b6c6" stop-opacity=".52"/></linearGradient>',
     '<linearGradient id="ID-edge" x1="0" y1="0" x2=".4" y2="1"><stop stop-color="#e6eef0" stop-opacity=".84"/><stop offset=".44" stop-color="#b4c0d2" stop-opacity=".1"/><stop offset=".76" stop-color="#081621" stop-opacity=".66"/><stop offset="1" stop-color="#d7e3df" stop-opacity=".75"/></linearGradient>',
     '<filter id="ID-light" x="-20%" y="-25%" width="145%" height="165%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="1.8" result="relief"/><feSpecularLighting in="relief" surfaceScale="4" specularConstant="1.1" specularExponent="18" lighting-color="#fff9e9" result="shine"><fePointLight x="35" y="-40" z="105"/></feSpecularLighting><feComposite in="shine" in2="SourceAlpha" operator="in" result="clipped"/><feComponentTransfer in="clipped"><feFuncA type="linear" slope=".8"/></feComponentTransfer></filter>',
@@ -65,9 +65,9 @@ export async function mountGlassWordmark(host) {
   const ctx = canvas.getContext('2d');
   ctx.scale(3, 3);
   ctx.font = '500 100px EiloWordmark';
-  ctx.letterSpacing = '-6.6px';
+  ctx.letterSpacing = '-4.2px';
   ctx.fillStyle = '#fff';
-  ctx.fillText('eïlo', 10, 100);
+  ctx.fillText('felis', 10, 100);
   backdrop.style.maskImage = 'url(' + canvas.toDataURL() + ')';
   host.classList.add('glass-wordmark');
   host.dataset.glassWordmark = 'ready';

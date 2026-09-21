@@ -10,7 +10,7 @@ Actual Mobbin images were inspected through its connector:
 - [Twingate status](https://mobbin.com/screens/63275f9d-787b-482d-b12b-e233f3370988): brief status rows with a clear connected indicator. Applied as three source rows in Tracking.
 - [Rox integrations](https://mobbin.com/screens/2820d9c1-11bc-4134-9274-87035d73da60) and [Opal Home](https://mobbin.com/screens/30c475b4-40dc-466b-b504-b2ac3ca3bfa2) were also inspected. Their card catalogs, comparisons, and blocking controls were not needed for these widgets.
 
-These patterns informed the design; the app's meaning, colors, content, and permissions remain eïlo's.
+These patterns informed the design; the app's meaning, colors, content, and permissions remain felis's.
 
 ## Behavior
 

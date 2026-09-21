@@ -9,7 +9,7 @@ from app.paths import STATE
 from app.runtime_contract import MODEL, PROVIDER, audit_session
 
 TITLE = re.compile(r"eilo-ui-[a-f0-9]{32}\Z")
-SYSTEM_MESSAGE = "You are eïlo, a personal accountability companion. Follow the current turn's explicit lane instructions and task state."
+SYSTEM_MESSAGE = "You are felis, a personal accountability companion. Follow the current turn's explicit lane instructions and task state."
 
 
 def read_chat(title):
@@ -266,7 +266,7 @@ def clean_display(messages):
 
 
 def bind_summary_route(agent):
-    """Pin each compression attempt to the same audited eïlo provider and model."""
+    """Pin each compression attempt to the same audited felis provider and model."""
     original = getattr(agent, "_compress_context", None)
     if not callable(original):
         return

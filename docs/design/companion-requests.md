@@ -1,4 +1,4 @@
-# Source-backed requests in eïlo
+# Source-backed requests in felis
 
 Status: local development; not released. The read-only tool layer and visual execution flow are implemented; live source authorization and source-backed briefs require separate verification.
 
@@ -18,9 +18,9 @@ The brief should explain what needs attention, what changed, what is already cov
 
 ## Implemented September 10
 
-The human lane now exposes exactly four eïlo read tools: source availability, inbox search, bounded thread reading, and selected-calendar reading. Hermes Tool Search is explicitly off so those four schemas are exposed directly. Generic shell, filesystem, browser/action tools and fallback providers remain disabled. Ordinary task bookkeeping still uses the existing validated task transaction; a turn using external source tools cannot apply task changes in this first slice.
+The human lane now exposes exactly four felis read tools: source availability, inbox search, bounded thread reading, and selected-calendar reading. Hermes Tool Search is explicitly off so those four schemas are exposed directly. Generic shell, filesystem, browser/action tools and fallback providers remain disabled. Ordinary task bookkeeping still uses the existing validated task transaction; a turn using external source tools cannot apply task changes in this first slice.
 
-Gmail uses eïlo's dedicated Desktop OAuth client, separate PKCE/state/loopback flows and a per-account macOS Keychain item. Up to ten account records are supported. Each new/reconnected inbox requires explicit source-to-model consent and Google's own grant. Inbox removal deletes local credentials only; it does not revoke the Google project grant or disconnect Calendar. Google Calendar's explicit Disconnect can invalidate Gmail for the same account and marks it for reconnection. No external connector credentials are imported.
+Gmail uses felis's dedicated Desktop OAuth client, separate PKCE/state/loopback flows and a per-account macOS Keychain item. Up to ten account records are supported. Each new/reconnected inbox requires explicit source-to-model consent and Google's own grant. Inbox removal deletes local credentials only; it does not revoke the Google project grant or disconnect Calendar. Google Calendar's explicit Disconnect can invalidate Gmail for the same account and marks it for reconnection. No external connector credentials are imported.
 
 Calendar use in answers is a separate, initially disabled option tied to the connected account. Local Calendar display remains available without this option. Source controls invalidate an in-flight read turn, and checks before retrieval/publication prevent an expired capability being reused. Interrupted source turns do not auto-resume or publish on restart.
 
@@ -32,7 +32,7 @@ First-slice bounds: default mail lookback 30 days, explicit windows 1–90 days,
 
 The accepted Home composition, IBM Plex Sans and charcoal/peach palette remain. A compact status strip above the inline composer shows real source checks. Details expose source access, each inbox search, relevant-thread reading, Calendar checking, and answer assembly when reply streaming starts. Steps transition only from actual operations; there is no timer-based progress or fabricated percentage. Failures/limits are visible; zero usable sources offers Connect a source. Stop cancels the current process; Details/Escape and Dismiss keep Home usable. Source links use server-owned IDs and narrow Google destinations, including native Electron validation.
 
-These are eïlo's investigation steps, not proof that commitments have been completed.
+These are felis's investigation steps, not proof that commitments have been completed.
 
 ## Verification boundary
 

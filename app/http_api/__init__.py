@@ -1,1 +1,1 @@
-"""HTTP boundary for the loopback eïlo application."""
+"""HTTP boundary for the loopback felis application."""

@@ -1,6 +1,6 @@
 # Connections, chats and projects
 
-Status: local development; not released. Implementation authority: the eïlo app repository.
+Status: local development; not released. Implementation authority: the felis app repository.
 
 ## Product and UX
 
@@ -18,7 +18,7 @@ The reviewed references were Sana AI's [starting a chat](https://mobbin.com/flow
 
 `app/chat_catalog.py` owns display names, pin/archive states, projects and native conversation pointers. Hermes continues to own all messages. Projects group chats; they do not yet provide project-specific instructions, files, permissions or agent memory. Goals, tasks, observed activity and connection choices remain global. Renaming a chat never renames the native `eilo-ui-*` lookup title.
 
-Historical import admits only exact eïlo-owned native titles. It collapses Hermes compression lineages, reads from a read-only SessionDB, and stores compact pointers plus a bounded first-message display name. It includes earlier saved setup/testing conversations; those can be archived by the user. It does not import unrelated Hermes sessions. Custom display names win over later imports.
+Historical import admits only exact felis-owned native titles. It collapses Hermes compression lineages, reads from a read-only SessionDB, and stores compact pointers plus a bounded first-message display name. It includes earlier saved setup/testing conversations; those can be archived by the user. It does not import unrelated Hermes sessions. Custom display names win over later imports.
 
 Switching refuses busy or unresolved pending turns, preempts stale proactive work, audits the destination native record before committing, and preserves global state that arrived during export. Messages carry a stable catalog chat ID to reject stale tabs. Browser drafts and uncertain send receipts are isolated per catalog chat, including the first native-session ID assignment.
 

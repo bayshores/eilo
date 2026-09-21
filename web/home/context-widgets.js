@@ -47,7 +47,7 @@ export function renderTrackingWidget(container, view, onManage = () => {}) {
     container.classList.add('context-widget', 'tracking-widget');
     const heading = node('h2', '', 'Tracking');
     const sources = node('ul', 'tracking-sources');
-    sources.setAttribute('aria-label', 'What eïlo can currently see');
+    sources.setAttribute('aria-label', 'What felis can currently see');
     state = { heading, sources, key: '', onManage, rows: new Map() };
     container.append(
       heading,

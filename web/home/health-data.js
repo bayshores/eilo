@@ -2,9 +2,9 @@ import { selectTracking } from './tracking-data.js';
 
 const sourceDetail = {
   browser: 'Open Permissions to repair browser activity access.',
-  calendar: 'Reconnect Calendar before eïlo can use its current calendar cache.',
+  calendar: 'Reconnect Calendar before felis can use its current calendar cache.',
   desktop: 'Open Permissions to repair desktop activity access.',
-  gmail: 'Reconnect Gmail before eïlo can use that account again.',
+  gmail: 'Reconnect Gmail before felis can use that account again.',
 };
 
 export function consecutiveFailedCheckins(history) {

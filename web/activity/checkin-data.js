@@ -1,17 +1,17 @@
 const PHASES = {
   off: ['Check-ins off', 'Automatic check-ins are paused. You can still chat.', 'off'],
   unavailable: ['Needs attention', 'Reconnect the conversation to restore check-ins.', 'warning'],
-  in_conversation: ['In conversation', 'Check-ins wait while eïlo replies.', 'active'],
-  no_conversation: ['Ready when you are', 'Start a conversation with eïlo.', 'waiting'],
+  in_conversation: ['In conversation', 'Check-ins wait while felis replies.', 'active'],
+  no_conversation: ['Ready when you are', 'Start a conversation with felis.', 'waiting'],
   on_break: ['You’re on a break', 'Check-ins wait until your break ends.', 'paused'],
-  no_goals: ['Waiting for a goal', 'Tell eïlo what you want to work toward.', 'waiting'],
+  no_goals: ['Waiting for a goal', 'Tell felis what you want to work toward.', 'waiting'],
   activity_off: ['Waiting for activity', 'Browser activity sharing is off.', 'waiting'],
   activity_paused: [
     'Activity disconnected',
     'Reconnect the Chrome activity page to resume sharing.',
     'waiting',
   ],
-  deciding: ['Considering a check-in', 'eïlo is reviewing context. It may stay quiet.', 'active'],
+  deciding: ['Considering a check-in', 'felis is reviewing context. It may stay quiet.', 'active'],
   awaiting_observation: [
     'Waiting for context',
     'Connected. Waiting for approved activity.',
@@ -33,7 +33,7 @@ export const OUTCOMES = {
   quiet: ['Stayed quiet', 'The check finished without sending you a message.'],
   stale: ['Set aside', 'The check was interrupted or its context changed before it could be used.'],
   failed_quiet: ['Couldn’t finish', 'The check failed. No check-in was sent from this attempt.'],
-  running: ['Reviewing context', 'eïlo is deciding whether a check-in would help.'],
+  running: ['Reviewing context', 'felis is deciding whether a check-in would help.'],
 };
 
 const stamp = (value) =>

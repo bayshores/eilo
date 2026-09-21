@@ -1,9 +1,9 @@
 {
-  "name": "eilo-desktop",
-  "productName": "eïlo",
+  "name": "felis-desktop",
+  "productName": "felis",
   "version": "0.1.0",
   "private": true,
-  "description": "The eïlo desktop host for the local Hermes workspace",
+  "description": "The felis desktop host for the local Hermes workspace",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",

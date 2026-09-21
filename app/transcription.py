@@ -1,4 +1,4 @@
-"""Bounded, local-only speech-to-text for eilo's browser-recorded WAV input."""
+"""Bounded, local-only speech-to-text for felis's browser-recorded WAV input."""
 
 from __future__ import annotations
 

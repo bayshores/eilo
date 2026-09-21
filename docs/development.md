@@ -89,7 +89,7 @@ npm start
 
 `setup:runtime` reads `hermes-source.json`, downloads that exact archive, verifies its SHA-256 checksum, and provisions `.runtime/venv` using the specified Python version, the two runtime dependency lockfiles, and the pinned Hermes source. An existing working runtime is kept. A failed fresh install can resume from its verified source; an unrecognized existing source checkout is never replaced automatically. No accounts, credentials, conversations, or capture permissions are imported or enabled.
 
-`start` opens Electron from the root, prepares missing native helpers, and lets Electron own the local service on **http://127.0.0.1:8765/home/**. Stop the app with **eïlo → Quit eïlo**. Do not separately start a second service for the desktop app. The source checkout is required for this development build. Its eïlo menu includes **Preview check-in overlay** for a local rendering check; it does not inspect activity, create a conversation message, or send an OS notification.
+`start` opens Electron from the root, prepares missing native helpers, and lets Electron own the local service on **http://127.0.0.1:8765/home/**. Stop the app with **felis → Quit felis**. Do not separately start a second service for the desktop app. The source checkout is required for this development build. Its felis menu includes **Preview check-in overlay** for a local rendering check; it does not inspect activity, create a conversation message, or send an OS notification.
 
 Inside the app, choose **Connect ChatGPT** and sign in with your own account. Connect Chrome and optional desktop context only when testing those features. Each developer’s private data stays in ignored `.state`, dependencies in `.runtime`, and scratch output in `.tmp`. Never share those folders. Model/provider changes are not a startup fallback.
 
@@ -103,7 +103,7 @@ Inside the app, choose **Connect ChatGPT** and sign in with your own account. Co
 | Existing Hermes source was kept unchanged        | Keep local edits. Use a fresh clone for a clean runtime setup, or deliberately reconcile the existing runtime; setup will not overwrite it. |
 | Native helper compilation fails                  | Install Xcode Command Line Tools, then rerun `npm start`.                                                                                   |
 | Port 8774 is already in use                      | Stop the earlier development terminal with Ctrl+C.                                                                                          |
-| Port 8765 is already in use                      | Use the already-running eïlo app, or quit it normally before starting another copy.                                                         |
+| Port 8765 is already in use                      | Use the already-running felis app, or quit it normally before starting another copy.                                                        |
 | Sample activity appears instead of your activity | You opened `npm run dev`. Use `npm start` for real local data.                                                                              |
 
 ## Checks and advanced commands

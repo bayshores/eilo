@@ -1,6 +1,6 @@
 # Security and privacy
 
-eïlo is designed as a local application with explicit data-flow boundaries.
+felis is designed as a local application with explicit data-flow boundaries.
 These are implementation requirements, not just user-interface wording.
 
 ## Local service and transport
@@ -31,7 +31,7 @@ model turn or duplicating a user message.
 
 The model-backed path uses a separately provisioned Hermes runtime. The runtime
 contract checks the configured model/provider/tool boundary and audits exported
-native records before their messages become public eïlo state. Do not add
+native records before their messages become public felis state. Do not add
 fallback providers, unreviewed tools, credential imports, direct model clients,
 or automatic login behavior as a convenience workaround.
 
@@ -58,9 +58,9 @@ The extension has local storage, Native Messaging and scripting capability; broa
 
 Native transport reaches a private authenticated local socket, with an exact fixed extension-origin allowlist. The Chrome sampler accepts only a focused normal window with explicitly non-private tab/window state. It rechecks tab identity, host permission, local exclusions, service exclusions and policy revision after extraction. Unknown/private windows, browser-internal/file URLs, credential-bearing URLs and local/private network origins are withheld. Exclusions cover subdomains. Permission/exclusion changes invalidate queued observations.
 
-After a known native-port drop, an already granted extension has one bounded local reconnect window (about 38 seconds) to cover a normal eïlo restart. That recovery only checks the existing grant and opens the local transport; it does not read a tab, inject a script, request a permission, or create a persistent alarm. A verified current policy ends the retry window.
+After a known native-port drop, an already granted extension has one bounded local reconnect window (about 38 seconds) to cover a normal felis restart. That recovery only checks the existing grant and opens the local transport; it does not read a tab, inject a script, request a permission, or create a persistent alarm. A verified current policy ends the retry window.
 
-The optional native check-in overlay receives only a freshly delivered check-in's validated conversation, event, and message identifiers plus the already-rendered assistant text. It never receives a browser URL, source observation, renderer-supplied action, or a generic IPC channel. Its renderer must explicitly confirm that its bounded listener is installed before the host sends the message. A brief post-delivery handoff does not require retaining a browser observation; a human reply, goal revision, new conversation, explicit check-in pause, recovery, or expiry suppresses it. Showing it uses showInactive, so it does not focus eïlo; opening Home requires an explicit click.
+The optional native check-in overlay receives only a freshly delivered check-in's validated conversation, event, and message identifiers plus the already-rendered assistant text. It never receives a browser URL, source observation, renderer-supplied action, or a generic IPC channel. Its renderer must explicitly confirm that its bounded listener is installed before the host sends the message. A brief post-delivery handoff does not require retaining a browser observation; a human reply, goal revision, new conversation, explicit check-in pause, recovery, or expiry suppresses it. Showing it uses showInactive, so it does not focus felis; opening Home requires an explicit click.
 
 Desktop collection is separately off by default. The Swift helper handles app activation, bounded Accessibility reads, idle/lock/sleep and explicit pause. Native browser AX/image content is withheld, including registered HTTP browser handlers, so it cannot bypass Chrome's privacy state. Protected fields are excluded. Visual context has its own control and is unavailable while the multimodal gate fails. Images are transient and never stored in SQLite. No clipboard, keylogging, audio capture or app automation is added by this collector.
 

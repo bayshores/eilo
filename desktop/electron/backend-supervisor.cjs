@@ -70,15 +70,15 @@ function createBackendSupervisor(options) {
 
   function validateCheckout() {
     if (!path.isAbsolute(rootPath || ''))
-      throw new Error('The eïlo checkout path must be absolute.');
+      throw new Error('The felis checkout path must be absolute.');
     let actualRoot;
     try {
       actualRoot = path.resolve(fs.realpathSync(configuredRoot));
     } catch {
-      throw new Error('The configured eïlo checkout is unavailable.');
+      throw new Error('The configured felis checkout is unavailable.');
     }
     if (actualRoot !== expectedRoot)
-      throw new Error('The configured eïlo checkout is not the approved canonical checkout.');
+      throw new Error('The configured felis checkout is not the approved canonical checkout.');
     const script = path.join(actualRoot, 'scripts', 'local-chat');
     const runtime = extraEnvironment.EILO_RUNTIME_HOME
       ? path.join(extraEnvironment.EILO_RUNTIME_HOME, 'run-python')
@@ -87,7 +87,7 @@ function createBackendSupervisor(options) {
       if (!fs.statSync(script).isFile() || !fs.statSync(runtime).isFile())
         throw new Error('missing');
     } catch {
-      throw new Error('The eïlo local runtime is incomplete.');
+      throw new Error('The felis local runtime is incomplete.');
     }
     return { root: actualRoot, script };
   }
@@ -224,7 +224,7 @@ function createBackendSupervisor(options) {
         }
         const error = new Error(
           existing.kind === 'foreign'
-            ? 'Another local service is already responding on the eïlo port.'
+            ? 'Another local service is already responding on the felis port.'
             : 'The owned local service is not responding; restart is unavailable.',
         );
         report('failed', error);
@@ -239,7 +239,7 @@ function createBackendSupervisor(options) {
       return { status: 'attached', url: urlFor('/') };
     }
     if (existing.kind === 'foreign') {
-      const error = new Error('Another local service is already responding on the eïlo port.');
+      const error = new Error('Another local service is already responding on the felis port.');
       report('failed', error);
       throw error;
     }
@@ -272,7 +272,7 @@ function createBackendSupervisor(options) {
       if (!child) break;
       if (attempt + 1 < attempts) await sleep(retryDelayMs);
     }
-    const error = new Error('The local eïlo service did not become ready.');
+    const error = new Error('The local felis service did not become ready.');
     try {
       await stopOwnedChild();
     } finally {

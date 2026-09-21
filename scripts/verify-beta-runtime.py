@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed structural inspection for a staged eïlo beta payload."""
+"""Fail-closed structural inspection for a staged felis beta payload."""
 
 from __future__ import annotations
 

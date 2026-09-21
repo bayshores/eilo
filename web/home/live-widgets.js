@@ -60,7 +60,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
     container.append(
       node('h2', '', heading),
       node('p', 'live-empty', description),
-      action('Talk to eïlo', () => talk(), 'button live-bottom'),
+      action('Talk to felis', () => talk(), 'button live-bottom'),
     );
   };
   const taskRow = (task, { due = false, focus = false } = {}) => {
@@ -97,7 +97,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       node(
         'span',
         entry.origin === 'check_in' ? 'live-speaker' : 'live-speaker sr-only',
-        entry.role === 'user' ? 'You' : entry.origin === 'check_in' ? 'eïlo check-in' : 'eïlo',
+        entry.role === 'user' ? 'You' : entry.origin === 'check_in' ? 'felis check-in' : 'felis',
       ),
       node('p', '', entry.text),
     );
@@ -129,7 +129,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       empty(
         container,
         widget.type === 'conversation'
-          ? 'eïlo'
+          ? 'felis'
           : { today: 'Today', goals: 'Your goals', progress: 'Progress' }[widget.type],
         connection === 'loading'
           ? 'Connecting to your workspace…'
@@ -165,7 +165,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
           ]
         : [
             ['Choose a focus', 'sand', () => openDetail('goals')],
-            ['Ask eïlo', 'blue', () => talk('Help me choose one thing to focus on next.')],
+            ['Ask felis', 'blue', () => talk('Help me choose one thing to focus on next.')],
           ];
       for (const [label, tone, handler] of choices)
         actions.append(action(label, handler, 'launcher-action launcher-action--' + tone));
@@ -224,7 +224,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
         action('See progress', () => openDetail('progress'), 'text-button live-bottom'),
       );
     } else {
-      container.append(node('h2', '', 'eïlo'));
+      container.append(node('h2', '', 'felis'));
       const entries = conversationEntries(snapshot, current.localPending),
         snippet = node('div', 'live-snippets');
       entries.slice(-2).forEach((entry) => snippet.append(miniMessage(entry)));
@@ -233,7 +233,7 @@ export function createLiveWidgetRenderer({ getCurrent, getData, talk, openDetail
       container.append(
         snippet,
         action(
-          snapshot.status === 'busy' ? 'View conversation' : 'Message eïlo',
+          snapshot.status === 'busy' ? 'View conversation' : 'Message felis',
           () => talk(),
           'button live-bottom',
         ),

@@ -87,7 +87,7 @@ export function mountUnifiedWorkspace({
   actions.append(goalsButton, settingsButton);
 
   const overview = node('section', 'unified-overview');
-  overview.setAttribute('aria-label', 'Focus, recorded context, and eilo check-ins');
+  overview.setAttribute('aria-label', 'Focus, recorded context, and felis check-ins');
 
   const focus = node('section', 'unified-focus-panel');
   focus.setAttribute('aria-label', 'Current focus');
@@ -200,7 +200,7 @@ export function mountUnifiedWorkspace({
   activity.append(activityHeading, capture, activityVisual, activityFooter);
 
   const agent = node('section', 'unified-agent-panel');
-  agent.setAttribute('aria-label', 'Eilo check-in state');
+  agent.setAttribute('aria-label', 'felis check-in state');
   const agentHeading = node('div', 'unified-panel-heading');
   const agentHeadingCopy = node('div');
   agentHeadingCopy.append(node('h2', 'unified-panel-title', 'check-ins'));
@@ -240,7 +240,7 @@ export function mountUnifiedWorkspace({
   );
   const orb = node('span', 'unified-presence');
   const dockCopy = node('span', 'unified-dock-copy');
-  const dockTitle = node('strong', 'unified-dock-title', 'Talk to eïlo');
+  const dockTitle = node('strong', 'unified-dock-title', 'Talk to felis');
   const dockStatus = node('span', 'unified-dock-status');
   dockCopy.append(dockTitle, dockStatus);
   launcher.append(orb, dockCopy);
@@ -299,7 +299,7 @@ export function mountUnifiedWorkspace({
   const whyPanel = node('div', 'unified-why-panel');
   whyPanel.id = 'eilo-why-this';
   whyPanel.hidden = true;
-  const whyHeading = node('strong', 'unified-why-heading', 'Why eïlo asked');
+  const whyHeading = node('strong', 'unified-why-heading', 'Why felis asked');
   const whyBody = node('p', 'unified-why-body');
   const whyBasis = node('p', 'unified-why-basis');
   whyPanel.append(
@@ -382,7 +382,7 @@ export function mountUnifiedWorkspace({
     'button unified-return-continue',
   );
   returnContent.append(
-    node('span', 'unified-return-eyebrow', 'eïlo · pick up'),
+    node('span', 'unified-return-eyebrow', 'felis · pick up'),
     returnTitle,
     returnFocus,
     returnContext,
@@ -498,13 +498,12 @@ export function mountUnifiedWorkspace({
     }
     render();
   }
-  function startGoalConversation() {
+  function startGoalConversation(input = '') {
     if (!client.canManage()) return;
     goalMode = true;
     dismiss();
-    setOpen(true);
+    talk(`I want to set a goal: ${input}`.trimEnd());
     render();
-    dock.querySelector('.live-input')?.focus();
     animateReveal([goalStart]);
   }
   function closeForeground() {
@@ -689,7 +688,7 @@ export function mountUnifiedWorkspace({
       control.setAttribute('aria-pressed', String(id === analyticWindow));
       control.dataset.selected = String(id === analyticWindow);
       if (id === 'month' && !supported) {
-        control.title = '31-day history is unavailable. Eilo retains seven days of recorded time.';
+        control.title = '31-day history is unavailable. felis retains seven days of recorded time.';
         control.setAttribute('aria-label', '31 days unavailable. Seven days are retained.');
       } else {
         control.removeAttribute('title');
@@ -708,7 +707,7 @@ export function mountUnifiedWorkspace({
       setText(
         emptyUsage,
         view?.connection === 'offline'
-          ? 'Recorded activity is unavailable while eilo reconnects.'
+          ? 'Recorded activity is unavailable while felis reconnects.'
           : 'Recorded desktop apps or browser sites appear here after you enable a source.',
       );
       setText(usageScope, 'Only retained activity from enabled sources appears here.');
@@ -884,7 +883,7 @@ export function mountUnifiedWorkspace({
     setText(
       whyBody,
       review
-        ? 'The saved deadline has passed. Eilo asks for your update before suggesting a next step.'
+        ? 'The saved deadline has passed. felis asks for your update before suggesting a next step.'
         : task
           ? 'This is your saved current focus goal. Daily welcome-back guidance is on.'
           : 'Daily welcome-back guidance is on, and there is no saved current focus goal.',
@@ -896,6 +895,11 @@ export function mountUnifiedWorkspace({
     const briefingVisible = !dismissed && getPreferences().dailyGuidance && !data.onBreak && open;
     briefing.hidden = !briefingVisible || goalMode;
     goalStart.hidden = !goalMode || !open;
+    const composer = dock.querySelector('.live-input');
+    if (composer)
+      composer.placeholder = goalMode
+        ? 'Describe the goal, timing, or progress…'
+        : 'Tell felis what’s on your mind…';
     dock.classList.toggle('has-return-briefing', briefingVisible);
     if (briefingVisible && !briefingWasVisible)
       requestAnimationFrame(() => {
@@ -1047,6 +1051,7 @@ export function mountUnifiedWorkspace({
     update,
     refresh,
     dismiss,
+    startGoal: startGoalConversation,
     destroy() {
       destroyed = true;
       stopMotion();

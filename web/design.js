@@ -19,8 +19,8 @@ if (document.documentElement.dataset.source === 'live') {
   const brand = document.createElement('div');
   brand.className = 'scene-wordmark wordmark';
   brand.setAttribute('role', 'img');
-  brand.setAttribute('aria-label', 'eïlo');
-  brand.textContent = 'eïlo';
+  brand.setAttribute('aria-label', 'felis');
+  brand.textContent = 'felis';
   document.querySelector('.workspace').prepend(brand);
   const { mountGlassWordmark } = await import('./brand/wordmark.js');
   await document.fonts.ready;

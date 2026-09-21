@@ -85,7 +85,7 @@ test('Settings is a restorable destination and Home controls stay available', ()
   const router = createWorkspaceRouter({ ...h, renderPage: (page) => rendered.push(page) });
   router.start();
   assert.deepEqual(rendered, ['settings']);
-  assert.equal(h.documentRef.title, 'eïlo — Settings');
+  assert.equal(h.documentRef.title, 'felis — Settings');
   assert.equal(controls.get('.add-toggle').hidden, true);
   router.showPage('home');
   assert.equal(controls.get('.add-toggle').hidden, false);
@@ -163,7 +163,7 @@ test('Talk changes shared chrome without losing the workspace route or Home cont
   const router = createWorkspaceRouter({ ...h });
   router.showPage('goals');
   router.updateNavigation('goals', { talking: true });
-  assert.equal(h.documentRef.title, 'eïlo — Talk');
+  assert.equal(h.documentRef.title, 'felis — Talk');
   assert.equal(h.windowRef.location.hash, '#goals');
   assert.deepEqual(h.windowRef.history.pushes, ['/home/?demo=1#goals']);
   assert.equal(elements.get('.home-header h1').textContent, 'Talk');

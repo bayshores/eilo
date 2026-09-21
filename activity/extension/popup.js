@@ -82,7 +82,7 @@ function isVerified(status) {
 }
 function nativeStatusText(status) {
   const state = status?.state;
-  if (state === 'shared' && isVerified(status)) return 'Recent activity was sent to eïlo.';
+  if (state === 'shared' && isVerified(status)) return 'Recent activity was sent to felis.';
   if (isVerified(status)) return state === 'unshared' ? 'This page is not being shared.' : '';
   if (state === 'browser-access-off') return 'Chrome access is no longer available.';
   if (browserAccess && (state === 'error' || state === 'unavailable'))
@@ -97,7 +97,7 @@ function renderConnectionState(status) {
   if (!browserAccess) {
     connectionHeading.textContent = 'Allow Chrome access';
     permissionConsequence.textContent =
-      'Allow Chrome so eïlo can notice the site names and titles you choose to share.';
+      'Allow Chrome so felis can notice the site names and titles you choose to share.';
     return;
   }
   if (isVerified(status)) {
@@ -105,13 +105,13 @@ function renderConnectionState(status) {
       status?.state === 'disabled' ? 'Chrome is ready' : 'Chrome connected';
     permissionConsequence.textContent =
       status?.state === 'disabled'
-        ? 'Activity is paused in eïlo.'
-        : 'Return to the eïlo desktop app to continue.';
+        ? 'Activity is paused in felis.'
+        : 'Return to the felis desktop app to continue.';
     statusElement.textContent = '';
     return;
   }
   connectionHeading.textContent = 'Chrome access is allowed';
-  permissionConsequence.textContent = 'Keep the eïlo desktop app open, then retry the connection.';
+  permissionConsequence.textContent = 'Keep the felis desktop app open, then retry the connection.';
 }
 async function refreshNativeStatus() {
   if (!nativeStatusElement || typeof chrome.runtime?.sendMessage !== 'function') return null;
@@ -123,7 +123,7 @@ async function refreshNativeStatus() {
     return status;
   } catch {
     nativeStatusElement.textContent = browserAccess
-      ? 'Chrome access is allowed. Connection to eïlo on this Mac is pending.'
+      ? 'Chrome access is allowed. Connection to felis on this Mac is pending.'
       : '';
     renderConnectionState({ state: 'error' });
     return { state: 'error' };
@@ -174,7 +174,7 @@ allow.addEventListener('click', async () => {
     }
     browserAccess = true;
     await refreshAccessState();
-    statusElement.textContent = 'Chrome allowed. Looking for eïlo on this Mac.';
+    statusElement.textContent = 'Chrome allowed. Looking for felis on this Mac.';
     renderConnectionState({ state: 'connecting' });
     scheduleStatusRefresh();
   } catch {
@@ -188,7 +188,7 @@ retryConnection.addEventListener('click', async () => {
   try {
     scheduleStatusRefresh();
   } catch {
-    statusElement.textContent = 'Chrome could not check the eïlo connection.';
+    statusElement.textContent = 'Chrome could not check the felis connection.';
   } finally {
     retryConnection.disabled = false;
   }

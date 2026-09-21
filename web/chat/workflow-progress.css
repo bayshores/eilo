@@ -1,4 +1,4 @@
-/* Standalone component. It inherits eïlo's IBM Plex Sans and Home color tokens. */
+/* Standalone component. It inherits felis's IBM Plex Sans and Home color tokens. */
 .workflow-progress {
   --workflow-panel: var(--panel, #303237);
   --workflow-ink: var(--ink, #f2ebe2);

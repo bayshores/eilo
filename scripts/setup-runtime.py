@@ -114,7 +114,7 @@ def main():
     )
     if not ready(python, manifest["package_version"]):
         raise RuntimeError("Runtime verification failed. Rerun npm run setup:runtime to resume.")
-    print("Runtime ready. Run npm start, then sign in with your own account inside eïlo.")
+    print("Runtime ready. Run npm start, then sign in with your own account inside felis.")
 
 
 if __name__ == "__main__":
@@ -127,5 +127,5 @@ if __name__ == "__main__":
         tarfile.TarError,
         subprocess.CalledProcessError,
     ) as error:
-        print(f"eïlo setup: {error}", file=sys.stderr)
+        print(f"felis setup: {error}", file=sys.stderr)
         raise SystemExit(1) from None

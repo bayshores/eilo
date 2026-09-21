@@ -83,7 +83,7 @@ export function returnBriefingData(view, now = new Date()) {
     ? 'You are on a break. Come back when you are ready to choose what is next.'
     : task
       ? `What is one small next step for ${task.title}?`
-      : 'Choose one thing to focus on, and eïlo can help make the first step smaller.';
+      : 'Choose one thing to focus on, and felis can help make the first step smaller.';
   if (!goals.onBreak && task && due && due < today) {
     status = 'deadline-passed';
     prompt = `The deadline for “${task.title}” has passed. What would you like to do with it?`;

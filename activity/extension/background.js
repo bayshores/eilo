@@ -8,11 +8,11 @@ let privacyRevision = 0;
 let nativeContext = null;
 let nativeState = 'unavailable';
 // Reconnect only after a known local bridge failure. This is deliberately
-// bounded: it restores the existing native transport after eïlo restarts but
+// bounded: it restores the existing native transport after felis restarts but
 // never becomes a background activity poller.
 // The native service's documented cold-start budget is about 30 seconds.
 // Eleven exponential/capped retries span about 38 seconds without becoming a
-// persistent timer after eïlo has stayed closed.
+// persistent timer after felis has stayed closed.
 const NATIVE_RECONNECT_LIMIT = 11;
 const NATIVE_RECONNECT_BASE_DELAY = 250;
 const NATIVE_RECONNECT_MAX_DELAY = 5000;
@@ -95,7 +95,7 @@ async function refreshNativeStatus() {
         onStatus: (status) => {
           nativeState = status.state;
           // A policy handshake, including a disabled policy, proves the bridge
-          // reached this eïlo instance. Only that stops a reconnect sequence.
+          // reached this felis instance. Only that stops a reconnect sequence.
           if (status.handshake_verified === true) stopNativeReconnect();
           else if (status.connected !== true && ['disconnected', 'error'].includes(status.state))
             scheduleNativeReconnect();
@@ -146,7 +146,7 @@ function validExternalMessage(message, type) {
 chrome.runtime.onMessageExternal?.addListener((message, sender, sendResponse) => {
   if (!core.senderIsEiloPage(sender)) return undefined;
   if (validExternalMessage(message, 'eilo-open-setup')) {
-    // This is a user-initiated handoff from eïlo, not a permission or policy
+    // This is a user-initiated handoff from felis, not a permission or policy
     // command. The extension's own popup is reused as the setup surface.
     chrome.tabs.create({ url: chrome.runtime.getURL('popup.html'), active: true }).then(
       () => sendResponse({ opened: true }),

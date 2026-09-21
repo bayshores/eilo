@@ -511,7 +511,7 @@ test('development can preview the non-activating overlay without creating a chec
   await drain();
   await drain();
   await drain();
-  const controls = h.applicationMenu.find((item) => item.label === 'eïlo').submenu;
+  const controls = h.applicationMenu.find((item) => item.label === 'felis').submenu;
   const preview = controls.find((item) => item.label === 'Preview check-in overlay');
   assert.ok(preview, 'development keeps a deliberate visual preview for this native-only surface');
 
@@ -567,7 +567,7 @@ test('check-in notification bridge is trusted, read-only status has no side effe
   );
 });
 
-test('disabling check-in notifications closes notices owned by eïlo', async () => {
+test('disabling check-in notifications closes notices owned by felis', async () => {
   const h = buildHarness();
   await drain();
   await drain();

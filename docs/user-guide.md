@@ -7,7 +7,7 @@ goal or ask for help choosing. Connect ChatGPT when prompted; the draft stays
 while you finish or cancel sign-in.
 
 Review the proposed goal, then choose **Save goal & start**. This saves it and
-asks eïlo for one small first step in the same conversation. No timer, widget
+asks felis for one small first step in the same conversation. No timer, widget
 arrangement or optional source setup is required. **Skip setup** opens ordinary
 Home. Existing goals and custom layouts stay intact.
 
@@ -51,7 +51,7 @@ is still being generated. If a saved reply needs recovery after an interruption,
 use the recovery control instead of sending the message again.
 
 When the conversation is closed, a fresh assistant reply can appear as a small
-in-app eïlo overlay. Choose **Open** to return to the same conversation or
+in-app felis overlay. Choose **Open** to return to the same conversation or
 dismiss it. The overlay does not move focus or appear over other applications;
 desktop alerts remain a separate optional setting.
 
@@ -99,7 +99,7 @@ check-in outcomes. **What informed this?** shows the input categories actually
 supplied for a new reply, including unavailable source checks. Older replies may
 have no source-use receipt; the UI says so. It does not infer what influenced an
 individual sentence. **Recently deleted** appears in Recorded activity only when
-recoverable legacy observations exist. A compact **Talk to eïlo** button opens
+recoverable legacy observations exist. A compact **Talk to felis** button opens
 the existing conversation and keeps its draft.
 
 The **Check-ins** switch stays in the Activity header. Its accessible label says
@@ -117,9 +117,9 @@ affordance rather than a permanent archive.
 
 Open **Permissions → Set up Chrome**. The Mac app opens a dedicated connection guide in Chrome, which checks the existing extension before asking you to install or allow anything. If Chrome is running an older copy, the guide asks for one **Reload** in Chrome’s extensions. If access is already allowed, **Retry connection** checks the local connection without requesting permission again. Only a missing grant opens the extension’s **Allow Chrome** step.
 
-The extension and guide distinguish **Chrome access is allowed** from **Chrome connected**. Connection is verified by the desktop app; opening a tab or granting permission alone does not complete it. Once connected, return to the eïlo desktop app and close the setup tab. **Connection help** returns to this guide, never to a browser copy of Home. Opening the guide does not change page-text, AI-sharing, or other source choices.
+The extension and guide distinguish **Chrome access is allowed** from **Chrome connected**. Connection is verified by the desktop app; opening a tab or granting permission alone does not complete it. Once connected, return to the felis desktop app and close the setup tab. **Connection help** returns to this guide, never to a browser copy of Home. Opening the guide does not change page-text, AI-sharing, or other source choices.
 
-For local development, install the extension once using the in-app guide. If the toolbar popup is unavailable, Chrome’s **eïlo → Details → Extension options** opens the same setup. Newly installing the extension opens that page once; reloading or updating it does not repeatedly open tabs. **Privacy & help** contains installation and repair actions.
+For local development, install the extension once using the in-app guide. If the toolbar popup is unavailable, Chrome’s **felis → Details → Extension options** opens the same setup. Newly installing the extension opens that page once; reloading or updating it does not repeatedly open tabs. **Privacy & help** contains installation and repair actions.
 
 **Permissions** keeps desktop, Chrome, visible text and AI context separate. Desktop app identity does not need text access. Choosing visible text offers a short Accessibility setup card and checks permission when you return. **Not now** leaves setup for later. Website exclusions are optional; no site picker is required.
 
@@ -132,10 +132,10 @@ only after an explicit gesture and may require browser or macOS microphone
 permission. Stop or release to transcribe locally; Cancel or Escape discards the
 recording. Review the resulting editable draft before choosing Send.
 
-**Settings → General → Speak eïlo replies** controls system-voice responses. It
+**Settings → General → Speak felis replies** controls system-voice responses. It
 is on for a new profile and speaks only new replies while the Home conversation
-is open and eïlo is the active window. **Stop voice** appears beside Send while
-a reply is being read. eïlo never replays old history, and it stays silent when
+is open and felis is the active window. **Stop voice** appears beside Send while
+a reply is being read. felis never replays old history, and it stays silent when
 you have moved to another app.
 
 ## Layout
@@ -151,7 +151,7 @@ The four status icons at the bottom right keep Desktop, Browser, Calendar, and
 Gmail health visible on every page. Hover or focus an icon for its current state;
 choose one to open Permissions and manage the connection.
 
-The eïlo orb moves from the navigation bar into the conversation when you open
+The felis orb moves from the navigation bar into the conversation when you open
 Talk. Choose Workspace or another page to return it to the navigation bar.
 
 Both are available from **Home → Add widgets** when they are not already on Home.
@@ -162,7 +162,7 @@ Choose **Edit home → Tidy layout** to align cards while keeping their sizes, o
 
 **Settings → General → Interface sounds** controls short cues for sent messages and confirmed actions. New profiles start with sounds on; saved off choices stay off. **Sound volume** and **Play test sound** make playback easy to check. Sounds stay silent during microphone recording and while the page is hidden. Desktop alerts remain separate.
 
-eïlo uses one monochrome dark appearance. There is no accent picker or Light-mode control.
+felis uses one monochrome dark appearance. There is no accent picker or Light-mode control.
 
 Until you save a name, **Add your name** on Home or Settings opens **General → Your name**. The field starts empty; the old “You” placeholder is treated as missing. Names are saved locally in this browser or desktop app.
 
@@ -177,7 +177,7 @@ goals or conversation content.
 
 Open **Settings** from Home. **Permissions → Let AI use recorded activity** separately lets the existing AI use your conversation and permitted activity. Capture, AI sharing, and check-ins each keep their own controls.
 
-**Settings → Widgets & layout → Add relevant widgets** lets eïlo add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. When Talk is open, the compact day-context strip stays in view while the full widget board gives its space to the conversation; collapsing Talk restores the board. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
+**Settings → Widgets & layout → Add relevant widgets** lets felis add widgets as your work changes. Every added card uses the same **Edit home**, move, resize, and remove controls as your other widgets. Your existing widgets and placement choices stay. Each Home page shows complete cards. When Talk is open, the compact day-context strip stays in view while the full widget board gives its space to the conversation; collapsing Talk restores the board. A compact arrow-and-dot control switches pages. The active page is highlighted, and the control disappears when everything fits on one page. Removing an automatic widget keeps it removed across refreshes; it can be restored from **Add widgets** while that content is available.
 
 A context widget's options include **Keep on Home**, which retains it through work changes. **Undo last suggestions** in Settings → Widgets & layout returns to the previous set of suggestions. Home waits while you type, select text, or use widget controls. Notes stay editable; removing a card does not erase its saved content.
 

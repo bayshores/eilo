@@ -43,7 +43,7 @@ class Briefing:
             previous.update(
                 status="interrupted",
                 can_cancel=False,
-                summary="Work stopped when eïlo closed. Nothing was automatically retried.",
+                summary="Work stopped when felis closed. Nothing was automatically retried.",
             )
             for step in previous.get("steps", []):
                 if step.get("status") == "running":

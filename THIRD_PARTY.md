@@ -16,7 +16,7 @@ The downloaded `small.en` weights derive from [OpenAI Whisper](https://github.co
 
 ## Desktop host
 
-The desktop development build pins [Electron](https://github.com/electron/electron) 44.3.0 and [Electron Packager](https://github.com/electron/packager) 20.3.0 via its npm lockfile. Their distribution/dependency notices remain in the installed tools and generated Electron runtime. The eïlo wordmark icon is original project artwork rendered with the already licensed IBM Plex Sans; no Apple wallpaper or system icon is included. Source and build instructions are in `desktop/electron/`.
+The desktop development build pins [Electron](https://github.com/electron/electron) 44.3.0 and [Electron Packager](https://github.com/electron/packager) 20.3.0 via its npm lockfile. Their distribution/dependency notices remain in the installed tools and generated Electron runtime. The felis wordmark icon is original project artwork rendered with the already licensed IBM Plex Sans; no Apple wallpaper or system icon is included. Source and build instructions are in `desktop/electron/`.
 
 ## Calendar credential storage
 

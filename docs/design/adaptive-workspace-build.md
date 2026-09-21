@@ -4,7 +4,7 @@ Status: local development; not released. Passing checks do not establish release
 
 ## Product contract
 
-Home adapts to any laptop task using conversation and separately permitted context. The existing sidebar, conversation dock, manual layout, and pinned widgets remain stable. Work recognition never creates or completes a commitment. Presentations use eïlo's component catalog, known resources, and validated records rather than generated code, arbitrary actions, or invented progress.
+Home adapts to any laptop task using conversation and separately permitted context. The existing sidebar, conversation dock, manual layout, and pinned widgets remain stable. Work recognition never creates or completes a commitment. Presentations use felis's component catalog, known resources, and validated records rather than generated code, arbitrary actions, or invented progress.
 
 Keep IBM Plex Sans and the charcoal/warm identity. Make the content visual through source previews, comparisons, stages, timelines, and measured usage. Instructions stay short, with secondary information on demand. Motion uses locally served pinned GSAP core/Flip: 120 ms feedback, 180 ms content changes, 360 ms layout transitions, with reduced motion and gesture deferral.
 

@@ -1,6 +1,6 @@
 # Architecture
 
-eïlo is a loopback web application with a Python domain layer and a browser
+felis is a loopback web application with a Python domain layer and a browser
 client. The UI is a projection of local state; it does not own commitments,
 conversation authority, or permissions.
 
@@ -50,19 +50,19 @@ older browser state from silently replacing newer state.
 
 ## State ownership
 
-| State                                       | Owner                    | Rule                                                                                     |
-| ------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------- |
-| Native conversation/context                 | Hermes                   | eïlo audits and projects it; it does not reconstruct a second transcript.                |
-| Goals, focus, breaks, receipts, routing     | eïlo private local state | Every batch validates before replacement; committed state is authoritative for controls. |
-| Activity observations                       | Activity ledger          | Keep only admitted, minimized observations under its retention policy.                   |
-| Browser drafts and presentation preferences | Browser storage          | Convenience state only; it cannot create or overwrite durable commitments.               |
-| Model/runtime sign-in                       | Hermes private home      | Never read, copy, publish, or infer it from source configuration.                        |
+| State                                       | Owner                     | Rule                                                                                     |
+| ------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
+| Native conversation/context                 | Hermes                    | felis audits and projects it; it does not reconstruct a second transcript.               |
+| Goals, focus, breaks, receipts, routing     | felis private local state | Every batch validates before replacement; committed state is authoritative for controls. |
+| Activity observations                       | Activity ledger           | Keep only admitted, minimized observations under its retention policy.                   |
+| Browser drafts and presentation preferences | Browser storage           | Convenience state only; it cannot create or overwrite durable commitments.               |
+| Model/runtime sign-in                       | Hermes private home       | Never read, copy, publish, or infer it from source configuration.                        |
 
 ## Chat context and compaction
 
 `chat_context_runtime.py` reads Hermes's native display history separately from
 the active model context. It includes compaction archives and compression
-ancestors, unwraps synthetic summary carriers, and preserves eïlo publication
+ancestors, unwraps synthetic summary carriers, and preserves felis publication
 metadata when native row IDs change. `chat_context.py` projects only validated
 numeric usage anchors and cached limits; it does not probe a provider.
 
@@ -101,7 +101,7 @@ is never part of that command. Interrupted inference uses existing recovery.
 geometry and its approval marker share a browser storage record, preventing a
 repeated receipt from resetting later edits. Support guides confirm current
 collection/sharing/check-in state independently; the native alert API confirms
-only eïlo's delivery preference, not the OS authorization setting. Optional
+only felis's delivery preference, not the OS authorization setting. Optional
 synthesized sounds use the existing local preferences and never alter OS audio.
 
 ## Browser code

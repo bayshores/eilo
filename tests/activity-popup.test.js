@@ -175,7 +175,7 @@ test('an already-granted disconnected Chrome stays in setup without repermission
   assert.equal(popup.elements['connection-help'].hidden, false);
   assert.equal(
     popup.elements['permission-consequence'].textContent,
-    'Keep the eïlo desktop app open, then retry the connection.',
+    'Keep the felis desktop app open, then retry the connection.',
   );
   assert.equal(popup.elements['connection-heading'].textContent, 'Chrome access is allowed');
 });
@@ -199,7 +199,7 @@ test('popup distinguishes verified ready, shared, and disabled states', async ()
     granted: true,
     nativeState: { state: 'shared', connected: true, handshake_verified: true },
   });
-  assert.equal(shared.elements['native-status'].textContent, 'Recent activity was sent to eïlo.');
+  assert.equal(shared.elements['native-status'].textContent, 'Recent activity was sent to felis.');
   const disabled = await mount({
     granted: true,
     nativeState: { state: 'disabled', connected: true, handshake_verified: true },
@@ -249,7 +249,7 @@ test('Allow Chrome requests in the click gesture and remains in setup after a gr
     popup.calls.some(([name]) => name === 'create'),
     false,
   );
-  assert.equal(popup.elements.status.textContent, 'Chrome allowed. Looking for eïlo on this Mac.');
+  assert.equal(popup.elements.status.textContent, 'Chrome allowed. Looking for felis on this Mac.');
   assert.equal(popup.elements.allow.hidden, true);
   assert.equal(popup.elements['retry-connection'].hidden, false);
 });

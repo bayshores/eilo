@@ -15,7 +15,7 @@ The sample preview is explicitly marked. Run `scripts/preview-context.py --port 
 ## References inspected
 
 - [Opal weekly screen-time chart](https://mobbin.com/screens/ea59c327-1787-47dc-b850-15708c5e337d): one prominent value and an immediately legible weekly shape.
-- [Opal focal statistic](https://mobbin.com/screens/62769965-9c74-417e-ae28-deb6c2aba10e): visual emphasis through measured content. eïlo does not adopt a productivity forecast or focus score.
+- [Opal focal statistic](https://mobbin.com/screens/62769965-9c74-417e-ae28-deb6c2aba10e): visual emphasis through measured content. felis does not adopt a productivity forecast or focus score.
 - [Square time tracking](https://mobbin.com/screens/5662c873-eade-4047-bd12-121a166f0e46): identifiable spans against a time axis.
 
 These are visual references, not evidence that the changes improve ADHD outcomes. No third-party screenshot, logo asset, font, or runtime dependency was copied from Mobbin.
@@ -30,7 +30,7 @@ Registration tests verify the fixed extension identity, executable wrapper, and 
 
 ## Guided permission handoff
 
-Setup opens at the point of need and shows one current action. Short status copy and a source-to-eïlo visual replace the old dense instructions. Privacy, installation and repair details stay collapsed. Existing components, the sidebar and the conversation dock are preserved.
+Setup opens at the point of need and shows one current action. Short status copy and a source-to-felis visual replace the old dense instructions. Privacy, installation and repair details stay collapsed. Existing components, the sidebar and the conversation dock are preserved.
 
 The Mac app opens the fixed extension setup page directly in Chrome. It does not depend on a pinned toolbar popup or a localhost page remaining open. The extension also registers Chrome’s [Options entry](https://developer.chrome.com/docs/extensions/develop/ui/options-page), so Details → Extension options opens the same surface. First installation opens it once; updates and reloads do not. Opening setup never requests the optional browser grant on its own.
 

@@ -116,7 +116,7 @@ function gmailRow(snapshot) {
   return row('gmail', 'Gmail', 'Not connected', '', 'muted');
 }
 
-/** A compact, live-only view of the data sources eïlo may use. */
+/** A compact, live-only view of the data sources felis may use. */
 export function selectTracking(view) {
   const isOnline = online(view);
   if (!isOnline)
