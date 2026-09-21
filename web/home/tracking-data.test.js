@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatRecordedTime, selectBrowserUsage, selectTracking } from './tracking-data.js';
+import {
+  formatRecordedTime,
+  recordingControlState,
+  selectBrowserUsage,
+  selectDesktopUsage,
+  selectTracking,
+} from './tracking-data.js';
+import { homeAttentionLens } from './attention-lens.js';
 
 const base = (extra = {}) => ({
   connection: 'connected',
@@ -223,4 +230,110 @@ test('recording summary does not turn missing grants or failed transport into re
     recordingSummary({ connection: 'offline', snapshot }),
     'Recording status unavailable',
   );
+});
+
+test('recording control distinguishes reversible collection state from transport health', () => {
+  const snapshot = {
+    adaptive: {
+      policy: { enabled: true, desktop_enabled: true },
+      capture_status: { desktop: { enabled: true, status: 'permission_required' } },
+    },
+  };
+  assert.deepEqual(recordingControlState({ connection: 'connected', snapshot }), {
+    available: true,
+    active: true,
+    label: 'Pause recording',
+    status: 'Recording on',
+  });
+  snapshot.adaptive.policy.enabled = false;
+  assert.deepEqual(recordingControlState({ connection: 'connected', snapshot }), {
+    available: true,
+    active: false,
+    label: 'Resume recording',
+    status: 'Recording paused',
+  });
+  assert.equal(recordingControlState({ connection: 'offline', snapshot }).available, false);
+});
+
+test('Home analytics keeps aggregate-history limits visible instead of inventing site detail', () => {
+  const usage = {
+    timezone: 'UTC',
+    scope: 'retained_sessions',
+    total_observed_seconds: 420,
+    days: [
+      { date: '2026-09-04', observed_seconds: 0 },
+      { date: '2026-09-05', observed_seconds: 0 },
+      { date: '2026-09-06', observed_seconds: 0 },
+      { date: '2026-09-07', observed_seconds: 0 },
+      { date: '2026-09-08', observed_seconds: 0 },
+      { date: '2026-09-09', observed_seconds: 180 },
+      { date: '2026-09-10', observed_seconds: 240 },
+    ],
+    sites: [{ origin: 'https://neetcode.io', observed_seconds: 420 }],
+  };
+  const view = base({
+    snapshot: {
+      accountability: {
+        activity: { helper_available: true, state: 'active', chrome_available: true },
+        observed_activity: { usage, recent_sessions: [{ start: 0 }] },
+        check_ins: { version: 1, enabled: true, phase: 'unchanged', history: [] },
+      },
+      integrations: { google_calendar: {}, briefing_sources: {} },
+    },
+  });
+  const day = homeAttentionLens(view, 'day');
+  assert.equal(day.totalSeconds, 240);
+  assert.equal(day.entries.length, 0);
+  assert.equal(day.period.hasBreakdown, false);
+  const week = homeAttentionLens(view, 'week');
+  assert.equal(week.totalSeconds, 420);
+  assert.deepEqual(
+    week.entries.map((entry) => entry.name),
+    ['neetcode.io'],
+  );
+  const month = homeAttentionLens(view, 'month');
+  assert.equal(month.period.supported, false);
+  assert.equal(month.period.requestedDays, 31);
+});
+
+test('desktop app rankings use validated retained data without inventing one-day app totals', () => {
+  const view = base();
+  view.snapshot.adaptive = {
+    policy: { desktop_enabled: true },
+    usage: {
+      desktop: {
+        timezone: 'UTC',
+        scope: 'retained_sessions',
+        total_observed_seconds: 420,
+        days: [
+          { date: '2026-09-04', observed_seconds: 0 },
+          { date: '2026-09-05', observed_seconds: 0 },
+          { date: '2026-09-06', observed_seconds: 0 },
+          { date: '2026-09-07', observed_seconds: 0 },
+          { date: '2026-09-08', observed_seconds: 0 },
+          { date: '2026-09-09', observed_seconds: 180 },
+          { date: '2026-09-10', observed_seconds: 240 },
+        ],
+        sites: [
+          { app_name: 'Visual Studio Code', observed_seconds: 300 },
+          { app_name: 'Chrome', observed_seconds: 120 },
+        ],
+      },
+    },
+  };
+  assert.deepEqual(selectDesktopUsage(view).apps, [
+    { name: 'Visual Studio Code', seconds: 300 },
+    { name: 'Chrome', seconds: 120 },
+  ]);
+  const week = homeAttentionLens(view, 'week');
+  assert.equal(week.source, 'desktop');
+  assert.deepEqual(
+    week.entries.map((entry) => entry.name),
+    ['Visual Studio Code', 'Chrome'],
+  );
+  assert.equal(homeAttentionLens(view, 'day').entries.length, 0);
+  const malformed = structuredClone(view);
+  malformed.snapshot.adaptive.usage.desktop.sites[0].app_name = ' ';
+  assert.equal(selectDesktopUsage(malformed).available, false);
+  assert.equal(selectDesktopUsage({ ...view, connection: 'offline' }).online, false);
 });

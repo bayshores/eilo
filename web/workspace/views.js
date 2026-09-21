@@ -18,7 +18,11 @@ import { mountCheckinCenter, renderAgentLog } from '../activity/checkins.js';
 import { checkinView } from '../activity/checkin-data.js';
 import { createActivityDayMap } from '../activity/day-map.js';
 import { renderUsageWidget } from '../home/context-widgets.js';
-import { selectBrowserUsage, selectTracking } from '../home/tracking-data.js';
+import {
+  recordingControlState,
+  selectBrowserUsage,
+  selectTracking,
+} from '../home/tracking-data.js';
 
 const el = (tag, cls, text) => {
   const item = document.createElement(tag);
@@ -61,20 +65,7 @@ const when = (seconds) =>
     hour: 'numeric',
     minute: '2-digit',
   });
-const recordingState = (view) => {
-  const policy = view?.snapshot?.adaptive?.policy;
-  const adaptiveConfigured = Boolean(policy?.desktop_enabled || policy?.browser_enabled);
-  const legacyState = view?.snapshot?.accountability?.activity?.state;
-  const legacyConfigured = ['active', 'paused'].includes(legacyState);
-  const available = view?.connection === 'connected' && (adaptiveConfigured || legacyConfigured);
-  const active = available && (policy?.enabled === true || legacyState === 'active');
-  return {
-    available,
-    active,
-    label: active ? 'Pause recording' : 'Resume recording',
-    status: active ? 'Recording on' : 'Recording paused',
-  };
-};
+const recordingState = recordingControlState;
 export const activitySummary = (records) => {
   const total = records.reduce((seconds, record) => {
     const recorded = record.kind === 'episode' ? record.recordedSeconds : record.observed_seconds;
@@ -1002,7 +993,7 @@ export function createWorkspaceViews({
     }
   }
   return {
-    show(nextPage, { goalFilter, goalId, editGoal, activityTab } = {}) {
+    show(nextPage, { goalFilter, goalId, editGoal, newGoal, activityTab } = {}) {
       controls.closeMenus();
       if (page !== nextPage) controls.clearNotice();
       page = nextPage;
@@ -1031,7 +1022,8 @@ export function createWorkspaceViews({
           search.value = '';
         }
         renderGoals();
-        if (task && editGoal && task.status !== 'deleted') controls.beginEdit(task);
+        if (newGoal) controls.beginEdit();
+        else if (task && editGoal && task.status !== 'deleted') controls.beginEdit(task);
       }
       if (page === 'activity') renderActivity();
     },

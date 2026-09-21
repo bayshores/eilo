@@ -271,6 +271,24 @@ export function createLiveHome({
       },
     };
   }
+  async function toggleRecording() {
+    const policy = current.snapshot?.adaptive?.policy;
+    const adaptiveConfigured = Boolean(policy?.desktop_enabled || policy?.browser_enabled);
+    const legacyState = current.snapshot?.accountability?.activity?.state;
+    const active = (adaptiveConfigured && policy?.enabled === true) || legacyState === 'active';
+    const available =
+      current.connection === 'connected' &&
+      (adaptiveConfigured || ['active', 'paused'].includes(legacyState));
+    if (!available) return;
+    const shouldResume = !active;
+    sound.prepare();
+    if (adaptiveConfigured && policy.enabled !== shouldResume)
+      await client.contextCommand('configure', { ...policy, enabled: shouldResume });
+    if (legacyState === (shouldResume ? 'paused' : 'active'))
+      await activity.control(shouldResume ? 'enable' : 'pause');
+    sound.play('confirmed');
+  }
+
   const views = createWorkspaceViews({
     container: pages,
     pageHeader: pages,
@@ -291,23 +309,7 @@ export function createLiveHome({
       client.activityControl(enabled ? 'enable_check_ins' : 'pause_check_ins', crypto.randomUUID()),
     onActivitySetup: () => openDetail('browser-setup'),
     onContextCommand: (action, fields) => client.contextCommand(action, fields),
-    onRecordingToggle: async () => {
-      const policy = current.snapshot?.adaptive?.policy;
-      const adaptiveConfigured = Boolean(policy?.desktop_enabled || policy?.browser_enabled);
-      const legacyState = current.snapshot?.accountability?.activity?.state;
-      const active = (adaptiveConfigured && policy?.enabled === true) || legacyState === 'active';
-      const available =
-        current.connection === 'connected' &&
-        (adaptiveConfigured || ['active', 'paused'].includes(legacyState));
-      if (!available) return;
-      const shouldResume = !active;
-      sound.prepare();
-      if (adaptiveConfigured && policy.enabled !== shouldResume)
-        await client.contextCommand('configure', { ...policy, enabled: shouldResume });
-      if (legacyState === (shouldResume ? 'paused' : 'active'))
-        await activity.control(shouldResume ? 'enable' : 'pause');
-      sound.play('confirmed');
-    },
+    onRecordingToggle: toggleRecording,
   });
   const settingsHost = node('div', 'settings-page');
   settingsHost.hidden = true;
@@ -410,13 +412,35 @@ export function createLiveHome({
   inspectorTitle.tabIndex = -1;
   let inspectorReturnFocus = null;
   let inspectorDockOpen = false;
+  let inspectorClosing = false;
   const closeInspector = () => {
+    if (inspectorClosing) return;
     const restore = inspectorReturnFocus;
     const open = inspectorDockOpen;
-    showPage('home');
-    setThreadOpen(open, { focus: false });
-    if (restore?.isConnected && restore.getClientRects().length)
-      restore.focus({ preventScroll: true });
+    const finish = () => {
+      inspectorClosing = false;
+      showPage('home');
+      setThreadOpen(open, { focus: false });
+      if (restore?.isConnected && restore.getClientRects().length)
+        restore.focus({ preventScroll: true });
+    };
+    if (
+      document.body.classList.contains('reduce-motion') ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      finish();
+      return;
+    }
+    inspectorClosing = true;
+    inspector
+      .animate(
+        [
+          { opacity: 1, translate: '0 0' },
+          { opacity: 0, translate: '12px 0' },
+        ],
+        { duration: 180, easing: 'ease-in', fill: 'forwards' },
+      )
+      .finished.then(finish, finish);
   };
   inspectorHeader.append(inspectorTitle, action('Close', closeInspector, 'button'));
   inspector.append(inspectorHeader);
@@ -457,6 +481,7 @@ export function createLiveHome({
         goalFilter,
         goalId,
         editGoal,
+        newGoal,
         connectionsTab,
         activityTab,
         settingsSection,
@@ -476,7 +501,7 @@ export function createLiveHome({
       workspace.dataset.page = homePage;
       board.hidden = page !== 'home';
       pages.hidden = page === 'home';
-      views.show(page, { goalFilter, goalId, editGoal, activityTab });
+      views.show(page, { goalFilter, goalId, editGoal, newGoal, activityTab });
       settingsHost.hidden = !['settings', 'connections'].includes(page);
       if (page === 'connections' || page === 'settings') {
         onSettingsSection(settingsSection || (page === 'connections' ? 'connections' : 'general'));
@@ -499,7 +524,9 @@ export function createLiveHome({
         inspector.dataset.view = page;
         inspector.showModal();
         queueMicrotask(() => {
-          if (inspector.open) inspectorTitle.focus();
+          if (!inspector.open) return;
+          if (newGoal) inspector.querySelector('.goal-edit-form input')?.focus();
+          else inspectorTitle.focus();
         });
       }
     },
@@ -568,13 +595,18 @@ export function createLiveHome({
   }
 
   function placeOrb() {
-    const target = workspace.classList.contains('unified-home')
-      ? dock.querySelector('.unified-presence')
-      : threadOpen
-        ? onboarding?.active
-          ? workspace.querySelector('.onboarding-orb')
-          : dock.querySelector('.conversation-presence')
-        : talkOrb;
+    const returnTarget = workspace.querySelector(
+      '.unified-return-foreground[open] .unified-return-orb',
+    );
+    const target =
+      returnTarget ||
+      (workspace.classList.contains('unified-home')
+        ? dock.querySelector('.unified-presence')
+        : threadOpen
+          ? onboarding?.active
+            ? workspace.querySelector('.onboarding-orb')
+            : dock.querySelector('.conversation-presence')
+          : talkOrb);
     if (!target) {
       orbElement.remove();
       presence?.pause(true);
@@ -1254,6 +1286,8 @@ export function createLiveHome({
         setThreadOpen(true, { focus: false });
         setHistoryOpen(!historyOpen);
       },
+      onRecordingToggle: toggleRecording,
+      onForegroundChange: placeOrb,
     });
     unified.update(current, currentPage);
     router.start();

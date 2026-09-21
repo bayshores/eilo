@@ -3,45 +3,53 @@ import {
   returnBriefingData,
   shouldOfferReturn,
 } from './return-briefing-data.js';
-import { selectTracking } from './tracking-data.js';
+import { homeAttentionLens, ANALYTIC_WINDOWS } from './attention-lens.js';
+import { formatRecordedTime, recordingControlState } from './tracking-data.js';
 import { homeHealth } from './health-data.js';
-import { localDay } from './daily-start.js';
+import { dailyStartData, localDay } from './daily-start.js';
 import { progressText } from './data.js';
 import { goalActionOperations, undoGoalOperations } from '../goals/editor.js';
 
-const node = (tag, cls, text) => {
-  const el = document.createElement(tag);
-  el.className = cls;
-  if (text !== undefined) el.textContent = text;
-  return el;
+const node = (tag, className, text) => {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
 };
-const button = (label, run, cls = 'button') => {
-  const el = node('button', cls, label);
-  el.type = 'button';
-  el.addEventListener('click', run);
-  return el;
+const button = (label, handler, className = 'button') => {
+  const element = node('button', className, label);
+  element.type = 'button';
+  element.addEventListener('click', handler);
+  return element;
 };
-const icon = (name) => {
-  const el = node('span', 'unified-icon');
-  el.innerHTML = '<svg aria-hidden="true"><use href="#' + name + '"/></svg>';
-  return el;
+const setText = (element, value) => {
+  const text = value || '';
+  if (element.textContent !== text) element.textContent = text;
 };
+const utcDayLabel = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  timeZone: 'UTC',
+});
+const dayLabel = (date) => {
+  try {
+    return utcDayLabel.format(new Date(date + 'T12:00:00Z'));
+  } catch {
+    return '';
+  }
+};
+const needsGoalReview = (status) => ['deadline-passed', 'deadline-needs-review'].includes(status);
 
-// Calendar and activity cards already own their corresponding source state. Keep
-// only independent attention items in the summary so the same repair is not shown twice.
-function summaryHealth(state) {
-  const items = (state?.items || []).filter(
+function independentAttention(view) {
+  return (homeHealth(view)?.items || []).filter(
     (item) => !['calendar', 'desktop', 'browser'].includes(item.id),
   );
-  if (!items.length) return { items: [], title: '', detail: '' };
-  return {
-    items,
-    title: items.length === 1 ? items[0].title : `${items.length} things need attention`,
-    detail: items.length === 1 ? items[0].detail : 'Review the items that need attention.',
-  };
 }
 
-// Presentation only; writes use the existing revisioned task service.
+/**
+ * The Home view exposes current focus, recorded aggregates, and the check-in
+ * state in one screen. It does not invent attention, progress, or a reason
+ * for an intervention; writes stay with the existing task and activity owners.
+ */
 export function mountUnifiedWorkspace({
   workspace,
   dock,
@@ -54,143 +62,379 @@ export function mountUnifiedWorkspace({
   showPage,
   openCalendar,
   onHistory,
+  onRecordingToggle = async () => {},
+  onForegroundChange = () => {},
 }) {
   const header = workspace.querySelector('.home-header');
   const heading = header.querySelector('h1');
   const board = workspace.querySelector('.board-scroll');
+  const actions = header.querySelector('.header-actions');
   const date = node('time', 'unified-date');
   heading.before(date);
-  const summary = node('section', 'unified-summary');
-  summary.setAttribute('aria-label', 'Your day');
-  function card(kind) {
-    const trigger = button(
-      '',
-      () =>
-        ['event', 'health'].includes(kind)
-          ? toggleDetail(kind)
-          : showPage(kind === 'goal' ? 'goals' : 'activity'),
-      'unified-card unified-' + kind,
-    );
-    const copy = node('span', 'unified-card-copy');
-    const eyebrow = node(
-      'span',
-      'unified-card-eyebrow',
-      kind === 'event'
-        ? 'Calendar'
-        : kind === 'goal'
-          ? 'Current focus'
-          : kind === 'health'
-            ? 'Needs attention'
-            : 'Activity',
-    );
-    const title = node('strong', 'unified-card-title');
-    const meta = node('span', 'unified-card-meta');
-    const state = node('span', 'unified-card-state');
-    copy.append(eyebrow, title, meta, state);
-    const disclosure = node('span', 'unified-disclosure');
-    disclosure.setAttribute('aria-hidden', 'true');
-    trigger.append(copy, disclosure);
-    trigger.setAttribute(
-      'aria-controls',
-      ['event', 'health'].includes(kind) ? 'unified-detail' : 'workspace-inspector',
-    );
-    if (['event', 'health'].includes(kind)) trigger.setAttribute('aria-expanded', 'false');
-    else trigger.setAttribute('aria-haspopup', 'dialog');
-    summary.append(trigger);
-    return { trigger, eyebrow, title, meta, state };
-  }
-  const goal = card('goal'),
-    event = card('event'),
-    activity = card('activity'),
-    health = card('health');
-  const detail = node('section', 'unified-detail');
-  detail.id = 'unified-detail';
-  detail.hidden = true;
-  detail.setAttribute('aria-label', 'Selected widget details');
-  board.before(summary, detail);
-  const settings = button('Settings', () => showPage('settings'), 'button unified-settings');
-  header.querySelector('.header-actions').append(settings);
-  const dockHeader = node('div', 'unified-dock-header');
-  const orb = node('div', 'unified-presence');
-  const tools = node('div', 'unified-dock-tools');
-  const history = button('History', onHistory, 'text-button');
-  const toggle = button(
-    '',
-    () => setOpen(!isOpen(), { focus: false }),
-    'icon-button unified-dock-toggle',
+  const legacyActions = [
+    ...actions.querySelectorAll('.add-toggle, .edit-toggle, .overflow-toggle, .save-state'),
+  ];
+  const goalsButton = button(
+    'New goal',
+    () => startGoalConversation(),
+    'button unified-header-action',
   );
-  toggle.append(icon('arrow-down'));
-  toggle.setAttribute('aria-controls', 'eilo-conversation-thread');
-  tools.append(history, toggle);
-  dockHeader.append(orb, node('h2', '', 'Talk to eïlo'), tools);
+  const settingsButton = button(
+    'Settings',
+    () => showPage('settings'),
+    'button unified-header-action',
+  );
+  actions.append(goalsButton, settingsButton);
+
+  const overview = node('section', 'unified-overview');
+  overview.setAttribute('aria-label', 'Focus, recorded context, and eilo check-ins');
+
+  const focus = node('section', 'unified-focus-panel');
+  focus.setAttribute('aria-label', 'Current focus');
+  const focusHeading = node('div', 'unified-panel-heading');
+  focusHeading.append(node('span', 'unified-panel-kicker', 'Current focus'));
+  const focusTitle = node('h2', 'unified-focus-title');
+  const focusMeta = node('p', 'unified-focus-meta');
+  const focusState = node('p', 'unified-focus-state');
+  const focusMain = node('div', 'unified-focus-main');
+  const focusProgress = node('div', 'unified-goal-progress');
+  focusProgress.setAttribute('role', 'img');
+  const focusProgressValue = node('strong', 'unified-goal-progress-value');
+  focusProgress.append(focusProgressValue);
+  const focusSummary = node('div', 'unified-focus-summary');
+  focusSummary.append(focusTitle, focusMeta, focusState);
+  focusMain.append(focusProgress, focusSummary);
+  const calendar = button(
+    '',
+    () => {
+      if (data?.event) openCalendar();
+      else showPage('settings', { settingsSection: 'connections' });
+    },
+    'unified-calendar-row',
+  );
+  const calendarKicker = node('span', 'unified-calendar-kicker', 'Calendar');
+  const calendarTitle = node('strong', 'unified-calendar-title');
+  const calendarMeta = node('span', 'unified-calendar-meta');
+  calendar.append(calendarKicker, calendarTitle, calendarMeta);
+  const focusActions = node('div', 'unified-panel-actions');
+  const focusPrimary = button(
+    '',
+    () => {
+      if (!data?.task) {
+        showPage('goals');
+        return;
+      }
+      showPage('goals', {
+        goalId: data.task.id,
+        editGoal: needsGoalReview(data.status),
+      });
+    },
+    'button primary unified-focus-primary',
+  );
+  const focusTalk = button(
+    'Plan next step',
+    () => {
+      talk(
+        data?.task
+          ? 'Help me choose one small next step for "' + data.task.title + '".'
+          : 'Help me choose one small next step for today.',
+      );
+    },
+    'button unified-focus-talk',
+  );
+  focusActions.append(focusPrimary, focusTalk);
+  focus.append(focusHeading, focusMain, focusActions, calendar);
+
+  const activity = node('section', 'unified-activity-panel');
+  activity.setAttribute('aria-label', 'Recorded activity');
+  const activityHeading = node('div', 'unified-panel-heading');
+  const activityHeadingCopy = node('div');
+  activityHeadingCopy.append(node('h2', 'unified-panel-title', 'activity'));
+  activityHeading.append(activityHeadingCopy);
+  const openActivity = button(
+    'View data as list',
+    () => showPage('activity'),
+    'button unified-open-activity',
+  );
+  const capture = node('div', 'unified-capture-row');
+  const captureState = node('span', 'unified-capture-state');
+  const recording = button('', () => toggleRecording(), 'button unified-recording-toggle');
+  const recordingFeedback = node('span', 'unified-recording-feedback');
+  recordingFeedback.setAttribute('role', 'status');
+  const periodControls = node('div', 'unified-period-controls');
+  periodControls.setAttribute('role', 'group');
+  periodControls.setAttribute('aria-label', 'Recorded time range');
+  const periodButtons = new Map();
+  for (const id of ['day', 'week', 'month']) {
+    const control = button(
+      ANALYTIC_WINDOWS[id].label,
+      () => {
+        if (analyticWindow === id) return;
+        analyticWindow = id;
+        render();
+        animateReveal([metric, plot, ranking]);
+      },
+      'unified-period-control',
+    );
+    periodControls.append(control);
+    periodButtons.set(id, control);
+  }
+  capture.append(captureState, periodControls, recording, recordingFeedback);
+  const activityVisual = node('div', 'unified-activity-visual');
+  const metric = node('strong', 'unified-activity-metric');
+  const metricLabel = node('span', 'unified-activity-metric-label');
+  const plot = node('div', 'unified-usage-plot');
+  plot.setAttribute('role', 'img');
+  const sites = node('ol', 'unified-site-list');
+  const ranking = node('div', 'unified-ranking');
+  const rankingHeading = node('h3', 'unified-ranking-heading');
+  ranking.append(rankingHeading, sites);
+  const emptyUsage = node('p', 'unified-usage-empty');
+  const usageScope = node('p', 'unified-activity-scope');
+  const historyLimit = node('p', 'unified-history-limit');
+  activityVisual.append(metric, metricLabel, plot, ranking, emptyUsage, usageScope, historyLimit);
+  const sourceList = node('ul', 'unified-source-list');
+  sourceList.setAttribute('aria-label', 'Connected and recording sources');
+  const activityFooter = node('div', 'unified-activity-footer');
+  activityFooter.append(node('span', 'unified-sources-label', 'Sources'), sourceList, openActivity);
+  activity.append(activityHeading, capture, activityVisual, activityFooter);
+
+  const agent = node('section', 'unified-agent-panel');
+  agent.setAttribute('aria-label', 'Eilo check-in state');
+  const agentHeading = node('div', 'unified-panel-heading');
+  const agentHeadingCopy = node('div');
+  agentHeadingCopy.append(node('h2', 'unified-panel-title', 'check-ins'));
+  agentHeading.append(
+    agentHeadingCopy,
+    button(
+      'details',
+      () => showPage('activity', { activityTab: 'ai' }),
+      'button unified-agent-open',
+    ),
+  );
+  const agentStatus = node('strong', 'unified-agent-status');
+  const agentDescription = node('p', 'unified-agent-description');
+  const agentLatest = node('p', 'unified-agent-latest');
+  const attention = node('div', 'unified-attention');
+  attention.hidden = true;
+  const attentionCopy = node('p', 'unified-attention-copy');
+  attention.append(
+    attentionCopy,
+    button(
+      'Review',
+      () => showPage('settings', { settingsSection: 'sources' }),
+      'button unified-attention-action',
+    ),
+  );
+  agent.append(agentHeading, agentStatus, agentDescription, agentLatest, attention);
+  overview.append(focus, activity, agent);
+  board.before(overview);
+
+  const dockHeader = node('div', 'unified-dock-header');
+  const launcher = button(
+    '',
+    () => {
+      if (!isOpen()) setOpen(true);
+    },
+    'unified-dock-launcher',
+  );
+  const orb = node('span', 'unified-presence');
+  const dockCopy = node('span', 'unified-dock-copy');
+  const dockTitle = node('strong', 'unified-dock-title', 'Talk to eïlo');
+  const dockStatus = node('span', 'unified-dock-status');
+  dockCopy.append(dockTitle, dockStatus);
+  launcher.append(orb, dockCopy);
+  const dockTools = node('div', 'unified-dock-tools');
+  const history = button('History', onHistory, 'button unified-history');
+  const conversationControl = button(
+    '',
+    () => setOpen(!isOpen()),
+    'button unified-conversation-control',
+  );
+  conversationControl.setAttribute('aria-controls', 'eilo-conversation-thread');
+  dockTools.append(history, conversationControl);
+  dockHeader.append(launcher, dockTools);
   dock.prepend(dockHeader);
+
   const briefing = node('section', 'unified-briefing');
   briefing.setAttribute('aria-label', 'Welcome-back briefing');
-  const prompt = node('p', 'unified-prompt'),
-    briefingStatus = node('span', 'unified-briefing-status'),
-    actions = node('div', 'unified-replies');
-  const completed = button('Finished', () => changeGoal('complete'));
-  const keep = button('Still want to', () => {
-    if (!data?.task) return;
-    dismiss();
-    showPage('goals', { goalId: data.task.id, editGoal: true });
-  });
+  const goalStart = node('section', 'unified-goal-start');
+  goalStart.setAttribute('aria-label', 'New goal');
+  goalStart.hidden = true;
+  goalStart.append(
+    node('p', 'unified-goal-question', 'What would you like to work toward?'),
+    button(
+      'Use the form',
+      () => showPage('goals', { newGoal: true }),
+      'button unified-goal-manual',
+    ),
+  );
+  const prompt = node('p', 'unified-prompt');
+  let whyAnimation = null;
+  const why = button(
+    'Why this?',
+    () => {
+      whyAnimation?.cancel();
+      const expanded = why.getAttribute('aria-expanded') === 'true';
+      why.setAttribute('aria-expanded', String(!expanded));
+      if (expanded) {
+        const closing = animateReveal([whyPanel], true);
+        whyAnimation = closing;
+        if (closing)
+          closing.finished
+            .then(() => {
+              whyPanel.hidden = true;
+            })
+            .catch(() => {});
+        else whyPanel.hidden = true;
+      } else {
+        whyPanel.hidden = false;
+        whyAnimation = animateReveal([whyPanel]);
+      }
+    },
+    'button unified-why',
+  );
+  why.setAttribute('aria-expanded', 'false');
+  why.setAttribute('aria-controls', 'eilo-why-this');
+  const whyPanel = node('div', 'unified-why-panel');
+  whyPanel.id = 'eilo-why-this';
+  whyPanel.hidden = true;
+  const whyHeading = node('strong', 'unified-why-heading', 'Why eïlo asked');
+  const whyBody = node('p', 'unified-why-body');
+  const whyBasis = node('p', 'unified-why-basis');
+  whyPanel.append(
+    whyHeading,
+    whyBody,
+    whyBasis,
+    button(
+      'Change check-ins',
+      () => showPage('settings', { settingsSection: 'general' }),
+      'button unified-why-settings',
+    ),
+  );
+  const briefingStatus = node('span', 'unified-briefing-status');
+  const replies = node('div', 'unified-replies');
+  const completed = button(
+    'Finished',
+    () => changeGoal('complete'),
+    'button unified-reply-primary',
+  );
+  const keep = button(
+    'Still want to',
+    () => {
+      if (!data?.task) return;
+      dismiss();
+      showPage('goals', { goalId: data.task.id, editGoal: true });
+    },
+    'button',
+  );
   const drop = button('Drop goal', () => changeGoal('cancel'), 'button unified-drop');
-  const start = button('Plan next step', () => {
-    dismiss();
-    talk(
-      data?.task
-        ? 'Help me choose one small next step for “' + data.task.title + '”.'
-        : 'Help me choose one small next step for today.',
-    );
-  });
+  const start = button(
+    'Plan next step',
+    () => {
+      dismiss();
+      talk(
+        data?.task
+          ? 'Help me choose one small next step for "' + data.task.title + '".'
+          : 'Help me choose one small next step for today.',
+      );
+    },
+    'button',
+  );
   const later = button(
     'Not now',
     () => {
       dismiss();
       setOpen(false, { focus: false });
-      toggle.focus();
+      conversationControl.focus({ preventScroll: true });
     },
-    'text-button unified-later',
+    'button unified-later',
   );
-  actions.append(completed, keep, drop, start, later);
-  briefing.append(prompt, briefingStatus, actions);
-  dock.querySelector('.conversation-thread').prepend(briefing);
+  replies.append(completed, keep, drop, start, later);
+  briefing.append(prompt, why, whyPanel, briefingStatus, replies);
+  dock.querySelector('.conversation-thread').prepend(briefing, goalStart);
   const notice = node('div', 'unified-notice');
   notice.hidden = true;
   notice.setAttribute('role', 'status');
   briefing.after(notice);
-  let data = null,
-    healthState = null,
-    view = null,
-    page = 'home',
-    active = false,
-    boardOpen = false,
-    dockBeforeLayout = false;
-  let selection = null,
-    selectionContext = null,
-    detailKey = '',
-    undoRevision = null,
-    lastKey = '',
-    dismissed = false,
-    saving = false;
-  let lastDay = '',
-    lastActiveAt = 0,
-    returnCheckPending = true,
-    returnedAfterAbsence = false,
-    lastChat = null,
-    returnRequestKey = '',
-    destroyed = false,
-    motion = null;
+
+  const foreground = node('dialog', 'unified-return-foreground');
+  foreground.setAttribute('aria-labelledby', 'eilo-return-title');
+  const returnFrame = node('div', 'unified-return-frame');
+  const returnOrb = node('div', 'unified-return-orb');
+  const returnContent = node('div', 'unified-return-content');
+  const returnTitle = node('h2', 'unified-return-title', 'Welcome back.');
+  returnTitle.id = 'eilo-return-title';
+  const returnFocus = node('section', 'unified-return-focus');
+  returnFocus.setAttribute('aria-label', 'Where you left off');
+  const returnFocusTitle = node('strong', 'unified-return-focus-title');
+  const returnFocusMeta = node('span', 'unified-return-focus-meta');
+  returnFocus.append(
+    node('span', 'unified-return-label', 'current focus'),
+    returnFocusTitle,
+    returnFocusMeta,
+  );
+  const returnContext = node('p', 'unified-return-context');
+  const returnPrompt = node('p', 'unified-return-prompt');
+  const continueButton = button(
+    'Continue to workspace',
+    () => closeForeground(),
+    'button unified-return-continue',
+  );
+  returnContent.append(
+    node('span', 'unified-return-eyebrow', 'eïlo · pick up'),
+    returnTitle,
+    returnFocus,
+    returnContext,
+    returnPrompt,
+    continueButton,
+  );
+  returnFrame.append(returnOrb, returnContent);
+  foreground.append(returnFrame);
+  workspace.append(foreground);
+  foreground.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    closeForeground();
+  });
+
+  let data = null;
+  let view = null;
+  let page = 'home';
+  let active = false;
+  let boardOpen = false;
+  let dockBeforeLayout = false;
+  let undoRevision = null;
+  let dismissed = false;
+  let saving = false;
+  let recordingBusy = false;
+  let analyticWindow = 'week';
+  let lastKey = '';
+  let lastDay = '';
+  let lastActiveAt = 0;
+  let returnCheckPending = true;
+  let returnedAfterAbsence = false;
+  let lastChat = null;
+  let returnRequestKey = '';
+  let briefingWasVisible = false;
+  let explainedPrompt = '';
+  let goalMode = false;
+  let foregroundEligible = false;
+  let foregroundClosing = false;
+  let focusStamp = '';
+  let agentStamp = '';
+  let enteredHome = false;
+  let destroyed = false;
+  let motion = null;
   const storeKey = 'eilo:unified-return:v1';
   try {
     lastDay = storage?.getItem(storeKey) || '';
     dismissed = storage?.getItem(storeKey + ':dismissed') === localDay();
-    const savedActiveAt = Number(storage?.getItem(storeKey + ':active-at'));
-    lastActiveAt = Number.isFinite(savedActiveAt) && savedActiveAt > 0 ? savedActiveAt : 0;
+    const storedActiveAt = Number(storage?.getItem(storeKey + ':active-at'));
+    lastActiveAt = Number.isFinite(storedActiveAt) && storedActiveAt > 0 ? storedActiveAt : 0;
   } catch {
     lastDay = '';
   }
+
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   import('../adaptive/dependencies.js')
     .then(({ gsap }) => {
@@ -200,30 +444,50 @@ export function mountUnifiedWorkspace({
       motion = null;
     });
   const tweens = new Set();
-  function stopMotion() {
+  const stopMotion = () => {
     for (const tween of tweens) tween.progress(1).kill();
     tweens.clear();
-  }
-  function enter(targets) {
+  };
+  function enter(targets, options = {}) {
     stopMotion();
     if (!motion || preference.matches || getPreferences().reducedMotion || document.hidden) return;
-    const elements = targets.filter((el) => el && !el.hidden);
+    const elements = targets.filter((element) => element && !element.hidden);
     if (!elements.length) return;
     const tween = motion.fromTo(
       elements,
-      { opacity: 0, y: 14, scale: 0.99 },
+      { opacity: 0, y: options.y ?? 12, scale: options.scale ?? 0.985 },
       {
         opacity: 1,
         y: 0,
         scale: 1,
-        duration: 0.46,
-        stagger: 0.045,
-        ease: 'back.out(1.15)',
+        duration: options.duration ?? 0.46,
+        stagger: options.stagger ?? 0.045,
+        ease: 'back.out(1.08)',
         clearProps: 'opacity,transform',
         onComplete: () => tweens.delete(tween),
       },
     );
     tweens.add(tween);
+  }
+  function animateReveal(targets, reverse = false) {
+    if (preference.matches || getPreferences().reducedMotion || document.hidden) return null;
+    const animations = targets
+      .filter((target) => target && !target.hidden)
+      .map((target) =>
+        target.animate(
+          reverse
+            ? [
+                { opacity: 1, translate: '0 0' },
+                { opacity: 0, translate: '0 -6px' },
+              ]
+            : [
+                { opacity: 0.3, translate: '0 6px' },
+                { opacity: 1, translate: '0 0' },
+              ],
+          { duration: reverse ? 170 : 290, easing: 'cubic-bezier(.2,.8,.2,1)' },
+        ),
+      );
+    return animations[0] || null;
   }
   function dismiss() {
     dismissed = true;
@@ -233,6 +497,83 @@ export function mountUnifiedWorkspace({
       dismissed = true;
     }
     render();
+  }
+  function startGoalConversation() {
+    if (!client.canManage()) return;
+    goalMode = true;
+    dismiss();
+    setOpen(true);
+    render();
+    dock.querySelector('.live-input')?.focus();
+    animateReveal([goalStart]);
+  }
+  function closeForeground() {
+    if (!foreground.open || foregroundClosing) return;
+    foregroundClosing = true;
+    const finish = () => {
+      foreground.close();
+      foregroundClosing = false;
+      foregroundEligible = false;
+      onForegroundChange();
+      heading.focus({ preventScroll: true });
+      enter([overview, dock], { y: 8, duration: 0.38 });
+    };
+    if (preference.matches || getPreferences().reducedMotion) finish();
+    else
+      foreground
+        .animate(
+          [
+            { opacity: 1, translate: '0 0' },
+            { opacity: 0, translate: '0 -10px' },
+          ],
+          { duration: 260, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' },
+        )
+        .finished.then(finish, finish);
+  }
+  function showForeground() {
+    if (
+      !foregroundEligible ||
+      foreground.open ||
+      page !== 'home' ||
+      !data ||
+      view.connection !== 'connected' ||
+      !getPreferences().dailyGuidance ||
+      data.onBreak ||
+      view.draft ||
+      view.sending ||
+      view.localPending ||
+      view.snapshot?.status === 'busy'
+    )
+      return;
+    const recent = dailyStartData(view);
+    setText(returnFocusTitle, data.task?.title || 'Choose your next focus');
+    setText(
+      returnFocusMeta,
+      data.task ? [data.dueLabel, progressText(data.task)].filter(Boolean).join(' \u00b7 ') : '',
+    );
+    returnFocusMeta.hidden = !returnFocusMeta.textContent;
+    setText(
+      returnContext,
+      recent?.nextStep
+        ? 'Last point \u00b7 ' + recent.nextStep
+        : data.event
+          ? data.eventLabel + ' \u00b7 ' + data.event.title
+          : '',
+    );
+    returnContext.hidden = !returnContext.textContent;
+    setText(
+      returnPrompt,
+      needsGoalReview(data.status)
+        ? data.status === 'deadline-passed'
+          ? 'Did you finish it, still want it, or want to drop it?'
+          : 'Is that deadline still current?'
+        : data.task
+          ? 'Your focus is ready when you are.'
+          : 'Start by telling e\u00eflo what matters now.',
+    );
+    foreground.showModal();
+    onForegroundChange();
+    continueButton.focus({ preventScroll: true });
   }
   function rememberActive(at = Date.now()) {
     if (!Number.isFinite(at) || at <= 0) return;
@@ -244,127 +585,41 @@ export function mountUnifiedWorkspace({
     }
   }
   function setBoard(open) {
-    if (open) {
-      dockBeforeLayout = isOpen();
-      closeDetail(false);
-    }
+    if (open) dockBeforeLayout = isOpen();
     boardOpen = open;
     setOpen(open ? false : dockBeforeLayout, { focus: false });
     workspace.classList.toggle('unified-show-widgets', open);
     if (open) enter([board]);
     window.dispatchEvent(new Event('resize'));
   }
-  function detailValue(kind) {
-    if (kind === 'goal') return data.task;
-    if (kind === 'health') return healthState?.items || [];
-    return [data.event, data.calendarState];
-  }
-  function detailTrigger(kind = selection) {
-    return { goal: goal.trigger, event: event.trigger, health: health.trigger }[kind] || null;
-  }
-  function closeDetail(focus = true) {
-    const trigger = detailTrigger();
-    selection = null;
-    detail.hidden = true;
-    goal.trigger.setAttribute('aria-expanded', 'false');
-    event.trigger.setAttribute('aria-expanded', 'false');
-    health.trigger.setAttribute('aria-expanded', 'false');
-    if (focus && trigger) trigger.focus({ preventScroll: true });
-  }
-  function toggleDetail(kind) {
-    if (selection === kind) return closeDetail();
-    selection = kind;
-    selectionContext = view.snapshot.conversation_id;
-    detailKey = JSON.stringify(detailValue(kind));
-    goal.trigger.setAttribute('aria-expanded', String(kind === 'goal'));
-    event.trigger.setAttribute('aria-expanded', String(kind === 'event'));
-    health.trigger.setAttribute('aria-expanded', String(kind === 'health'));
-    detail.replaceChildren();
-    detail.hidden = false;
-    const title = node(
-      'h2',
-      '',
-      kind === 'goal'
-        ? data.task?.title || 'Your goals'
-        : kind === 'health'
-          ? 'Needs attention'
-          : data.event?.title || 'Calendar',
-    );
-    title.tabIndex = -1;
-    detail.append(
-      button('Close', () => closeDetail(), 'text-button unified-detail-close'),
-      title,
-    );
-    if (kind === 'health') {
-      const items = healthState?.items || [];
-      detail.append(node('p', '', healthState?.detail || 'Everything is up to date.'));
-      for (const item of items) {
-        const row = node('article', 'unified-health-item');
-        row.append(node('h3', '', item.title), node('p', '', item.detail));
-        row.append(
-          button(item.action, () => {
-            closeDetail(false);
-            if (item.id === 'checkins') showPage('activity', { activityTab: 'ai' });
-            else
-              showPage('settings', {
-                settingsSection: 'sources',
-                connectionId: item.id === 'browser' ? 'browser-activity' : item.id,
-              });
-          }),
-        );
-        detail.append(row);
-      }
-    } else if (kind === 'goal' && data.task) {
-      const task = data.task;
-      detail.append(
-        node(
-          'p',
-          '',
-          [task.due_text, progressText(task)].filter(Boolean).join(' · ') || 'No deadline set.',
-        ),
-      );
-      if (['deadline-passed', 'deadline-needs-review'].includes(data.status))
-        detail.append(
-          button('Review deadline', () => {
-            closeDetail(false);
-            dismiss();
-            showPage('goals', { goalId: task.id, editGoal: true });
-          }),
-        );
-      detail.append(button('Discuss this goal', () => talk('About “' + task.title + '”: ')));
-      detail.append(button('Manage goals', () => showPage('goals'), 'text-button'));
-    } else if (kind === 'goal') {
-      detail.append(node('p', '', 'Choose what you want to focus on.'));
-      detail.append(button('Choose a goal', () => showPage('goals')));
-    } else {
-      detail.append(node('p', '', data.eventLabel));
-      detail.append(
-        button(data.event ? 'See today’s events' : 'Manage Calendar', () =>
-          data.event ? openCalendar() : showPage('settings', { settingsSection: 'connections' }),
-        ),
-      );
+  async function toggleRecording() {
+    if (recordingBusy || !view || !recordingControlState(view).available) return;
+    recordingBusy = true;
+    recordingFeedback.textContent = 'Updating recording...';
+    render();
+    try {
+      await onRecordingToggle();
+      recordingFeedback.textContent = '';
+    } catch (error) {
+      recordingFeedback.textContent =
+        error?.message || 'Recording could not be updated. Try again.';
+    } finally {
+      recordingBusy = false;
+      render();
+      animateReveal([captureState, recording]);
     }
-    enter([detail]);
-    title.focus({ preventScroll: true });
   }
-  detail.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      closeDetail();
-    }
-  });
   async function changeGoal(action) {
     if (!data?.task || saving || !client.canManage()) return;
-    const state = view.snapshot,
-      task = { ...data.task },
-      focus = state.tasks.focus_id;
+    const state = view.snapshot;
+    const task = { ...data.task };
+    const focusId = state.tasks.focus_id;
     saving = true;
     notice.hidden = true;
     render();
     try {
       const next = await client.controlTasks(
-        goalActionOperations(task, action, focus),
+        goalActionOperations(task, action, focusId),
         state.tasks.revision,
         state.conversation_id,
       );
@@ -382,7 +637,7 @@ export function mountUnifiedWorkspace({
             if (view.snapshot.conversation_id !== state.conversation_id)
               throw new Error('Return to the original conversation to undo.');
             await client.controlTasks(
-              undoGoalOperations(task, action, focus),
+              undoGoalOperations(task, action, focusId),
               next.tasks.revision,
               state.conversation_id,
             );
@@ -400,125 +655,293 @@ export function mountUnifiedWorkspace({
             notice.replaceChildren(node('span', '', error.message));
           }
         },
-        'text-button',
+        'button unified-notice-action',
       );
       notice.append(undo);
       notice.hidden = false;
       undo.focus({ preventScroll: true });
     } catch (error) {
-      notice.textContent = error.message || 'That goal could not be updated. Try again.';
+      notice.textContent = error?.message || 'That goal could not be updated. Try again.';
       notice.hidden = false;
     } finally {
       saving = false;
       render();
     }
   }
-  function render() {
-    const previous = active;
-    active = !!data && page === 'home';
-    healthState = summaryHealth(homeHealth(view));
-    const open = isOpen();
-    const showContext = active && open && !boardOpen;
-    const contextChanged = workspace.classList.contains('unified-context-visible') !== showContext;
-    workspace.classList.toggle('unified-home', active);
-    workspace.classList.toggle('unified-browsing', active && !open && !boardOpen);
-    workspace.classList.toggle('unified-context-visible', showContext);
-    if (contextChanged && active)
-      requestAnimationFrame(() => {
-        window.dispatchEvent(new Event('resize'));
-        enter([board, dock]);
-      });
-    for (const el of [summary, date, dockHeader, settings]) el.hidden = !active;
-    if (!active) {
-      briefing.hidden = true;
-      detail.hidden = true;
+  function renderSources(rows) {
+    sourceList.replaceChildren();
+    for (const source of rows) {
+      const item = node('li', 'unified-source');
+      item.dataset.tone = source.tone;
+      item.title = [source.name, source.status, source.detail].filter(Boolean).join(' · ');
+      const detail = node('span', 'unified-source-detail', source.detail);
+      detail.hidden = !source.detail;
+      item.append(node('strong', '', source.name), node('span', '', source.status), detail);
+      sourceList.append(item);
+    }
+  }
+  function renderUsage(lens) {
+    const hasUsage = lens.usage.available && lens.usage.hasData;
+    const period = lens.period;
+    for (const [id, control] of periodButtons) {
+      const supported = id !== 'month' || period.supported;
+      control.disabled = !hasUsage || !supported;
+      control.setAttribute('aria-pressed', String(id === analyticWindow));
+      control.dataset.selected = String(id === analyticWindow);
+      if (id === 'month' && !supported) {
+        control.title = '31-day history is unavailable. Eilo retains seven days of recorded time.';
+        control.setAttribute('aria-label', '31 days unavailable. Seven days are retained.');
+      } else {
+        control.removeAttribute('title');
+        control.setAttribute('aria-label', ANALYTIC_WINDOWS[id].label + ' recorded time');
+      }
+    }
+    activity.classList.toggle('unified-activity-empty', !hasUsage);
+    activity.classList.toggle('unified-activity-no-ranking', !period.hasBreakdown);
+    metric.hidden = !hasUsage;
+    metricLabel.hidden = !hasUsage;
+    plot.hidden = !hasUsage;
+    ranking.hidden = !hasUsage || !period.hasBreakdown;
+    emptyUsage.hidden = hasUsage;
+    historyLimit.hidden = period.supported || !hasUsage;
+    if (!hasUsage) {
+      setText(
+        emptyUsage,
+        view?.connection === 'offline'
+          ? 'Recorded activity is unavailable while eilo reconnects.'
+          : 'Recorded desktop apps or browser sites appear here after you enable a source.',
+      );
+      setText(usageScope, 'Only retained activity from enabled sources appears here.');
+      plot.replaceChildren();
+      sites.replaceChildren();
       return;
     }
-    heading.textContent = data.onBreak ? 'Take your time' : 'Welcome back';
+    setText(metric, formatRecordedTime(lens.totalSeconds));
+    setText(metricLabel, lens.source + ' · ' + (period.id === 'day' ? 'today' : 'last 7 days'));
+    plot.dataset.period = period.id;
+    plot.replaceChildren();
+    plot.setAttribute(
+      'aria-label',
+      period.days
+        .map((day) => dayLabel(day.date) + ': ' + formatRecordedTime(day.seconds) + ' recorded')
+        .join('. '),
+    );
+    for (const day of period.days) {
+      const column = node('span', 'unified-usage-column');
+      const bar = node('span', 'unified-usage-bar');
+      const height = Math.max(day.seconds ? 8 : 3, (day.seconds / lens.peakSeconds) * 100);
+      bar.style.setProperty('--usage-height', height + '%');
+      bar.title = dayLabel(day.date) + ': ' + formatRecordedTime(day.seconds) + ' recorded';
+      bar.setAttribute('aria-hidden', 'true');
+      column.append(bar, node('span', 'unified-usage-day', dayLabel(day.date)));
+      plot.append(column);
+    }
+    const rankedApps = lens.source === 'desktop';
+    setText(
+      rankingHeading,
+      rankedApps ? 'most used apps (last 7 days)' : 'most used sites (last 7 days)',
+    );
+    sites.setAttribute(
+      'aria-label',
+      rankedApps ? 'Most recorded desktop apps' : 'Most recorded browser sites',
+    );
+    sites.replaceChildren();
+    for (const entry of lens.entries) {
+      const item = node('li', 'unified-site');
+      const meter = node('span', 'unified-site-meter');
+      meter.style.setProperty(
+        '--site-share',
+        Math.max(5, (entry.seconds / Math.max(1, lens.totalSeconds)) * 100) + '%',
+      );
+      item.append(
+        node('span', 'unified-site-host', entry.name),
+        node('span', 'unified-site-time', formatRecordedTime(entry.seconds)),
+        meter,
+      );
+      sites.append(item);
+    }
+    setText(
+      usageScope,
+      'Recorded ' + lens.source + ' time only. Gaps are not counted. Days use UTC.',
+    );
+    setText(historyLimit, '31-day history is unavailable while only seven days are retained.');
+  }
+  function render() {
+    const wasActive = active;
+    active = Boolean(data) && page === 'home';
+    const open = isOpen();
+    workspace.classList.toggle('unified-home', active);
+    workspace.classList.toggle('unified-context-visible', active && open && !boardOpen);
+    workspace.classList.toggle('unified-browsing', active && !open && !boardOpen);
+    for (const element of [overview, date, goalsButton, settingsButton, dockHeader])
+      element.hidden = !active;
+    for (const legacy of legacyActions)
+      legacy.hidden = active || legacy.classList.contains('overflow-toggle');
+    if (!active) {
+      briefing.hidden = true;
+      briefingWasVisible = false;
+      return;
+    }
+
+    heading.textContent = data.onBreak ? 'Taking a break' : 'Focus workspace';
     date.textContent = data.dateLabel;
     date.dateTime = localDay();
-    goal.eyebrow.textContent = data.task ? 'Current focus' : 'Choose a focus';
-    goal.title.textContent = data.task?.title || 'Choose what to work on';
-    goal.meta.textContent = data.dueLabel || '';
-    goal.meta.hidden = !goal.meta.textContent;
-    goal.state.textContent = data.goalLabel || '';
-    goal.state.hidden = !goal.state.textContent;
-    event.eyebrow.textContent = data.event ? 'Coming up' : 'Calendar';
-    event.title.textContent = data.event?.title || data.calendarState;
-    event.meta.textContent = data.eventLabel || '';
-    event.meta.hidden = !event.meta.textContent;
-    event.state.hidden = true;
-    const sources = selectTracking(view).rows.filter((row) =>
-      ['desktop', 'browser'].includes(row.id),
+
+    const task = data.task;
+    const review = needsGoalReview(data.status);
+    setText(focusTitle, task?.title || 'Choose what to focus on');
+    const hasCount = Boolean(
+      task &&
+      Number.isInteger(task.target_count) &&
+      task.target_count > 0 &&
+      Number.isInteger(task.completed_count),
     );
-    const recording = sources.some((row) => ['Collecting', 'Sharing'].includes(row.status));
-    const paused = sources.some((row) => row.status === 'Paused');
-    activity.title.textContent = recording
-      ? 'Recording activity'
-      : paused
-        ? 'Recording paused'
-        : 'Your activity';
-    activity.meta.textContent = sources.map((row) => row.name + ': ' + row.status).join(' · ');
-    activity.meta.hidden = !activity.meta.textContent;
-    activity.state.textContent = paused ? 'Manage activity' : '';
-    activity.state.hidden = !activity.state.textContent;
-    health.trigger.hidden = !healthState.items.length;
-    health.title.textContent = healthState.title;
-    health.meta.textContent = healthState.detail;
-    health.meta.hidden = !healthState.detail;
-    health.state.hidden = true;
-    activity.trigger.setAttribute('aria-label', 'Open activity');
-    goal.trigger.setAttribute(
+    focusProgress.hidden = !hasCount;
+    focusMain.classList.toggle('unified-no-progress', !hasCount);
+    if (hasCount) {
+      setText(focusProgressValue, task.completed_count + ' / ' + task.target_count);
+      focusProgress.style.setProperty(
+        '--goal-progress',
+        Math.min(100, Math.max(0, (task.completed_count / task.target_count) * 100)) + '%',
+      );
+      focusProgress.setAttribute('aria-label', progressText(task));
+    }
+    setText(
+      focusMeta,
+      task
+        ? [data.dueLabel, hasCount ? '' : progressText(task)].filter(Boolean).join(' \u00b7 ')
+        : '',
+    );
+    focusMeta.hidden = !focusMeta.textContent;
+    setText(focusState, review ? 'Needs your update' : '');
+    focusState.hidden = !focusState.textContent;
+    focusState.dataset.needsReview = String(review);
+    focusPrimary.textContent = !task ? 'Choose focus' : review ? 'Review goal' : 'Open goal';
+    focusPrimary.disabled = Boolean(task && !client.canManage());
+    goalsButton.disabled = !client.canManage();
+    focusTalk.hidden = Boolean(task && review);
+    focusTalk.disabled = !client.canManage();
+    const nextFocusStamp = [task?.id, task?.completed_count, data.status].join(':');
+    if (focusStamp && focusStamp !== nextFocusStamp) animateReveal([focusMain, focusPrimary]);
+    focusStamp = nextFocusStamp;
+
+    setText(calendarTitle, data.event?.title || data.calendarState || 'Calendar');
+    setText(calendarMeta, data.event ? data.eventLabel || '' : '');
+    calendarMeta.hidden = !calendarMeta.textContent;
+    calendar.setAttribute(
       'aria-label',
-      data.task ? 'Details for ' + data.task.title : 'Choose your focus',
+      data.event ? 'Open calendar event ' + data.event.title : 'Manage Calendar connection',
     );
-    event.trigger.setAttribute(
+
+    const lens = homeAttentionLens(view, analyticWindow);
+    const recordingState = recordingControlState(view);
+    setText(
+      captureState,
+      recordingState.available ? recordingState.status : 'Recording unavailable',
+    );
+    captureState.dataset.state = recordingState.active ? 'active' : 'paused';
+    recording.hidden = !recordingState.available;
+    recording.disabled = recordingBusy;
+    recording.textContent = recordingBusy ? 'Updating...' : recordingState.label;
+    recording.dataset.state = recordingState.active ? 'active' : 'paused';
+    recording.setAttribute(
       'aria-label',
-      data.event ? 'Details for ' + data.event.title : data.calendarState,
+      recordingState.status + '. ' + (recordingBusy ? 'Updating recording' : recordingState.label),
     );
-    health.trigger.setAttribute('aria-label', healthState.title || 'Needs attention');
-    toggle.setAttribute('aria-label', open ? 'Collapse conversation' : 'Expand conversation');
-    toggle.setAttribute('aria-expanded', String(open));
-    toggle.querySelector('use').setAttribute('href', open ? '#arrow-down' : '#arrow-up');
-    history.hidden = !open;
-    prompt.textContent = data.prompt;
-    const preparingReturn = view.snapshot?.return_briefing?.phase === 'preparing';
-    briefingStatus.textContent = preparingReturn ? 'Putting together your catch-up...' : '';
-    briefingStatus.hidden = !preparingReturn;
-    const empty = dock.querySelector('.conversation-empty-state .live-empty');
-    if (empty)
-      empty.textContent = data.task
-        ? 'What would help you get started?'
-        : 'What would you like to work on next?';
-    briefing.hidden = dismissed || !getPreferences().dailyGuidance || data.onBreak || !open;
-    dock.classList.toggle('has-return-briefing', !briefing.hidden);
-    const needsReview = ['deadline-passed', 'deadline-needs-review'].includes(data.status);
+    renderUsage(lens);
+
+    const checkins = lens.checkins;
+    setText(agentStatus, checkins.title);
+    agentStatus.dataset.tone = checkins.tone;
+    setText(agentDescription, checkins.description);
+    const nextAgentStamp = [checkins.title, checkins.description].join(':');
+    if (agentStamp && agentStamp !== nextAgentStamp) animateReveal([agentStatus, agentDescription]);
+    agentStamp = nextAgentStamp;
+    const latest = checkins.history[0];
+    setText(agentLatest, latest ? latest.title + '. ' + latest.description : '');
+    agentLatest.hidden = !agentLatest.textContent;
+    renderSources(lens.sources);
+    const attentionItems = independentAttention(view);
+    attention.hidden = !attentionItems.length;
+    if (attentionItems.length)
+      setText(
+        attentionCopy,
+        attentionItems.length === 1
+          ? attentionItems[0].title + '. ' + attentionItems[0].detail
+          : attentionItems.length + ' connection details need attention.',
+      );
+
+    const preparing = view.snapshot?.return_briefing?.phase === 'preparing';
+    setText(briefingStatus, preparing ? 'Putting together your catch-up...' : '');
+    briefingStatus.hidden = !briefingStatus.textContent;
+    setText(prompt, data.prompt);
+    if (explainedPrompt !== data.prompt) {
+      explainedPrompt = data.prompt;
+      whyPanel.hidden = true;
+      why.setAttribute('aria-expanded', 'false');
+      animateReveal([prompt]);
+    }
+    setText(
+      whyBody,
+      review
+        ? 'The saved deadline has passed. Eilo asks for your update before suggesting a next step.'
+        : task
+          ? 'This is your saved current focus goal. Daily welcome-back guidance is on.'
+          : 'Daily welcome-back guidance is on, and there is no saved current focus goal.',
+    );
+    setText(
+      whyBasis,
+      task ? 'Based on: saved goal and daily guidance setting' : 'Based on: daily guidance setting',
+    );
+    const briefingVisible = !dismissed && getPreferences().dailyGuidance && !data.onBreak && open;
+    briefing.hidden = !briefingVisible || goalMode;
+    goalStart.hidden = !goalMode || !open;
+    dock.classList.toggle('has-return-briefing', briefingVisible);
+    if (briefingVisible && !briefingWasVisible)
+      requestAnimationFrame(() => {
+        const thread = dock.querySelector('.conversation-thread');
+        if (thread) thread.scrollTop = 0;
+      });
+    briefingWasVisible = briefingVisible;
     for (const action of [completed, keep, drop]) {
-      action.hidden = !data.task || !needsReview;
+      action.hidden = !task || !review;
       action.disabled = saving || !client.canManage();
     }
-    start.hidden = !!data.task && needsReview;
-    start.textContent = data.task ? 'Plan next step' : 'Choose a next step';
+    start.hidden = Boolean(task && review);
+    start.textContent = task ? 'Plan next step' : 'Choose a next step';
     start.disabled = !client.canManage();
     later.disabled = saving;
-    if (
-      selection &&
-      (selectionContext !== view.snapshot.conversation_id ||
-        detailKey !== JSON.stringify(detailValue(selection)))
-    )
-      closeDetail(false);
-    if (!previous) enter([header, summary, dock]);
+
+    launcher.disabled = open;
+    launcher.setAttribute(
+      'aria-label',
+      open ? 'Conversation is open' : 'Open conversation with eilo',
+    );
+    setText(dockStatus, checkins.title);
+    history.hidden = !open;
+    conversationControl.textContent = open ? 'Hide' : 'Open';
+    conversationControl.setAttribute(
+      'aria-label',
+      open ? 'Hide conversation' : 'Open conversation',
+    );
+    conversationControl.setAttribute('aria-expanded', String(open));
+
+    if (!wasActive) enter([header, overview, dock]);
   }
   function update(next, nextPage) {
     view = next;
     page = nextPage;
     data = returnBriefingData(view);
+    if (page !== 'home' || view.sending || view.localPending) goalMode = false;
+    if (page === 'home' && !enteredHome) {
+      enteredHome = true;
+      if (!isOpen()) setOpen(true, { focus: false });
+    }
     const chat = view.snapshot?.conversation_id;
     if (lastChat && lastChat !== chat) {
       dismissed = true;
       notice.hidden = true;
       returnRequestKey = '';
-      closeDetail(false);
     }
     lastChat = chat;
     const day = localDay();
@@ -530,13 +953,13 @@ export function mountUnifiedWorkspace({
       undoRevision = null;
     }
     const canCheckReturn =
-      !!data &&
+      Boolean(data) &&
       !document.hidden &&
       page === 'home' &&
       view.connection === 'connected' &&
       returnCheckPending;
     const now = Date.now();
-    const returnReason = day !== lastDay ? 'daily' : 'absence';
+    const reason = day !== lastDay ? 'daily' : 'absence';
     const offer =
       canCheckReturn &&
       !dismissed &&
@@ -546,9 +969,9 @@ export function mountUnifiedWorkspace({
         now,
         lastActiveAt: returnedAfterAbsence ? now - RETURN_AFTER_ABSENCE_MS : lastActiveAt,
         absenceMs: RETURN_AFTER_ABSENCE_MS,
-        hasDraft: !!view.draft,
-        busy: view.sending || !!view.localPending || view.snapshot?.status === 'busy',
-        onBreak: data.onBreak,
+        hasDraft: Boolean(view.draft),
+        busy: view.sending || Boolean(view.localPending) || view.snapshot?.status === 'busy',
+        onBreak: data?.onBreak,
         guidance: getPreferences().dailyGuidance,
         onboarding: view.snapshot?.onboarding,
       });
@@ -565,19 +988,21 @@ export function mountUnifiedWorkspace({
     }
     if (offer) {
       dismissed = false;
+      foregroundEligible = true;
       setOpen(true, { focus: false });
-      const requestKey = [chat, day, returnReason].join(':');
-      if (returnRequestKey !== requestKey) {
-        returnRequestKey = requestKey;
-        void client.requestReturn?.(returnReason, day);
+      const key = [chat, day, reason].join(':');
+      if (returnRequestKey !== key) {
+        returnRequestKey = key;
+        void client.requestReturn?.(reason, day);
       }
     }
     const key = page + ':' + isOpen();
     render();
+    showForeground();
     if (key !== lastKey) {
-      if (active) enter([dock]);
+      if (active) enter([overview, dock], { y: 10, duration: 0.42 });
       else if (lastKey.split(':')[0] !== page)
-        enter([header, workspace.querySelector('.workspace-page')]);
+        enter([header, workspace.querySelector('.workspace-page')], { y: 10, duration: 0.34 });
     }
     lastKey = key;
   }
@@ -614,6 +1039,7 @@ export function mountUnifiedWorkspace({
   const layoutObserver = new MutationObserver(syncLayoutMode);
   layoutObserver.observe(appWindow, { attributes: true, attributeFilter: ['class'] });
   syncLayoutMode();
+
   return {
     get active() {
       return active;
@@ -629,7 +1055,19 @@ export function mountUnifiedWorkspace({
       window.removeEventListener('pagehide', onPageHide);
       preference.removeEventListener('change', onPreference);
       layoutObserver.disconnect();
-      for (const el of [summary, detail, date, dockHeader, briefing, notice, settings]) el.remove();
+      for (const legacy of legacyActions) legacy.hidden = false;
+      for (const element of [
+        overview,
+        date,
+        goalsButton,
+        settingsButton,
+        dockHeader,
+        briefing,
+        goalStart,
+        foreground,
+        notice,
+      ])
+        element.remove();
     },
   };
 }

@@ -10,6 +10,12 @@ if (document.documentElement.dataset.source === 'live') {
   document.body.prepend(background);
   const gradient = createHeroGradient(background);
   gradient.render();
+  const aura = document.createElement('div');
+  aura.className = 'home-aura';
+  aura.setAttribute('aria-hidden', 'true');
+  background.after(aura);
+  const { mountHomeAura } = await import('./home/aura.js');
+  const auraRenderer = mountHomeAura(aura);
   const brand = document.createElement('div');
   brand.className = 'scene-wordmark wordmark';
   brand.setAttribute('role', 'img');
@@ -20,6 +26,9 @@ if (document.documentElement.dataset.source === 'live') {
   await document.fonts.ready;
   const lettering = await mountGlassWordmark(brand);
   addEventListener('pagehide', (event) => {
-    if (!event.persisted) lettering?.destroy();
+    if (!event.persisted) {
+      lettering?.destroy();
+      auraRenderer?.destroy();
+    }
   });
 }

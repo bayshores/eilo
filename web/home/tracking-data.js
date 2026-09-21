@@ -136,7 +136,7 @@ export function selectTracking(view) {
   };
 }
 
-function validUsage(usage) {
+function validUsage(usage, key = 'origin', validKey = canonicalOrigin) {
   if (
     !usage ||
     usage.timezone !== 'UTC' ||
@@ -173,14 +173,14 @@ function validUsage(usage) {
   for (const site of usage.sites) {
     if (
       !site ||
-      !canonicalOrigin(site.origin) ||
+      !validKey(site[key]) ||
       !finiteNonnegative(site.observed_seconds) ||
       site.observed_seconds > previousSeconds ||
-      origins.has(site.origin)
+      origins.has(site[key])
     )
       return false;
     previousSeconds = site.observed_seconds;
-    origins.add(site.origin);
+    origins.add(site[key]);
     sitesTotal += site.observed_seconds;
   }
   return (
@@ -229,6 +229,29 @@ export function selectBrowserUsage(view) {
   };
 }
 
+const validAppName = (name) =>
+  typeof name === 'string' && name.length > 0 && name.length <= 180 && name.trim() === name;
+
+/** Retained desktop aggregates use the same seven-day contract as browser usage. */
+export function selectDesktopUsage(view) {
+  const isOnline = online(view);
+  if (!isOnline) return { ...emptyUsage(false), apps: [] };
+  const usage = view?.snapshot?.adaptive?.policy?.desktop_enabled
+    ? view.snapshot.adaptive.usage?.desktop
+    : null;
+  if (!validUsage(usage, 'app_name', validAppName)) return { ...emptyUsage(true), apps: [] };
+  return {
+    available: true,
+    online: true,
+    totalSeconds: usage.total_observed_seconds,
+    days: usage.days.map((day) => ({ date: day.date, seconds: day.observed_seconds })),
+    apps: usage.sites.map((app) => ({ name: app.app_name, seconds: app.observed_seconds })),
+    hasData: usage.total_observed_seconds > 0,
+    timezone: 'UTC',
+    scope: 'retained_sessions',
+  };
+}
+
 export function formatRecordedTime(seconds) {
   if (!finiteNonnegative(seconds)) return '0m';
   if (seconds < 60 && seconds > 0) return '<1m';
@@ -237,6 +260,26 @@ export function formatRecordedTime(seconds) {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+}
+
+/**
+ * The visible recording control is derived from the same policy and legacy
+ * activity state as the collector. It describes whether a person can pause or
+ * resume collection; it never implies that a source is producing useful context.
+ */
+export function recordingControlState(view) {
+  const policy = view?.snapshot?.adaptive?.policy;
+  const adaptiveConfigured = Boolean(policy?.desktop_enabled || policy?.browser_enabled);
+  const legacyState = view?.snapshot?.accountability?.activity?.state;
+  const legacyConfigured = ['active', 'paused'].includes(legacyState);
+  const available = view?.connection === 'connected' && (adaptiveConfigured || legacyConfigured);
+  const active = available && (policy?.enabled === true || legacyState === 'active');
+  return {
+    available,
+    active,
+    label: active ? 'Pause recording' : 'Resume recording',
+    status: active ? 'Recording on' : 'Recording paused',
+  };
 }
 
 /** Status describes observed transport health, never just a saved permission. */

@@ -42,6 +42,7 @@ function resetPose() {
 function blocked(element) {
   return (
     !hoverAllowed.matches ||
+    !!element.closest('.unified-home') ||
     element.matches(':disabled, [aria-disabled="true"]') ||
     document.body.classList.contains('reduce-motion') ||
     document.body.classList.contains('resize-active') ||
