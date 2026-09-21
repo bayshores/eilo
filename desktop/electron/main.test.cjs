@@ -446,6 +446,22 @@ test('macOS merges Home into the titlebar while retaining native traffic lights'
   assert.equal(h.windows[0].options.titleBarStyle, 'hiddenInset');
 });
 
+test('visible Home replays its show signal only to the trusted renderer handshake', async () => {
+  const h = buildHarness();
+  await drain();
+  await drain();
+  await drain();
+  const window = h.windows[0];
+  window.sent.length = 0;
+  h.ipcMain.emit('eilo:window-show-ready', { sender: {}, senderFrame: {} });
+  assert.deepEqual(window.sent, []);
+  h.ipcMain.emit('eilo:window-show-ready', {
+    sender: window.webContents,
+    senderFrame: window.webContents.mainFrame,
+  });
+  assert.deepEqual(window.sent, [['eilo:window-shown']]);
+});
+
 test('only the trusted main home frame flushes a pending check-in target', async () => {
   const h = buildHarness();
   await drain();
@@ -462,13 +478,14 @@ test('only the trusted main home frame flushes a pending check-in target', async
     sender: window.webContents,
     senderFrame: { url: 'http://127.0.0.1:8765/home/' },
   });
-  assert.equal(window.sent.length, 0);
+  const delivered = () => window.sent.filter(([channel]) => channel === 'eilo:open-check-in');
+  assert.equal(delivered().length, 0);
 
   h.ipcMain.emit('eilo:home-ready', {
     sender: window.webContents,
     senderFrame: window.webContents.mainFrame,
   });
-  assert.deepEqual(window.sent, [
+  assert.deepEqual(delivered(), [
     ['eilo:open-check-in', { conversationId: 'c1', messageId: 'm1', eventId: 'e1' }],
   ]);
 });

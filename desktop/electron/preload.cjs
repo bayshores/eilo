@@ -62,6 +62,13 @@ if (
           ? ipcRenderer.invoke('eilo:set-check-in-notifications', enabled)
           : ipcRenderer.invoke('eilo:check-in-notification-status');
       },
+      onWindowShown(callback) {
+        if (typeof callback !== 'function') return () => {};
+        const listener = () => callback();
+        ipcRenderer.on('eilo:window-shown', listener);
+        ipcRenderer.send('eilo:window-show-ready');
+        return () => ipcRenderer.removeListener('eilo:window-shown', listener);
+      },
       onOpenCheckIn(callback) {
         if (typeof callback !== 'function') return () => {};
         const listener = (_event, target) => {

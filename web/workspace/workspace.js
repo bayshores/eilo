@@ -163,15 +163,28 @@ export function createLiveHome({
     appWindow = document.querySelector('.app-window'),
     board = document.querySelector('.board-scroll');
   let workspaceRevealed = false;
+  let snapshotReady = false;
+  let windowShown = !window.eiloDesktop?.onWindowShown;
+  let bootTimer = 0;
   function revealWorkspace(next) {
-    if (workspaceRevealed || !next.snapshot) return;
+    if (next?.snapshot) snapshotReady = true;
+    if (workspaceRevealed || !snapshotReady || !windowShown) return;
     workspaceRevealed = true;
-    requestAnimationFrame(() => {
-      workspace.classList.add('live-ready');
-      appWindow.classList.add('live-ready');
-      appWindow.setAttribute('aria-busy', 'false');
-    });
+    const reducedMotion =
+      getPreferences().reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reveal = () =>
+      requestAnimationFrame(() => {
+        workspace.classList.add('live-ready');
+        appWindow.classList.add('live-ready');
+        appWindow.setAttribute('aria-busy', 'false');
+      });
+    appWindow.classList.add('boot-visible');
+    bootTimer = setTimeout(reveal, reducedMotion ? 0 : 1000);
   }
+  const stopWindowShown = window.eiloDesktop?.onWindowShown?.(() => {
+    windowShown = true;
+    revealWorkspace();
+  });
   const pages = node('div', 'workspace-page');
   pages.hidden = true;
   board.after(pages);
@@ -1348,6 +1361,8 @@ export function createLiveHome({
       speech?.cancel();
       client.stop();
       stopDesktop?.();
+      stopWindowShown?.();
+      clearTimeout(bootTimer);
       router.dispose();
     });
     window.addEventListener('pageshow', (event) => {

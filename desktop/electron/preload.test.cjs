@@ -4,7 +4,8 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync(require('node:path').join(__dirname, 'preload.cjs'), 'utf8');
 function load(location) {
-  let bridge, listener;
+  let bridge;
+  const listeners = new Map();
   const sent = [],
     invoked = [];
   vm.runInNewContext(source, {
@@ -19,18 +20,13 @@ function load(location) {
           },
         },
         ipcRenderer: {
-          on: (channel, fn) => {
-            assert.equal(channel, 'eilo:open-check-in');
-            listener = fn;
-          },
+          on: (channel, fn) => listeners.set(channel, fn),
           send: (channel) => sent.push(channel),
           invoke: (channel, ...args) => {
             invoked.push([channel, ...args]);
             return Promise.resolve({ enabled: false, supported: true, error: false });
           },
-          removeListener: () => {
-            listener = null;
-          },
+          removeListener: (channel) => listeners.delete(channel),
         },
       };
     },
@@ -39,7 +35,7 @@ function load(location) {
     get bridge() {
       return bridge;
     },
-    deliver: (value) => listener?.({ privateNativeObject: true }, value),
+    deliver: (channel, value) => listeners.get(channel)?.({ privateNativeObject: true }, value),
     sent,
     invoked,
   };
@@ -60,20 +56,45 @@ test('only Home receives a narrow subscription; native event and extra payload d
     'openBriefingSource',
     'getCheckInNotifications',
     'setCheckInNotifications',
+    'onWindowShown',
     'onOpenCheckIn',
   ]);
   const unsubscribe = host.bridge.onOpenCheckIn((target) => received.push(target));
   assert.deepEqual(host.sent, ['eilo:home-ready']);
-  host.deliver({ conversationId: 'one', eventId: 'two', messageId: '3', command: 'ignored' });
+  host.deliver('eilo:open-check-in', {
+    conversationId: 'one',
+    eventId: 'two',
+    messageId: '3',
+    command: 'ignored',
+  });
   assert.equal(
     JSON.stringify(received),
     JSON.stringify([{ conversationId: 'one', messageId: '3', eventId: 'two' }]),
   );
-  host.deliver({ conversationId: 'one', eventId: 'file:///etc', messageId: '3' });
+  host.deliver('eilo:open-check-in', {
+    conversationId: 'one',
+    eventId: 'file:///etc',
+    messageId: '3',
+  });
   assert.equal(received.length, 1);
   unsubscribe();
-  host.deliver({ conversationId: 'one', eventId: 'four', messageId: '5' });
+  host.deliver('eilo:open-check-in', {
+    conversationId: 'one',
+    eventId: 'four',
+    messageId: '5',
+  });
   assert.equal(received.length, 1);
+});
+test('native window visibility has one narrow removable signal', () => {
+  const host = load({ origin: 'http://127.0.0.1:8765', pathname: '/home/' });
+  let shown = 0;
+  const unsubscribe = host.bridge.onWindowShown(() => (shown += 1));
+  assert.deepEqual(host.sent, ['eilo:window-show-ready']);
+  host.deliver('eilo:window-shown');
+  assert.equal(shown, 1);
+  unsubscribe();
+  host.deliver('eilo:window-shown');
+  assert.equal(shown, 1);
 });
 test('notification status bridge permits only booleans for the mutating channel', async () => {
   const host = load({ origin: 'http://127.0.0.1:8765', pathname: '/home/' });

@@ -222,6 +222,7 @@ function runDesktop() {
       if (target && !homeURL(window.webContents.getURL())) void window.loadURL(ORIGIN + '/home/');
       window.show();
       window.focus();
+      window.webContents.send('eilo:window-shown');
       flushTarget();
       recordStatus();
     } else if (!quitting) {
@@ -423,6 +424,7 @@ function runDesktop() {
           await window.loadURL(ORIGIN + '/home/');
           window.show();
           window.focus();
+          window.webContents.send('eilo:window-shown');
           return;
         }
         window = new BrowserWindow({
@@ -479,6 +481,7 @@ function runDesktop() {
         await window.loadURL(ORIGIN + '/home/');
         window.show();
         window.focus();
+        window.webContents.send('eilo:window-shown');
         flushTarget();
         updateMenus();
         recordStatus();
@@ -927,6 +930,9 @@ function runDesktop() {
         homeReady = true;
         flushTarget();
       }
+    });
+    ipcMain.on('eilo:window-show-ready', (event) => {
+      if (trustedSender(event) && window.isVisible()) window.webContents.send('eilo:window-shown');
     });
     ipcMain.on('eilo:overlay-ready', (event) => {
       if (!overlay || overlay.isDestroyed() || event.sender !== overlay.webContents) return;
