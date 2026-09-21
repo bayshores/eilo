@@ -175,8 +175,7 @@ export function createWorkspaceViews({
   indexHeader.prepend(searchLabel);
   filters.append(trash);
   index.append(indexHeader, filters, list);
-  index.append(detail);
-  goals.append(index);
+  goals.append(index, detail);
   container.append(goals);
   controls = createItemControls({
     container,
@@ -225,20 +224,12 @@ export function createWorkspaceViews({
       .find((item) => item.dataset.goalId === selectedId)
       ?.focus();
   });
-  goals.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !expandedId || controls.editingKey()) return;
-    if (!detail.contains(event.target)) return;
-    event.preventDefault();
-    const id = expandedId;
-    expandedId = null;
-    controls.closeMenus();
-    renderGoals();
-    [...list.querySelectorAll('.goal-option')].find((item) => item.dataset.goalId === id)?.focus();
-  });
   function renderGoals() {
     const snapshot = current?.snapshot;
     const result = selectGoals(snapshot, { filter, query, selectedId });
     selectedId = result.selected?.id || null;
+    const editingKey = controls.editingKey();
+    expandedId = editingKey === 'new' ? null : selectedId;
     trash.querySelector('.goal-filter-count').textContent = result.counts.deleted;
     trash.setAttribute('aria-pressed', String(filter === 'deleted'));
     trash.hidden = !result.counts.deleted && filter !== 'deleted';
@@ -289,17 +280,16 @@ export function createWorkspaceViews({
         const item = button(
           '',
           () => {
-            const editing = controls.editingKey();
             controls.select();
-            expandedId = expandedId === task.id && !editing ? null : task.id;
+            expandedId = task.id;
             selectedId = task.id;
             renderGoals();
           },
           'goal-option',
         );
         item.dataset.goalId = task.id;
-        item.setAttribute('aria-expanded', String(task.id === expandedId));
-        if (task.id === expandedId) item.setAttribute('aria-controls', detail.id);
+        item.setAttribute('aria-pressed', String(task.id === selectedId));
+        item.setAttribute('aria-controls', detail.id);
         item.append(el('strong', 'goal-option-title', task.title));
         const meta = [
           task.status !== 'open'
@@ -312,11 +302,7 @@ export function createWorkspaceViews({
         ].filter(Boolean);
         if (meta.length) item.append(el('span', 'goal-option-meta', meta.join(' · ')));
         item.append(
-          el(
-            'span',
-            'goal-option-disclosure',
-            task.id === expandedId ? 'Close details' : 'Details',
-          ),
+          el('span', 'goal-option-disclosure', task.id === selectedId ? 'Selected' : 'View goal'),
         );
         list.append(item);
       }
@@ -329,16 +315,8 @@ export function createWorkspaceViews({
         next?.focus({ preventScroll: true });
       }
     }
-    const editingKey = controls.editingKey();
-    const anchor = [...list.querySelectorAll('.goal-option')].find(
-      (item) => item.dataset.goalId === (editingKey || expandedId),
-    );
-    detail.hidden = !editingKey && result.items.length > 0 && !anchor;
-    if (editingKey === 'new') {
-      if (indexHeader.nextElementSibling !== detail) indexHeader.after(detail);
-    } else if (anchor) {
-      if (anchor.nextElementSibling !== detail) anchor.after(detail);
-    } else if (detail.parentNode !== index) index.append(detail);
+    detail.hidden = false;
+    if (detail.parentNode !== goals) goals.append(detail);
     if (detailFocus?.isConnected && !detail.hidden) detailFocus.focus({ preventScroll: true });
     if (controls.renderEditor()) return;
     const task = result.selected,

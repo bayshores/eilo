@@ -1065,8 +1065,12 @@
 
 /* Goal and activity details use the same instrument surface as Home. */
 :root[data-source='live'] .workspace .workspace-inspector {
-  width: min(830px, calc(100vw - 42px));
+  position: fixed;
+  inset: 50% auto auto 50%;
+  width: min(1040px, calc(100vw - 48px));
   padding: 22px;
+  margin: 0;
+  transform: translate(-50%, -50%);
   border: 1px solid #e85d9240;
   border-radius: 3px;
   background: #0e0c11;
@@ -1080,7 +1084,7 @@
   letter-spacing: 0.01em;
 }
 :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] {
-  height: min(690px, calc(100dvh - 72px));
+  height: min(720px, calc(100dvh - 48px));
 }
 :root[data-source='live'] .workspace .workspace-inspector::backdrop {
   background: #050407b8;
@@ -1159,17 +1163,43 @@
   background: #171319;
   color: #f5eef0;
 }
-:root[data-source='live']
-  .workspace
-  .workspace-inspector
-  .goals-index:has(.goal-edit-form)
-  .goals-index-header {
-  display: none;
-}
 :root[data-source='live'] .workspace .workspace-inspector .goals-index,
 :root[data-source='live'] .workspace .workspace-inspector .goals-workspace {
   max-width: none;
   background: transparent;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] > .workspace-page {
+  overflow: hidden;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goals-workspace {
+  grid-template-columns: minmax(270px, 0.38fr) minmax(0, 0.62fr);
+  gap: 20px;
+  height: 100%;
+  overflow: hidden;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goals-index {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  padding: 0 20px 0 0;
+  border-right: 1px solid #e85d9238;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goals-index-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  .goals-index
+  > .goal-filters {
+  padding: 0 0 10px;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goals-list {
+  min-height: 0;
+  padding: 0 2px 8px 0;
 }
 :root[data-source='live'] .workspace .workspace-inspector .goal-detail,
 :root[data-source='live'] .workspace .workspace-inspector .goal-option,
@@ -1180,7 +1210,7 @@
   background: #131118;
   box-shadow: none;
 }
-:root[data-source='live'] .workspace .workspace-inspector .goal-option[aria-expanded='true'] {
+:root[data-source='live'] .workspace .workspace-inspector .goal-option[aria-pressed='true'] {
   border-color: #e85d9280;
   box-shadow: inset 3px 0 #e85d92;
 }
@@ -1188,7 +1218,64 @@
   text-transform: none;
 }
 :root[data-source='live'] .workspace .workspace-inspector .goal-detail {
-  padding: 16px 18px 17px;
+  height: 100%;
+  padding: 21px 22px 18px;
+  overflow: hidden;
+}
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  :is(.goals-index, .goal-detail, .goal-filter, .goal-add, .button).eilo-glass::before,
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  :is(.goals-index, .goal-detail, .goal-filter, .goal-add, .button).eilo-glass::after {
+  display: none;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goal-detail,
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  .goal-detail.eilo-glass {
+  border: 1px solid #e85d922c;
+  border-radius: 2px;
+  background: #131118;
+  box-shadow: none;
+}
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  .goal-option-disclosure {
+  display: none;
+}
+:root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goal-editor-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 15px;
+  padding-right: 6px;
+}
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  .goal-editor-body
+  > :is(
+    .goal-title,
+    .goal-field:has(input[name='title']),
+    .goal-quantity-fields,
+    .item-error,
+    .text-button
+  ) {
+  grid-column-start: 1;
+  grid-column-end: -1;
+}
+:root[data-source='live']
+  .workspace
+  .workspace-inspector[data-view='goals']
+  .goal-edit-form
+  .goal-detail-actions {
+  padding-top: 13px;
+  border-top: 1px solid #e85d9224;
 }
 :root[data-source='live'] .workspace .workspace-inspector .goal-title,
 :root[data-source='live'] .workspace .workspace-inspector .goal-option-title {
@@ -1285,7 +1372,7 @@
 :root[data-source='live'] .eilo-glass {
   rotate: 0deg !important;
 }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   :root[data-source='live'] .workspace .workspace-inspector {
     width: calc(100vw - 20px);
     height: calc(100dvh - 40px);
@@ -1293,6 +1380,45 @@
   }
   :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] {
     height: calc(100dvh - 40px);
+  }
+  :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] > .workspace-page {
+    overflow: auto;
+  }
+  :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goals-workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    height: auto;
+    overflow: visible;
+  }
+  :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goals-index {
+    height: min(190px, 28dvh);
+    max-height: none;
+    padding: 0 0 16px;
+    border-right: 0;
+    border-bottom: 1px solid #e85d9238;
+  }
+  :root[data-source='live']
+    .workspace
+    .workspace-inspector[data-view='goals']
+    .goals-workspace:has(.goal-edit-form)
+    .goals-index {
+    display: none;
+  }
+  :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goal-detail {
+    min-height: min(346px, calc(100dvh - 374px));
+    height: auto;
+  }
+  :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] .goal-editor-body {
+    grid-template-columns: 1fr;
+  }
+  :root[data-source='live']
+    .workspace
+    .workspace-inspector[data-view='goals']
+    .goal-editor-body
+    > * {
+    grid-column-start: 1;
+    grid-column-end: 2;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1302,11 +1428,6 @@
   }
 }
 
-:root[data-source='live']
-  .workspace
-  .workspace-inspector[data-view='goals']:not(:has(.goal-edit-form)) {
-  height: min(440px, calc(100dvh - 72px));
-}
 :root[data-source='live'] .workspace .workspace-inspector .goals-index.eilo-glass {
   border: 0;
   border-radius: 0;
@@ -1323,14 +1444,6 @@
 :root[data-source='live'] .workspace.unified-home .unified-activity-scope {
   display: none;
 }
-@media (max-width: 700px) {
-  :root[data-source='live']
-    .workspace
-    .workspace-inspector[data-view='goals']:not(:has(.goal-edit-form)) {
-    height: calc(100dvh - 40px);
-  }
-}
-
 @property --goal-progress {
   syntax: '<percentage>';
   inherits: false;
@@ -1389,7 +1502,7 @@
     translate: 0 0;
   }
 }
-:root[data-source='live'] .workspace .workspace-inspector .goal-detail:has(.goal-edit-form) {
+:root[data-source='live'] .workspace .workspace-inspector .goal-edit-form {
   animation: eilo-home-chat-in 250ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1402,7 +1515,7 @@
     .workspace.unified-home
     .conversation-dock[data-open='true']
     > .live-chat,
-  :root[data-source='live'] .workspace .workspace-inspector .goal-detail:has(.goal-edit-form) {
+  :root[data-source='live'] .workspace .workspace-inspector .goal-edit-form {
     animation: none;
   }
 }

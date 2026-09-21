@@ -299,7 +299,7 @@ export function createItemControls({
           (state.task
             ? detail.querySelector('[data-goal-action="edit"]')
             : container.querySelector('.goal-add')
-          )?.focus();
+          )?.focus({ preventScroll: true });
         },
         'button goal-cancel-edit',
       ),
