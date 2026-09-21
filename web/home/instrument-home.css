@@ -1066,11 +1066,11 @@
 /* Goal and activity details use the same instrument surface as Home. */
 :root[data-source='live'] .workspace .workspace-inspector {
   position: fixed;
-  inset: 50% auto auto 50%;
+  inset: 0;
   width: min(1040px, calc(100vw - 48px));
   padding: 22px;
-  margin: 0;
-  transform: translate(-50%, -50%);
+  margin: auto;
+  transform: none;
   border: 1px solid #e85d9240;
   border-radius: 3px;
   background: #0e0c11;
@@ -1086,7 +1086,7 @@
 :root[data-source='live'] .workspace .workspace-inspector[data-view='goals'] {
   height: min(720px, calc(100dvh - 48px));
 }
-:root[data-source='live'] .workspace .workspace-inspector::backdrop {
+:root[data-source='live'] .workspace .workspace-inspector-backdrop {
   background: #050407b8;
   backdrop-filter: blur(6px);
 }

@@ -832,21 +832,21 @@ export function createWorkspaceViews({
       item.setAttribute('aria-pressed', String(key === activityFilter));
     overview.hidden = true;
     feed.hidden = false;
-    const nextKey = JSON.stringify([
-      activityFilter,
-      selectedActivityDay,
-      selectedActivityId,
-      records,
-      snapshot?.messages,
-      snapshot?.adaptive?.episodes,
-      snapshot?.adaptive?.usage,
-      snapshot?.adaptive?.policy,
-      checkinView(current).history,
-      snapshot?.accountability?.activity?.state,
-      snapshot?.accountability?.check_ins,
-      snapshot?.tasks,
-      canManage(),
-    ]);
+    const nextKey = JSON.stringify(
+      activityFilter === 'ai'
+        ? [activityFilter, snapshot?.messages, checkinView(current).history]
+        : [
+            activityFilter,
+            selectedActivityDay,
+            selectedActivityId,
+            records,
+            snapshot?.adaptive?.episodes,
+            snapshot?.adaptive?.usage,
+            snapshot?.adaptive?.policy,
+            snapshot?.tasks,
+            canManage(),
+          ],
+    );
     if (nextKey === activityKey) return;
     activityKey = nextKey;
     const scroll = feed.scrollTop;

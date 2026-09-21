@@ -395,6 +395,10 @@ export function createLiveHome({
   const inspector = node('dialog', 'workspace-inspector');
   inspector.id = 'workspace-inspector';
   inspector.setAttribute('aria-labelledby', 'workspace-inspector-title');
+  inspector.setAttribute('aria-modal', 'true');
+  const inspectorBackdrop = node('div', 'workspace-inspector-backdrop');
+  inspectorBackdrop.hidden = true;
+  inspectorBackdrop.setAttribute('aria-hidden', 'true');
   const inspectorHeader = node('header', 'workspace-inspector-header');
   const inspectorTitle = node('h2', '', '');
   inspectorTitle.id = 'workspace-inspector-title';
@@ -402,12 +406,18 @@ export function createLiveHome({
   let inspectorReturnFocus = null;
   let inspectorDockOpen = false;
   let inspectorClosing = false;
+  const setInspectorBackgroundInert = (value) => {
+    for (const child of workspace.children)
+      if (child !== inspector && child !== inspectorBackdrop) child.inert = value;
+  };
   const closeInspector = () => {
     if (inspectorClosing) return;
     const restore = inspectorReturnFocus;
     const open = inspectorDockOpen;
     const finish = () => {
       inspectorClosing = false;
+      inspectorBackdrop.hidden = true;
+      setInspectorBackgroundInert(false);
       showPage('home');
       setThreadOpen(open, { focus: false });
       if (restore?.isConnected && restore.getClientRects().length)
@@ -421,22 +431,26 @@ export function createLiveHome({
       return;
     }
     inspectorClosing = true;
-    inspector
-      .animate(
-        [
-          { opacity: 1, translate: '0 0' },
-          { opacity: 0, translate: '12px 0' },
-        ],
-        { duration: 180, easing: 'ease-in', fill: 'forwards' },
-      )
-      .finished.then(finish, finish);
+    const closing = inspector.animate(
+      [
+        { opacity: 1, translate: '0 0' },
+        { opacity: 0, translate: '12px 0' },
+      ],
+      { duration: 180, easing: 'ease-in', fill: 'forwards' },
+    );
+    Promise.race([
+      closing.finished.catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 220)),
+    ]).then(finish);
   };
   inspectorHeader.append(inspectorTitle, action('Close', closeInspector, 'button'));
   inspector.append(inspectorHeader);
-  workspace.append(inspector);
-  inspector.addEventListener('cancel', (event) => {
-    if (event.defaultPrevented) return;
+  workspace.append(inspectorBackdrop, inspector);
+  inspectorBackdrop.addEventListener('click', closeInspector);
+  inspector.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
     event.preventDefault();
+    event.stopPropagation();
     closeInspector();
   });
   const settingsBack = action('Back to Home', () => showPage('home'), 'button workspace-back');
@@ -453,6 +467,8 @@ export function createLiveHome({
         inspectorDockOpen = threadOpen;
       }
       if (inspector.open) inspector.close();
+      inspectorBackdrop.hidden = true;
+      setInspectorBackgroundInert(false);
       onViewChange(page);
       if (['settings', 'connections'].includes(page)) {
         speech?.cancel();
@@ -514,7 +530,9 @@ export function createLiveHome({
         unified?.update(current, 'home', threadOpen);
         inspectorTitle.textContent = page === 'goals' ? 'Your goals' : 'Activity';
         inspector.dataset.view = page;
-        inspector.showModal();
+        inspectorBackdrop.hidden = false;
+        setInspectorBackgroundInert(true);
+        inspector.show();
         queueMicrotask(() => {
           if (!inspector.open) return;
           if (newGoal) inspector.querySelector('.goal-edit-form input')?.focus();
