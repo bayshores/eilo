@@ -1,11 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  canSaveContextCorrection,
-  contextPolicyPatch,
-  contextSummary,
-  sourcePolicyPatch,
-} from './context-panel.js';
+import { contextPolicyPatch, sourcePolicyPatch } from './context-panel.js';
 
 test('context setting changes preserve independently chosen permissions and exclusions', () => {
   const current = {
@@ -60,40 +55,4 @@ test('adding a source preserves an intentional recording pause', () => {
     true,
   );
   assert.equal(firstSource.enabled, true);
-});
-
-test('Home context status does not imply that choosing adaptive layout enabled AI', () => {
-  assert.deepEqual(contextSummary({ mode: 'adaptive', policy: { ai_enabled: false } }), {
-    label: 'Off',
-    tone: 'quiet',
-  });
-  assert.equal(
-    contextSummary({ policy: { ai_enabled: true }, analysis: { status: 'updating' } }).label,
-    'Updating',
-  );
-  assert.equal(
-    contextSummary({ policy: { ai_enabled: true }, analysis: { status: 'error' } }).tone,
-    'attention',
-  );
-  assert.equal(
-    contextSummary({ policy: { ai_enabled: true }, current_work_context: { title: 'Writing' } })
-      .label,
-    'Ready',
-  );
-  assert.equal(contextSummary(null).label, 'Unavailable');
-});
-
-test('a correction cannot silently overwrite a different or changed work context', () => {
-  const original = { id: 'writing', title: 'Draft a letter', return_point: 'Opening paragraph' };
-  assert.equal(canSaveContextCorrection({ ...original, confidence: 'explicit' }, original), true);
-  assert.equal(canSaveContextCorrection({ ...original, id: 'admin' }, original), false);
-  assert.equal(
-    canSaveContextCorrection({ ...original, title: 'Revise the ending' }, original),
-    false,
-  );
-  assert.equal(
-    canSaveContextCorrection({ ...original, return_point: 'Check the sources' }, original),
-    false,
-  );
-  assert.equal(canSaveContextCorrection(null, original), false);
 });

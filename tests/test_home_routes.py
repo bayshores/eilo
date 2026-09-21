@@ -102,7 +102,7 @@ class HomeRouteTests(unittest.IsolatedAsyncioTestCase):
     async def test_only_allowlisted_home_assets_are_served(self):
         for path in (
             "/home/index.html",
-            "/home/home/layout.js",
+            "/home/home/unified-workspace.js",
             "/home/home/health-data.js",
             "/home/workspace/views.js",
             "/home/workspace/views.css",

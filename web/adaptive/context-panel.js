@@ -11,26 +11,12 @@ const FLAGS = [
 ];
 const SETTINGS_DESCRIPTIONS = {
   general: 'Appearance, microphone, and alerts.',
-  overview: 'Your current work and the widgets on Home.',
   sources: 'Choose what activity to collect and what your AI can use.',
   connections: 'Connect and manage your apps and services.',
   memory: 'Review what stays on this Mac and clear saved activity.',
   account: 'Manage the ChatGPT account felis uses for conversations.',
 };
-const KIND_LABELS = {
-  intention: 'Current intention',
-  resume: 'Return point',
-  outline: 'Outline',
-  stages: 'Stages',
-  resources: 'Resources',
-  comparison: 'Comparison',
-  note: 'Notes',
-  timeline: 'Timeline',
-  usage: 'Usage',
-  connections: 'Tracking',
-};
-
-/** A layout preference never grants capture or AI access. */
+/** Updating one permission never grants a different source or data flow. */
 export function contextPolicyPatch(current, changes) {
   const policy = current?.policy || {};
   return {
@@ -48,26 +34,6 @@ export function sourcePolicyPatch(current, flag, enabled) {
   const hasConfiguredSource = policy.desktop_enabled === true || policy.browser_enabled === true;
   if (enabled && !hasConfiguredSource) next.enabled = true;
   return next;
-}
-
-export function contextSummary(current) {
-  if (!current) return { label: 'Unavailable', tone: 'quiet' };
-  if (!current.policy?.ai_enabled) return { label: 'Off', tone: 'quiet' };
-  if (current.analysis?.status === 'updating') return { label: 'Updating', tone: 'active' };
-  if (['error', 'unavailable'].includes(current.analysis?.status))
-    return { label: 'Needs attention', tone: 'attention' };
-  if (current.analysis?.status === 'budget_paused') return { label: 'Paused', tone: 'quiet' };
-  return current.current_work_context
-    ? { label: 'Ready', tone: 'active' }
-    : { label: 'Waiting', tone: 'quiet' };
-}
-
-export function canSaveContextCorrection(current, original) {
-  return Boolean(
-    current &&
-    original &&
-    ['id', 'title', 'return_point'].every((key) => current[key] === original[key]),
-  );
 }
 
 const node = (tag, className, text) => {
@@ -104,14 +70,12 @@ const field = (label, placeholder, maximum) => {
 /** The drawer owns editable controls; background Home updates never rebuild it. */
 export function createContextPanel({
   onCommand,
-  onTalk,
   onConnections,
   onRefreshSources,
   onClose,
   host = null,
   extraSections = [],
   onSelectSection,
-  onRestoreHome,
 } = {}) {
   const dialog = node(
     host ? 'section' : 'dialog',
@@ -146,12 +110,10 @@ export function createContextPanel({
   const switches = new Map();
   let current = null,
     busy = false,
-    selected = 'overview',
+    selected = 'general',
     trigger = null,
     afterClose = null,
-    editBasis = null,
     renderedKey = '',
-    preferencesKey = '',
     exclusionsKey = '';
   let desktopGuide = null,
     showDesktopGuide = false;
@@ -171,7 +133,6 @@ export function createContextPanel({
   }
   for (const [id, label] of [
     ...extraSections.filter((item) => item.id === 'general').map(({ id, label }) => [id, label]),
-    ['overview', host ? 'Widgets & layout' : 'Overview'],
     ['sources', 'Permissions'],
     ['memory', 'Memory'],
     ...extraSections
@@ -258,97 +219,10 @@ export function createContextPanel({
   }
   function syncDisabled() {
     for (const control of mutators) control.disabled = busy || !current;
-    undo.disabled = busy || !current?.can_undo;
   }
   function syncSwitches() {
-    for (const [id, input] of switches)
-      input.checked =
-        id === 'arrange' ? current?.mode === 'adaptive' : current?.policy?.[id] === true;
+    for (const [id, input] of switches) input.checked = current?.policy?.[id] === true;
   }
-
-  const overview = panels.get('overview');
-  const work = section('Current work');
-  work.classList.add('context-work');
-  const workTitle = node('p', 'context-work__title');
-  const provenance = node('p', 'context-caption');
-  const returnPoint = node('p', 'context-work__return');
-  const workActions = node('div', 'context-actions');
-  const talk = button('Tell felis', 'button context-primary');
-  talk.addEventListener('click', () => closeThen(onTalk));
-  const correct = button('Edit', 'button context-work__edit');
-  const correction = node('form', 'context-correction');
-  correction.hidden = true;
-  const titleField = field('What you’re working on', 'A short title', 100);
-  const returnField = field('Where to pick up', 'Your next step', 280);
-  const save = button('Save', 'button context-primary');
-  save.type = 'submit';
-  mutators.add(save);
-  const cancelEdit = button('Cancel');
-  const correctionActions = node('div', 'context-actions');
-  correctionActions.append(save, cancelEdit);
-  correction.append(titleField.wrapper, returnField.wrapper, correctionActions);
-  correct.addEventListener('click', () => {
-    editBasis = { ...current?.current_work_context };
-    titleField.input.value = current?.current_work_context?.title || '';
-    returnField.input.value = current?.current_work_context?.return_point || '';
-    correction.hidden = false;
-    workActions.hidden = true;
-    titleField.input.focus();
-  });
-  cancelEdit.addEventListener('click', () => {
-    correction.hidden = true;
-    workActions.hidden = false;
-    correct.focus();
-  });
-  correction.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!canSaveContextCorrection(current?.current_work_context, editBasis)) {
-      showError('Your work changed. Cancel this edit and open it again.');
-      return;
-    }
-    if (
-      await run('context', 'correct', {
-        title: titleField.input.value.trim(),
-        return_point: returnField.input.value.trim(),
-      })
-    ) {
-      correction.hidden = true;
-      workActions.hidden = false;
-      correct.focus();
-    }
-  });
-  workActions.append(talk, correct);
-  work.append(workTitle, provenance, returnPoint, workActions, correction);
-  const layout = section('Widgets on Home');
-  layout.append(
-    switchRow(
-      'arrange',
-      'Add relevant widgets',
-      'Add widgets as your work changes. Your layout stays editable.',
-      (checked) => run('home', 'set_mode', { mode: checked ? 'adaptive' : 'manual' }),
-    ),
-  );
-  const undo = action('Undo last suggestions', 'home', 'undo');
-  layout.append(undo);
-  if (onRestoreHome) {
-    const restore = button('Restore starter layout', 'button');
-    restore.addEventListener('click', onRestoreHome);
-    const restoreRow = node('div', 'context-restore-row');
-    const copy = node('div');
-    copy.append(
-      node('strong', '', 'Starter layout'),
-      node('p', 'context-caption', 'Rearrange Home. Notes and saved contents stay.'),
-    );
-    restore.textContent = 'Restore';
-    restore.setAttribute('aria-label', 'Restore starter layout');
-    restoreRow.append(copy, restore);
-    layout.append(restoreRow);
-  }
-  const chooseSources = button('Choose context sources', 'context-navigation-row');
-  chooseSources.innerHTML =
-    '<span>Permissions<small>Choose what felis can collect and use</small></span><svg aria-hidden="true"><use href="#arrow-right"/></svg>';
-  chooseSources.addEventListener('click', () => selectTab('sources', true));
-  overview.append(work, layout, chooseSources);
 
   const sources = panels.get('sources');
   const sharing = section('AI access to activity');
@@ -485,27 +359,6 @@ export function createContextPanel({
     row.append(node('span', '', name), node('span', '', time));
     retention.append(row);
   }
-  const preferences = section('Your preferences');
-  const preferenceList = node('div', 'context-preferences');
-  const preferenceEditor = node('details', 'context-disclosure');
-  preferenceEditor.append(node('summary', '', 'Choose a widget preference'));
-  const kind = node('select', 'context-select');
-  kind.setAttribute('aria-label', 'Widget preference');
-  for (const [value, label] of Object.entries(KIND_LABELS)) {
-    const option = node('option', '', label);
-    option.value = value;
-    kind.append(option);
-  }
-  const preferenceActions = node('div', 'context-actions');
-  preferenceActions.append(
-    action('Prefer', 'home', 'preference', () => ({ component_kind: kind.value, value: 'prefer' })),
-    action('Show less', 'home', 'preference', () => ({
-      component_kind: kind.value,
-      value: 'less',
-    })),
-  );
-  preferenceEditor.append(kind, preferenceActions);
-  preferences.append(preferenceList, preferenceEditor);
   const forget = section();
   const forgetButton = button('Forget activity & context', 'context-forget');
   const confirm = node('div', 'context-forget__confirm');
@@ -538,11 +391,11 @@ export function createContextPanel({
     }
   });
   forget.append(forgetButton, confirm);
-  memory.append(retention, preferences, forget);
+  memory.append(retention, forget);
 
   dialog.append(header, tabs, error, body);
   (host || document.body).append(dialog);
-  selectTab(host ? 'general' : 'overview');
+  selectTab(host ? 'general' : 'sources');
   close.addEventListener('click', () => {
     if (!host) dialog.close();
   });
@@ -559,9 +412,6 @@ export function createContextPanel({
   });
   function resetTransientControls() {
     desktopGuide.pause();
-    correction.hidden = true;
-    workActions.hidden = false;
-    editBasis = null;
     error.hidden = true;
     confirm.hidden = true;
     forgetButton.hidden = false;
@@ -590,12 +440,8 @@ export function createContextPanel({
     current = next;
     if (!isOpen()) return;
     const nextKey = JSON.stringify([
-      current?.current_work_context,
-      current?.mode,
-      current?.can_undo,
       current?.policy,
       current?.visual_available,
-      current?.preferences,
       Object.entries(current?.capture_status || {}).map(([source, health]) => [
         source,
         health.status,
@@ -606,21 +452,6 @@ export function createContextPanel({
     ]);
     if (nextKey === renderedKey) return;
     renderedKey = nextKey;
-    const context = current?.current_work_context;
-    workTitle.textContent = context?.title || 'What are you working on?';
-    provenance.textContent = context
-      ? context.confidence === 'explicit'
-        ? 'From your conversation'
-        : context.confidence === 'observed'
-          ? 'From permitted activity'
-          : 'You can correct this'
-      : 'Start with a conversation. Choose activity sources when you’re ready.';
-    provenance.hidden = !context || !['explicit', 'observed'].includes(context.confidence);
-    returnPoint.textContent = context?.return_point || '';
-    returnPoint.hidden = !context?.return_point;
-    talk.hidden = Boolean(context);
-    correct.hidden = !context;
-    undo.hidden = !current?.can_undo;
     const policy = current?.policy || {};
     visual.hidden = !current?.visual_available;
     const sourceLabels = {
@@ -676,29 +507,6 @@ export function createContextPanel({
       }
       if (!excludedList.children.length)
         excludedList.append(node('p', 'context-caption', 'No excluded websites.'));
-    }
-    const nextPreferences = JSON.stringify(current?.preferences || []);
-    if (nextPreferences !== preferencesKey) {
-      preferencesKey = nextPreferences;
-      for (const control of preferenceList.querySelectorAll('button')) mutators.delete(control);
-      preferenceList.replaceChildren();
-      for (const preference of current?.preferences || []) {
-        const row = node('div', 'context-preference');
-        row.append(
-          node(
-            'span',
-            '',
-            `${KIND_LABELS[preference.component_kind] || 'Widget'} · ${preference.value === 'prefer' ? 'Prefer' : 'Less often'}`,
-          ),
-          action('Reset', 'home', 'preference', () => ({
-            component_kind: preference.component_kind,
-            value: 'reset',
-          })),
-        );
-        preferenceList.append(row);
-      }
-      if (!preferenceList.children.length)
-        preferenceList.append(node('p', 'context-caption', 'Your choices will appear here.'));
     }
     if (!busy) {
       syncDisabled();

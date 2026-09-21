@@ -1,6 +1,5 @@
 import { mountCalendarConnection } from '../connections/calendar.js';
 import { calendarAgenda, calendarTime } from '../calendar/agenda.js';
-import { createLiveWidgetRenderer, widgetFingerprint } from '../home/live-widgets.js';
 import { createWorkspaceViews } from './views.js';
 import { createHomeClient } from '../chat/client.js';
 import { createActivitySession } from '../activity/session.js';
@@ -20,13 +19,19 @@ import { mountAccount } from '../connections/account.js';
 import { mountChatLibrary } from '../chat/library.js';
 import { localCommand, commandMatches } from '../chat/commands.js';
 import { mountChatContext } from '../chat/context.js';
-import { homeData, progressText, conversationEntries, notificationEntry } from '../home/data.js';
+import {
+  homeData,
+  progressText,
+  conversationEntries,
+  deliveryLabel,
+  notificationEntry,
+} from '../home/data.js';
+import { appendProvenance } from '../chat/provenance.js';
 import { createWorkspaceRouter } from './router.js';
 import { mountOrb, orbState } from '../orb/presence.js';
 import { mountOnboarding } from '../onboarding/onboarding.js';
 import { createInterfaceSound } from '../onboarding/sound.js';
 import { mountUnifiedWorkspace } from '../home/unified-workspace.js';
-import { selectTracking, recordingSummary } from '../home/tracking-data.js';
 
 const node = (tag, className, text) => {
   const element = document.createElement(tag);
@@ -43,7 +48,6 @@ const action = (label, handler, className = 'text-button') => {
 
 export function createLiveHome({
   openDetail,
-  refreshWidgets,
   dialog,
   onViewChange = () => {},
   onSettingsSection = () => {},
@@ -107,7 +111,6 @@ export function createLiveHome({
   let onboarding = null,
     chatContext = null;
   let current = client.view,
-    fingerprint = '',
     messageFingerprint = '',
     detailFingerprint = '',
     speech = null,
@@ -160,8 +163,7 @@ export function createLiveHome({
     isConversationOpen: () => threadOpen,
   });
   const workspace = document.querySelector('.workspace'),
-    appWindow = document.querySelector('.app-window'),
-    board = document.querySelector('.board-scroll');
+    appWindow = document.querySelector('.app-window');
   let workspaceRevealed = false;
   let snapshotReady = false;
   let windowShown = !window.eiloDesktop?.onWindowShown;
@@ -187,7 +189,7 @@ export function createLiveHome({
   });
   const pages = node('div', 'workspace-page');
   pages.hidden = true;
-  board.after(pages);
+  workspace.append(pages);
   const header = document.querySelector('.home-header h1');
   const talkActions = node('div', 'talk-actions');
   talkActions.hidden = true;
@@ -202,8 +204,7 @@ export function createLiveHome({
   talkActions.append(historyToggle, returnWorkspace);
   document.querySelector('.header-actions').append(talkActions);
   workspace.addEventListener('focusin', (event) => {
-    if (!threadOpen && (board.contains(event.target) || pages.contains(event.target)))
-      workspaceFocus = event.target;
+    if (!threadOpen && pages.contains(event.target)) workspaceFocus = event.target;
   });
   const accountHost = node('div', 'account-host');
   mountAccount(accountHost, { client });
@@ -218,46 +219,6 @@ export function createLiveHome({
     const state = next.snapshot?.account?.state;
     accountShortcut.hidden = !state || ['connected', 'unknown'].includes(state);
   });
-
-  const connectionStatuses = node('div', 'connection-statuses');
-  connectionStatuses.setAttribute('role', 'group');
-  connectionStatuses.setAttribute('aria-label', 'Connection statuses');
-  const statusButtons = new Map();
-  for (const [id, label, icon] of [
-    ['desktop', 'Desktop', 'status-desktop'],
-    ['browser', 'Browser', 'status-browser'],
-    ['calendar', 'Calendar', 'status-calendar'],
-    ['gmail', 'Gmail', 'status-gmail'],
-  ]) {
-    const button = action(
-      '',
-      () => showPage('settings', { settingsSection: 'sources' }),
-      'connection-status',
-    );
-    button.innerHTML = `<svg aria-hidden="true"><use href="#${icon}"></use></svg>`;
-    button.dataset.connection = id;
-    button.dataset.label = label;
-    statusButtons.set(id, button);
-    connectionStatuses.append(button);
-  }
-  workspace.append(connectionStatuses);
-  function updateConnectionStatuses() {
-    const tracking = selectTracking(current);
-    connectionStatuses.title = recordingSummary(current);
-    const rows = new Map(tracking.rows.map((row) => [row.id, row]));
-    for (const [id, button] of statusButtons) {
-      const row = rows.get(id) || {
-        name: button.dataset.label,
-        status: 'Unavailable',
-        detail: '',
-        tone: 'attention',
-      };
-      const summary = `${row.name}: ${row.status}${row.detail ? `. ${row.detail}` : ''}`;
-      button.dataset.tone = row.tone;
-      button.title = summary;
-      button.setAttribute('aria-label', `${summary}. Manage connection`);
-    }
-  }
 
   header.tabIndex = -1;
   let currentPage = 'home';
@@ -521,9 +482,8 @@ export function createLiveHome({
       const homePage = inspecting ? 'home' : page;
       settingsBack.hidden = !['settings', 'connections'].includes(page);
       if (inspecting) inspector.append(pages);
-      else board.after(pages);
+      else workspace.append(pages);
       workspace.dataset.page = homePage;
-      board.hidden = page !== 'home';
       pages.hidden = page === 'home';
       views.show(page, { goalFilter, goalId, editGoal, newGoal, activityTab });
       settingsHost.hidden = !['settings', 'connections'].includes(page);
@@ -775,13 +735,52 @@ export function createLiveHome({
     workflowHost.hidden = false;
     workflowPanel.update(run);
   }
-  const liveWidgets = createLiveWidgetRenderer({
-    getCurrent: () => current,
-    getData: data,
-    talk,
-    openDetail,
-  });
-  const { renderBody, taskRow, miniMessage } = liveWidgets;
+  const dueLabel = (task) => {
+    const value = task?.due_on;
+    if (typeof value !== 'string') return task?.due_text || '';
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const normalized = [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+      .map((part, index) => String(part).padStart(index ? 2 : 4, '0'))
+      .join('-');
+    return normalized === value
+      ? `Due ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+      : task?.due_text || '';
+  };
+  const taskRow = (task, { focus = false } = {}) => {
+    const row = node('div', 'live-task');
+    const copy = node('div', 'live-task-copy');
+    copy.append(node('strong', '', task.title));
+    const meta = [
+      focus ? 'Current focus' : task.status === 'completed' ? 'Completed' : '',
+      progressText(task),
+      dueLabel(task),
+    ]
+      .filter(Boolean)
+      .join(' / ');
+    if (meta) copy.append(node('span', 'live-task-meta', meta));
+    row.append(copy);
+    return row;
+  };
+  const miniMessage = (entry) => {
+    const row = node(
+      'div',
+      `live-snippet live-snippet-${entry.role}${entry.preview ? ' live-writing-preview' : ''}`,
+    );
+    if (entry.preview) row.setAttribute('aria-live', 'off');
+    if (entry.id) row.dataset.messageId = entry.id;
+    row.append(
+      node(
+        'span',
+        entry.origin === 'check_in' ? 'live-speaker' : 'live-speaker sr-only',
+        entry.role === 'user' ? 'You' : entry.origin === 'check_in' ? 'felis check-in' : 'felis',
+      ),
+      node('p', '', entry.text),
+    );
+    appendProvenance(row, entry);
+    if (entry.delivery) row.append(node('span', 'live-delivery', deliveryLabel(entry.delivery)));
+    return row;
+  };
   function renderConversation(body) {
     if (!body.querySelector('.live-chat')) {
       messageFingerprint = '';
@@ -1172,27 +1171,6 @@ export function createLiveHome({
   function start() {
     document.title = 'felis — Home';
     document.querySelector('.app-window').setAttribute('aria-label', 'felis Home');
-    document.querySelector('.account-name span').textContent = 'Local profile';
-    for (const item of document.querySelectorAll('.nav-item')) {
-      if (['today', 'progress'].includes(item.dataset.detail)) {
-        item.remove();
-        continue;
-      }
-      const name = { home: 'Home', goals: 'Goals', activity: 'Activity' }[item.dataset.detail];
-      item.setAttribute('aria-label', name);
-      item.title = name;
-      item.append(node('span', 'nav-label', name));
-    }
-    for (const [page, label, icon] of [['settings', 'Settings', 'sliders']]) {
-      const item = action('', () => showPage(page), 'nav-item');
-      item.dataset.detail = page;
-      item.setAttribute('aria-label', page === 'chats' ? 'Chats and projects' : label);
-      item.title = page === 'chats' ? 'Chats and projects' : label;
-      item.innerHTML = `<svg aria-hidden="true"><use href="#${icon}"/></svg>`;
-      item.append(node('span', 'nav-label', label));
-      document.querySelector('.nav-items').append(item);
-    }
-    document.querySelector('.nav-items').append(talkEntry);
     renderConversation(dock);
     onboarding = mountOnboarding({
       client,
@@ -1233,7 +1211,6 @@ export function createLiveHome({
         rememberPresentation();
       current = next;
       activity.update(next);
-      updateConnectionStatuses();
       for (const guide of browserGuides) guide.update(next);
       updates.update(next);
       views.update(next);
@@ -1260,12 +1237,14 @@ export function createLiveHome({
                   : '';
       context.hidden = !headline.textContent;
       renderWorkflow(next.snapshot?.workflow_run ?? null);
-      const nextFingerprint = widgetFingerprint(next);
-      if (nextFingerprint !== fingerprint) {
-        fingerprint = nextFingerprint;
-        refreshWidgets();
-      }
       renderConversation(dock);
+      const detailKey = JSON.stringify([
+        next.snapshot?.tasks,
+        next.snapshot?.integrations,
+        next.snapshot?.accountability,
+        next.snapshot?.adaptive?.capture_status,
+        next.connection,
+      ]);
       onboarding?.update(next, currentPage);
       unified?.update(next, currentPage, threadOpen);
       revealWorkspace(next);
@@ -1290,9 +1269,9 @@ export function createLiveHome({
         ['today', 'goals', 'progress', 'activity', 'browser-setup', 'calendar-day'].includes(
           dialog.dataset.detail,
         ) &&
-        detailFingerprint !== nextFingerprint
+        detailFingerprint !== detailKey
       ) {
-        detailFingerprint = nextFingerprint;
+        detailFingerprint = detailKey;
         const body = dialog.querySelector('.detail-body'),
           top = dialog.scrollTop;
         renderDetail(dialog.dataset.detail, dialog.querySelector('#detail-title'), body);
@@ -1382,7 +1361,6 @@ export function createLiveHome({
       sound.sync?.();
       speechOutput?.sync();
       unified?.refresh();
-      updateConnectionStatuses();
     },
     settingsHost,
     settingsSections: [
@@ -1395,7 +1373,6 @@ export function createLiveHome({
         connectionsPanel.show({ tab: 'apps' });
       }
     },
-    renderBody,
     renderDetail,
     start,
     showPage,

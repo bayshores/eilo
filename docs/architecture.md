@@ -88,7 +88,7 @@ details never expose auxiliary diagnostics, credentials, or hidden summary text.
 
 `app/onboarding.py` owns a revisioned draft separate from real goals. New metadata
 initializes it; old profiles without it stay outside onboarding. The human-driver
-policy permits bounded goal edits and existing-widget selection during setup.
+policy permits bounded goal edits during setup.
 `LocalChat.stage_publication` stages those changes through the existing durable
 journal without publishing them as saved goals.
 
@@ -97,22 +97,21 @@ approval, skip and support-status commands. Approval writes goals and setup stat
 in the same private metadata replacement before acknowledgment. Permission state
 is never part of that command. Interrupted inference uses existing recovery.
 
-`web/onboarding/` reuses the conversation dock and source guides. Accepted widget
-geometry and its approval marker share a browser storage record, preventing a
-repeated receipt from resetting later edits. Support guides confirm current
-collection/sharing/check-in state independently; the native alert API confirms
-only felis's delivery preference, not the OS authorization setting. Optional
-synthesized sounds use the existing local preferences and never alter OS audio.
+`web/onboarding/` reuses the conversation dock and source guides. Approval
+commits the goal while Home remains a single app-owned composition. Support
+guides confirm current collection, sharing, and check-in state independently;
+the native alert API confirms only felis's delivery preference, not the OS
+authorization setting. Optional synthesized sounds use the existing local
+preferences and never alter OS audio.
 
 ## Browser code
 
 `web/` contains production browser source. Feature folders such as `home/`,
-`workspace/`, `chat/`, `onboarding/`, `goals/`, `connections/`, `calendar/`, `activity/`, and
-`speech/` keep UI behavior close to its styles and tests. `styles/` holds shared
-tokens and base rules; `preview/` contains sample-preview wiring. `assets/`
-contains local assets. `web/asset-manifest.json` is the single explicit mapping
-used by both the live server and `scripts/preview.mjs`; update it whenever a
-served source file changes. Public `/home/` and `/activity-connect` routes are
+`workspace/`, `chat/`, `onboarding/`, `goals/`, `connections/`,
+`calendar/`, `activity/`, and `speech/` keep UI behavior close to their
+styles and tests. `styles/` holds shared tokens and base rules; `assets/`
+contains local assets. `web/asset-manifest.json` is the explicit allowlist used
+by the live and fixture servers; update it whenever a served source file changes. Public `/home/` and `/activity-connect` routes are
 stable contracts even when the internal source layout changes.
 
 The agent orb in `web/orb/` adapts noRot's original point-cloud renderer to the
@@ -145,15 +144,20 @@ The foreground sampler, `app/accountability.py` origin sanitizer, activity ledge
 
 The additive `/api/state` fields are `adaptive`, `capture_status`, `current_work_context`, `home_composition`, and `account`. `/api/home/commands` and `/api/context/commands` use independent revisions and request IDs. Capture has no HTTP ingestion route. `/api/account/commands` manages user-started authorization without sending tokens to browser state.
 
-`web/adaptive/` owns the bounded component catalog and shared content renderer. Its controller keeps the embedded Settings context sections current and defers content updates during typing, selections, dialogs, and widget gestures. Production Home uses one board: `web/home/context-layout.js` reconciles component references into the existing `web/home/layout.js` widget state, preserving manual widgets and saved geometry. No source text is copied into layout storage. Dismissed component references prevent automatic re-addition; Add widgets can restore currently available components. `web/adaptive/renderer.js` renders those contents inside the ordinary widget controls, including independently persisted note drafts. Tracking and usage reuse `web/home/context-widgets.js`. The separate adaptive renderer/geometry/motion remain for the isolated design preview only. The shared router owns Settings and preserves the legacy Connections route. Settings embeds the existing context, account, and connection controls; opening it cancels speech before hiding the composer. Goals and Activity reuse their existing stateful views in Home detail panels, which restore focus and the dock state on close. Home projects whole cards into bounded pages rather than slicing them at the composer. Page-local gestures merge back into layout metadata without changing other responsive modes. A one-time presentation migration backs up the old layout, deduplicates identical source cards, and aligns them.
+`web/adaptive/` owns the Settings permission and retention controls.
+`controller.js` projects the service's context policy into the embedded
+Settings surface; it does not compose or render Home. `web/home/unified-workspace.js`
+owns the one Home composition and its return foreground. The shared router keeps
+Settings separate while Goals and Activity open in dismissible Home detail views.
+The browser persists only presentation preferences; commitments, activity,
+conversation state, permissions, and source health remain server-owned.
 
 ## Context and accountability
 
 Admitted native browser and desktop events notify `LocalChat.context_changed`.
 `ContextService.check_in_context` projects a fresh, minimized observation under
 the current source and AI-sharing policy; `ProactiveLoop` applies task, break,
-human-grace, stability and budget gates. This path is independent of Home's
-display mode and the legacy page lease. Resident check-ins require the existing
+human-grace, stability and budget gates. This path is independent of Home presentation and the compatibility page lease. Resident check-ins require the existing
 Check-ins control to be explicitly enabled; old page-lease state does not grant
 this new capability. Source collection, AI sharing and desktop notification
 permission remain separate.

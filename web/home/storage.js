@@ -1,21 +1,12 @@
-/**
- * Browser persistence for the Home prototype. Keeping the keys here makes the
- * preview and live Home use the same durable layout contract without coupling
- * rendering code to localStorage failure handling.
- */
 export const HOME_STORAGE_KEYS = Object.freeze({
-  layout: 'eilo:widget-prototype:layout:v1',
-  content: 'eilo:widget-prototype:content:v1',
-  preferences: 'eilo:widget-prototype:preferences:v1',
+  preferences: 'felis:preferences:v1',
+  legacyPreferences: 'eilo:widget-prototype:preferences:v1',
 });
 
-/** @typedef {{ getItem(key: string): string | null, setItem(key: string, value: string): void }} StorageLike */
+/** @typedef {{ getItem(key: string): string | null, setItem(key: string, value: string): void, removeItem?(key: string): void }} StorageLike */
 
-/**
- * Create a safe JSON storage adapter and expose its latest user-facing status.
- * Storage access is deferred because browsers may throw while reading localStorage itself.
- * @param {{ storage?: StorageLike | null }} [options]
- */
+/** @param {{ storage?: StorageLike | null }} [options]
+ * Create a safe JSON adapter for the browser-owned presentation preferences. */
 export function createHomeStorage(options = {}) {
   /** @type {StorageLike | null} */
   let storage = options.storage ?? null;
@@ -40,7 +31,7 @@ export function createHomeStorage(options = {}) {
       const value = target.getItem(key);
       return value ? JSON.parse(value) : fallback;
     } catch {
-      message = 'Saved preferences could not be read. This preview is using a fresh layout.';
+      message = 'Saved preferences could not be read. felis is using its defaults.';
       return fallback;
     }
   }
@@ -55,15 +46,25 @@ export function createHomeStorage(options = {}) {
       return true;
     } catch {
       available = false;
-      message =
-        'Your browser cannot save this layout. Changes will last until this page is reloaded.';
+      message = 'Your preferences could not be saved. Changes will last until this page closes.';
       return false;
     }
+  }
+
+  /** @param {string} key */
+  function remove(key) {
+    try {
+      getStorage()?.removeItem?.(key);
+    } catch {
+      return false;
+    }
+    return true;
   }
 
   return {
     read,
     write,
+    remove,
     get available() {
       return available;
     },
@@ -80,25 +81,15 @@ function record(raw) {
     : {};
 }
 
-/** @param {unknown} raw Read and sanitize the small, user-editable preferences shared by both Home modes. */
+/** Sanitize the small set of browser-owned appearance and conversation choices. */
+/** @param {unknown} raw */
 export function normalizeHomePreferences(raw = {}) {
   const value = record(raw);
   return {
     name:
       typeof value.name === 'string' && value.name.trim() && value.name.trim() !== 'You'
-        ? value.name.slice(0, 40)
+        ? value.name.trim().slice(0, 40)
         : '',
-    pin: typeof value.pin === 'boolean' ? value.pin : true,
-    homeLayoutVersion:
-      value.homeLayoutVersion === 5
-        ? 5
-        : value.homeLayoutVersion === 4
-          ? 4
-          : value.homeLayoutVersion === 3
-            ? 3
-            : value.homeLayoutVersion === 2
-              ? 2
-              : 1,
     reducedMotion: value.reducedMotion === true,
     soundEffects: typeof value.soundEffects === 'boolean' ? value.soundEffects : true,
     soundVolume:
@@ -107,21 +98,5 @@ export function normalizeHomePreferences(raw = {}) {
         : 0.5,
     dailyGuidance: typeof value.dailyGuidance === 'boolean' ? value.dailyGuidance : true,
     spokenReplies: typeof value.spokenReplies === 'boolean' ? value.spokenReplies : true,
-    widgetPins: Array.isArray(value.widgetPins)
-      ? value.widgetPins
-          .filter((id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(id))
-          .slice(0, 24)
-      : [],
-    dismissedContextWidgets: Array.isArray(value.dismissedContextWidgets)
-      ? [...new Set(value.dismissedContextWidgets)]
-          .filter((id) => typeof id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$/.test(id))
-          .slice(-128)
-      : [],
   };
-}
-
-/** @param {unknown} raw Read only the durable note field; fixture content always remains in code. */
-export function normalizeHomeContent(raw = {}) {
-  const value = record(raw);
-  return { notes: typeof value.notes === 'string' ? value.notes.slice(0, 10000) : '' };
 }

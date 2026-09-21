@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>felis — Widget home prototype</title>
+    <title>felis</title>
     <link
       rel="preload"
       href="./assets/fonts/ibm-plex-sans.woff2"
@@ -29,8 +29,6 @@
     <link rel="stylesheet" href="./connections/account.css" />
     <link rel="stylesheet" href="./chat/library.css" />
     <link rel="stylesheet" href="./chat/switcher.css" />
-    <link rel="stylesheet" href="./adaptive/adaptive.css" />
-    <link rel="stylesheet" href="./adaptive/preview.css" />
     <link rel="stylesheet" href="./adaptive/controls.css" />
     <link rel="stylesheet" href="./workspace/shell.css" />
     <link rel="stylesheet" href="./chat/context.css" />
@@ -38,7 +36,6 @@
     <link rel="stylesheet" href="./onboarding/onboarding.css" />
     <link rel="stylesheet" href="./onboarding/support.css" />
     <link rel="stylesheet" href="./design.css" />
-    <link rel="stylesheet" href="./styles/layout-consolidation.css" />
     <link rel="stylesheet" href="./brand/wordmark.css" />
     <link rel="stylesheet" href="./home/unified-workspace.css" />
     <link rel="stylesheet" href="./workspace/settings.css" />
@@ -65,37 +62,6 @@
       <symbol id="calendar" viewBox="0 0 24 24">
         <rect x="3" y="5" width="18" height="16" rx="2" />
         <path d="M7 2v6m10-6v6M3 11h18" />
-      </symbol>
-      <symbol id="status-desktop" viewBox="0 0 32 32">
-        <rect x="3" y="5" width="26" height="18" rx="4" fill="#aec5cc" stroke="none"></rect>
-        <rect x="6" y="8" width="20" height="12" rx="2" fill="#2c3840" stroke="none"></rect>
-        <path d="M13 26h6m-3-3v3" stroke="#aec5cc" stroke-width="3"></path>
-      </symbol>
-      <symbol id="status-browser" viewBox="0 0 32 32">
-        <circle cx="16" cy="16" r="14" fill="#e8bb63" stroke="none"></circle>
-        <path
-          d="M16 2a14 14 0 0 1 12.12 7H16l-6.06 10.5L3.88 9A14 14 0 0 1 16 2"
-          fill="#df8273"
-          stroke="none"
-        ></path>
-        <path
-          d="M3.88 9 16 30A14 14 0 0 1 3.88 9M16 30l6.06-10.5H9.94"
-          fill="#88b896"
-          stroke="none"
-        ></path>
-        <circle cx="16" cy="16" r="6.5" fill="#282b30" stroke="none"></circle>
-        <circle cx="16" cy="16" r="5" fill="#92bce0" stroke="none"></circle>
-      </symbol>
-      <symbol id="status-calendar" viewBox="0 0 32 32">
-        <rect x="4" y="5" width="24" height="23" rx="5" fill="#dde4ec" stroke="none"></rect>
-        <path d="M9 5h14a5 5 0 0 1 5 5v2H4v-2a5 5 0 0 1 5-5" fill="#94b4d1" stroke="none"></path>
-        <path d="M10 3v5m12-5v5" stroke="#dde4ec" stroke-width="3"></path>
-        <path d="M10 17h3m6 0h3m-12 5h3m6 0h3" stroke="#556575" stroke-width="2"></path>
-      </symbol>
-      <symbol id="status-gmail" viewBox="0 0 32 32">
-        <path d="M4 25V8l12 9L28 8v17" fill="none" stroke="#89b6a2" stroke-width="5"></path>
-        <path d="M4 25V8l12 9" fill="none" stroke="#90b3d5" stroke-width="5"></path>
-        <path d="m4 8 12 9 12-9" fill="none" stroke="#e59788" stroke-width="5"></path>
       </symbol>
       <symbol id="sliders" viewBox="0 0 24 24">
         <path d="M5 3v7m0 4v7m7-18v12m0 4v2m7-18v3m0 4v11M2 10h6m1 5h6m1-9h6" />
@@ -147,123 +113,26 @@
       </symbol>
     </svg>
     <div class="window-drag-region" aria-hidden="true"></div>
-    <main class="app-window" aria-label="felis widget home prototype" aria-busy="true">
-      <div class="workspace nav-collapsed">
-        <header class="home-header"
-          ><div><h1>Home</h1><p>Sample home</p></div
-          ><div class="header-actions"
-            ><button class="button overflow-toggle" hidden>More widgets</button
-            ><span class="save-state" role="status"></span
-            ><button class="button add-toggle" hidden
-              ><svg><use href="#plus" /></svg>Add widgets</button
-            ><button class="button edit-toggle"
-              ><svg><use href="#pencil" /></svg><span>Edit home</span></button
-            ></div
-          ></header
-        >
-        <div class="rail-zone">
-          <button
-            class="nav-hint"
-            aria-label="Open navigation"
-            aria-controls="main-rail"
-            aria-expanded="false"
-            ><span></span
-          ></button>
-          <nav
-            id="main-rail"
-            class="nav-rail is-hidden"
-            aria-label="Main navigation"
-            aria-hidden="true"
-            inert
-          >
-            <span class="wordmark">felis</span>
-            <div class="nav-items"
-              ><button
-                class="nav-item active"
-                data-detail="home"
-                aria-label="Home"
-                aria-current="page"
-                title="Home"
-                ><svg><use href="#home" /></svg></button
-              ><button class="nav-item" data-detail="goals" aria-label="Goals" title="Goals"
-                ><svg><use href="#target" /></svg></button
-              ><button class="nav-item" data-detail="today" aria-label="Today" title="Today"
-                ><svg><use href="#calendar" /></svg></button
-              ><button
-                class="nav-item"
-                data-detail="progress"
-                aria-label="Progress"
-                title="Progress"
-                ><svg><use href="#sliders" /></svg></button
-              ><button
-                class="nav-item"
-                data-detail="activity"
-                aria-label="Recent updates"
-                title="Recent updates"
-                ><svg><use href="#note" /></svg></button
-            ></div>
-            <button
-              class="account-trigger"
-              aria-label="Account menu"
-              aria-expanded="false"
-              aria-controls="account-menu"
-              >ë</button
-            >
-            <div id="account-menu" class="account-menu" hidden
-              ><div class="account-name">Add your name<span>Prototype profile</span></div
-              ><button data-account-action="profile">Account</button
-              ><button data-account-action="settings">Settings</button
-              ><button data-account-action="connections">Connections &amp; privacy</button
-              ><button data-account-action="help">Help</button></div
-            >
-          </nav>
-        </div>
-        <div class="board-scroll"
-          ><div class="storage-warning" hidden role="status"></div
-          ><div class="board" role="region" aria-label="Your widgets"></div
-          ><div class="empty-home" hidden
-            ><svg><use href="#plus" /></svg><h2>Make room for what matters</h2
-            ><p>Add a widget to bring it onto your home.</p
-            ><button class="button primary empty-add">Add widgets</button></div
-          ><div class="adaptive-preview-host" hidden></div
-        ></div>
+    <main class="app-window" aria-label="felis Home" aria-busy="true">
+      <div class="workspace">
+        <header class="home-header">
+          <div>
+            <h1>Home</h1>
+            <p hidden></p>
+          </div>
+          <div class="header-actions"></div>
+        </header>
       </div>
     </main>
-    <dialog class="gallery" aria-labelledby="gallery-title">
-      <div class="dialog-heading"
-        ><h2 id="gallery-title">Add widgets</h2
-        ><button class="icon-button gallery-close" aria-label="Close widget gallery"
-          ><svg><use href="#x" /></svg></button
-      ></div>
-      <label class="search-field"
-        ><svg><use href="#search" /></svg
-        ><input
-          type="search"
-          id="widget-search"
-          placeholder="Find a widget"
-          aria-label="Find a widget"
-          autocomplete="off"
-      /></label>
-      <div class="gallery-content"
-        ><nav class="widget-categories" aria-label="Widget types"></nav
-        ><div class="gallery-selection"
-          ><h3 class="gallery-type-title">Progress</h3
-          ><div class="widget-preview" inert aria-hidden="true"></div
-          ><button class="button primary confirm-add">Add widget</button></div
-        ></div
-      ><p class="no-results" hidden role="status">No widgets match that search.</p>
+    <dialog class="detail-dialog" aria-labelledby="detail-title">
+      <div class="dialog-heading">
+        <h2 id="detail-title"></h2>
+        <button class="icon-button detail-close" aria-label="Close details">
+          <svg><use href="#x" /></svg>
+        </button>
+      </div>
+      <div class="detail-body"></div>
     </dialog>
-    <dialog class="detail-dialog" aria-labelledby="detail-title"
-      ><div class="dialog-heading"
-        ><h2 id="detail-title"></h2
-        ><button class="icon-button detail-close" aria-label="Close details"
-          ><svg><use href="#x" /></svg></button></div
-      ><div class="detail-body"></div
-    ></dialog>
-    <div class="widget-menu" hidden role="group" aria-label="Widget options"></div>
-    <div class="toast" hidden
-      ><span class="toast-message"></span><button class="toast-undo" hidden>Undo</button></div
-    >
     <div
       class="sr-only"
       role="status"
@@ -271,17 +140,5 @@
       aria-atomic="true"
       id="announcement"
     ></div>
-    <p class="sr-only" id="move-help"
-      >Press Space or Enter to start moving. Use arrow keys to move one grid position. Press Enter
-      to finish or Escape to cancel.</p
-    >
-    <p class="sr-only" id="resize-help"
-      >Drag this corner to resize. With a keyboard, use arrow keys to change the widget's width or
-      height.</p
-    >
-    <p class="sr-only" id="widget-arrange-help"
-      >Press and hold an empty area of this panel to rearrange it, or choose Edit home for keyboard
-      controls.</p
-    >
   </body>
 </html>

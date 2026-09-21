@@ -8,5 +8,5 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext"
   },
-  "include": ["home/hold.js", "home/storage.js", "chat/commands.js", "calendar/agenda.js"]
+  "include": ["home/storage.js", "chat/commands.js", "calendar/agenda.js"]
 }

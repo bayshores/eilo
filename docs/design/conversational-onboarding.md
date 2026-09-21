@@ -11,7 +11,7 @@ record owns the accepted scope and its validation limits; current code and
   it in chat; explicit approval turns the proposal into Home.
 - First setup ends with a goal and an approved workspace. Optional connections
   can follow when they would help.
-- Tailor existing widgets first. Generated code, arbitrary new tools, inferred
+- Use the unified Home after approval. Generated code, arbitrary new tools, inferred
   schedules, and automatic external actions are outside this implementation.
 - Guide relevant permissions with their benefit and data scope visible.
 - Offer quiet interface sounds as an optional preference, off by default.
@@ -38,11 +38,10 @@ profiles keep their current experience.
 4. **Review beside chat.** The same composer and native transcript sit beside
    the proposal. Refinements update the existing draft. Nothing enters the real
    goal list until Use this workspace succeeds.
-5. **Continue on Home.** Approval commits the goals and setup record, then applies
-   the selected layout once. The conversation continues in the normal composer.
-   Existing movement, resizing, removal and widget paging remain available.
-   The person can ask about features in the same conversation; explanatory
-   panels are not inserted into Home.
+5. **Continue on Home.** Approval commits the goal and setup record. The
+   conversation continues in the normal composer and the unified Home reflects
+   the saved focus. The person can ask about features in the same conversation;
+   explanatory panels are not inserted into Home.
 6. **Offer support.** A small invitation below the conversation opens one
    relevant source guide, or a source choice when no recommendation exists.
    Source access, AI sharing, check-ins and desktop alerts are distinct steps.
@@ -94,13 +93,12 @@ composer keeps offline feedback and retry controls in one recovery row.
 
 | Concern                      | Owner and behavior                                                                                                                                                                                            |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup state                  | `app/onboarding.py` validates a revisioned private draft, status, allowed widgets, optional support recommendation, approval receipt and support dismissal.                                                   |
+| Setup state                  | `app/onboarding.py` validates a revisioned private draft, status, goal proposal, optional support recommendation, approval receipt and support dismissal.                                                     |
 | Conversation and persistence | `app/chat_service.py` stages validated human-driver operations in the draft and uses the existing durable publication journal. Native history remains the transcript.                                         |
-| Model boundary               | `app/human_driver.py` supplies draft-only instructions during setup. A bounded workspace operation may select existing widgets and recommend a source; permission operations are rejected.                    |
+| Model boundary               | `app/human_driver.py` supplies draft-only instructions during setup. A bounded workspace operation may propose goals and recommend a source; permission operations are rejected.                              |
 | Explicit commands            | `POST /api/onboarding/commands` accepts only the supported action, request ID and expected setup revision. Ordinary loopback, origin and body checks apply.                                                   |
 | Approval                     | One durable metadata replacement commits setup and goals before acknowledgment. Failed writes leave memory unchanged; an identical retry is idempotent. Busy or unresolved publication state blocks approval. |
 | First-run detection          | Only newly created workspace metadata gets setup state. Existing profiles lacking that record stay unchanged; an empty goal list never triggers onboarding.                                                   |
-| Browser arrangement          | `web/home/layout.js` validates the chosen catalog widgets. Geometry and the acceptance marker share one browser storage write, so reloads and repeated receipts preserve later manual edits.                  |
 | UI and support               | `web/onboarding/` arranges the existing conversation and reuses current connection controls. Polls do not remount the composer or embedded permission guide.                                                  |
 | Sounds                       | `web/onboarding/sound.js` synthesizes short effects with the native Web Audio API and no added dependency or media asset.                                                                                     |
 
@@ -110,8 +108,7 @@ Choosing ordinary goal controls during setup is an explicit alternative and
 records setup as skipped. Setup completion and support completion are separate.
 
 Composer drafts retain the existing session-storage lifetime; this feature does
-not introduce another copy of conversation text. Browser layout storage failure
-does not undo a durably approved goal, and presentation remains convenience state.
+not introduce another copy of conversation text. Browser preference storage failure does not undo a durably approved goal, and presentation remains convenience state.
 
 ## Permission sequence
 

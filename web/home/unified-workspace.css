@@ -13,9 +13,6 @@
   gap: 16px;
   overflow: visible;
 }
-:root[data-source='live'] .workspace.unified-home > .rail-zone,
-:root[data-source='live'] .workspace.unified-home > .home-pagination,
-:root[data-source='live'] .workspace.unified-home > .talk-actions,
 :root[data-source='live'] .workspace.unified-home > .workspace-page {
   display: none;
 }
@@ -106,24 +103,6 @@
     .unified-header-action:first-of-type:hover:not(:disabled) {
     background: #f0e3d4;
   }
-}
-:root[data-source='live'] .workspace.unified-home > .board-scroll,
-:root[data-source='live'] .workspace.unified-home > .home-pagination {
-  display: none;
-}
-:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .board-scroll,
-:root[data-source='live'] .workspace.unified-home.unified-browsing > .board-scroll {
-  display: block;
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  margin: 0;
-  padding: 10px;
-  overflow: auto;
-}
-:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .unified-overview,
-:root[data-source='live'] .workspace.unified-home.unified-show-widgets > .conversation-dock {
-  display: none;
 }
 
 .unified-overview {
@@ -910,11 +889,6 @@
 .unified-home .has-return-briefing .live-messages:has(.conversation-empty-state) {
   display: none;
 }
-:root[data-source='live'] .workspace.unified-home .connection-statuses {
-  position: static;
-  display: none;
-}
-
 :root[data-source='live'] .workspace.unified-home :is(button, input, textarea):focus-visible {
   outline: 2px solid #f0ddc8;
   outline-offset: 3px;
@@ -1317,15 +1291,6 @@
   .button {
   min-height: 34px;
   padding: 6px 9px;
-}
-
-/* The legacy widget board is preserved in storage for migration safety, but it
-   is not a second Home below the consolidated workspace. */
-:root[data-source='live'] .workspace.unified-home:not(.unified-show-widgets) > .board-scroll,
-:root[data-source='live'] .workspace.unified-home:not(.unified-show-widgets) > .home-pagination,
-:root[data-source='live'] .workspace.unified-home .add-toggle,
-:root[data-source='live'] .workspace.unified-home .edit-toggle {
-  display: none !important;
 }
 
 /* A collapsed dock should free its unused vertical room for the focus and

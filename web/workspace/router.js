@@ -45,18 +45,6 @@ export function createWorkspaceRouter({
     const showStatus = !talking && page === 'home' && Boolean(headline?.textContent);
     headline?.toggleAttribute('hidden', !showStatus);
     document.querySelector('.home-context')?.toggleAttribute('hidden', !showStatus);
-    for (const item of document.querySelectorAll('.nav-item')) {
-      const active =
-        item.dataset.detail === (talking ? 'talk' : page === 'connections' ? 'settings' : page);
-      item.classList.toggle('active', active);
-      item.toggleAttribute('aria-current', active);
-      if (active) item.setAttribute('aria-current', 'page');
-    }
-    for (const selector of ['.edit-toggle', '.add-toggle', '.save-state', '.overflow-toggle']) {
-      const item = document.querySelector(selector);
-      if (!item) continue;
-      item.hidden = talking || page !== 'home' || selector === '.overflow-toggle';
-    }
     return heading;
   }
 

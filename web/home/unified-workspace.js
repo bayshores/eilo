@@ -67,13 +67,9 @@ export function mountUnifiedWorkspace({
 }) {
   const header = workspace.querySelector('.home-header');
   const heading = header.querySelector('h1');
-  const board = workspace.querySelector('.board-scroll');
   const actions = header.querySelector('.header-actions');
   const date = node('time', 'unified-date');
   heading.before(date);
-  const legacyActions = [
-    ...actions.querySelectorAll('.add-toggle, .edit-toggle, .overflow-toggle, .save-state'),
-  ];
   const goalsButton = button(
     'New goal',
     () => startGoalConversation(),
@@ -228,7 +224,7 @@ export function mountUnifiedWorkspace({
   );
   agent.append(agentHeading, agentStatus, agentDescription, agentLatest, attention);
   overview.append(focus, activity, agent);
-  board.before(overview);
+  dock.before(overview);
 
   const dockHeader = node('div', 'unified-dock-header');
   const launcher = button(
@@ -401,8 +397,6 @@ export function mountUnifiedWorkspace({
   let view = null;
   let page = 'home';
   let active = false;
-  let boardOpen = false;
-  let dockBeforeLayout = false;
   let undoRevision = null;
   let dismissed = false;
   let saving = false;
@@ -583,14 +577,6 @@ export function mountUnifiedWorkspace({
       return;
     }
   }
-  function setBoard(open) {
-    if (open) dockBeforeLayout = isOpen();
-    boardOpen = open;
-    setOpen(open ? false : dockBeforeLayout, { focus: false });
-    workspace.classList.toggle('unified-show-widgets', open);
-    if (open) enter([board]);
-    window.dispatchEvent(new Event('resize'));
-  }
   async function toggleRecording() {
     if (recordingBusy || !view || !recordingControlState(view).available) return;
     recordingBusy = true;
@@ -770,12 +756,10 @@ export function mountUnifiedWorkspace({
     active = Boolean(data) && page === 'home';
     const open = isOpen();
     workspace.classList.toggle('unified-home', active);
-    workspace.classList.toggle('unified-context-visible', active && open && !boardOpen);
-    workspace.classList.toggle('unified-browsing', active && !open && !boardOpen);
+    workspace.classList.toggle('unified-context-visible', active && open);
+    workspace.classList.toggle('unified-browsing', active && !open);
     for (const element of [overview, date, goalsButton, settingsButton, dockHeader])
       element.hidden = !active;
-    for (const legacy of legacyActions)
-      legacy.hidden = active || legacy.classList.contains('overflow-toggle');
     if (!active) {
       briefing.hidden = true;
       briefingWasVisible = false;
@@ -1034,15 +1018,6 @@ export function mountUnifiedWorkspace({
   window.addEventListener('pagehide', onPageHide);
   preference.addEventListener('change', onPreference);
   const timer = setInterval(refresh, 60000);
-  const appWindow = workspace.closest('.app-window');
-  const syncLayoutMode = () => {
-    const editing =
-      appWindow.classList.contains('editing') || appWindow.classList.contains('placing-widget');
-    if (editing !== boardOpen) setBoard(editing);
-  };
-  const layoutObserver = new MutationObserver(syncLayoutMode);
-  layoutObserver.observe(appWindow, { attributes: true, attributeFilter: ['class'] });
-  syncLayoutMode();
 
   return {
     get active() {
@@ -1059,8 +1034,6 @@ export function mountUnifiedWorkspace({
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', onPageHide);
       preference.removeEventListener('change', onPreference);
-      layoutObserver.disconnect();
-      for (const legacy of legacyActions) legacy.hidden = false;
       for (const element of [
         overview,
         date,

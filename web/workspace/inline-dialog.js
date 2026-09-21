@@ -17,7 +17,6 @@ export function createInlineDialog(dialog) {
     const host =
       (talking && document.querySelector('.conversation-dock')) ||
       document.querySelector('.workspace-page:not([hidden])') ||
-      document.querySelector('.board-scroll') ||
       document.body;
     if (dialog.parentElement !== host) host.append(dialog);
     if (!dialog.open) dialog.show();

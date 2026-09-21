@@ -1,71 +1,23 @@
-/* Material only: existing components retain geometry, fonts and layout transitions. */
-@property --glass-light-x {
-  syntax: '<percentage>';
-  inherits: true;
-  initial-value: 24%;
-}
-@property --glass-light-y {
-  syntax: '<percentage>';
-  inherits: true;
-  initial-value: 0%;
-}
-@property --glass-light-angle {
-  syntax: '<angle>';
-  inherits: true;
-  initial-value: 135deg;
-}
-
+/* Static translucent material. Components keep their own geometry and motion. */
 :root .eilo-glass,
-:root[data-source='live'] .workspace .eilo-glass-surface,
-:root[data-source='live'] .workspace .eilo-glass {
+:root[data-source='live'] .workspace .eilo-glass-surface {
   isolation: isolate;
+  position: relative;
   background: transparent;
   color: var(--ink, #f3f2f4);
   box-shadow:
     inset 0 1px 0 #ffffff18,
     inset 0 -1px 0 #00000058,
-    0 1px 2px #00000024,
-    0 5px 8px -4px #00000080,
-    0 16px 24px -10px #00000080,
-    0 30px 48px -24px #00000055;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+    0 5px 12px -6px #00000080,
+    0 20px 36px -22px #00000070;
 }
-:root[data-source='live'] .widget.home-widget.eilo-glass-widget {
-  background: transparent;
-  color: var(--ink);
-}
-:root .live-composer.eilo-glass,
-:root[data-source='live'] .workspace .nav-rail.eilo-glass {
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-.eilo-glass:not(.widget):not(.adaptive-widget):not(.nav-rail) {
-  position: relative;
-}
+
 :root[data-source='live'] .context-panel--embedded .context-panel__body {
   background: #10121426;
   backdrop-filter: blur(18px) brightness(1.15) saturate(1.12);
   -webkit-backdrop-filter: blur(18px) brightness(1.15) saturate(1.12);
 }
-:root[data-source='live']
-  :is(
-    .goal-search input,
-    .goal-add,
-    .goal-filter[aria-pressed='true'],
-    .activity-date,
-    .general-settings .button,
-    .speech-preference select
-  ) {
-  border: 1px solid #ffffff18;
-  background: #1012145c;
-  box-shadow:
-    inset 0 1px #ffffff0d,
-    0 8px 20px #0002;
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
-}
+
 :is(.eilo-glass, .eilo-glass-surface)::before {
   content: '';
   position: absolute;
@@ -74,11 +26,7 @@
   pointer-events: none;
   border-radius: inherit;
   background:
-    radial-gradient(
-      ellipse 70% 36% at var(--glass-light-x, 24%) var(--glass-light-y, 0%),
-      #ffffff10,
-      transparent 75%
-    ),
+    radial-gradient(ellipse 70% 36% at 24% 0%, #ffffff10, transparent 75%),
     linear-gradient(112deg, transparent 3%, #ffffff08 15%, #ffffff02 29%, transparent 42%),
     linear-gradient(180deg, #ffffff0b, #ffffff02 7%, transparent 28%, transparent 90%, #ffffff04),
     #1012140a;
@@ -87,10 +35,11 @@
     inset 2px 0 2px -2px #ffffff30,
     inset -2px 0 2px -2px #ffffff20,
     inset 0 -3px 2px -2px #ffffff35;
-  backdrop-filter: var(--glass-refraction, blur(3px)) brightness(1.24) saturate(1.18);
-  -webkit-backdrop-filter: var(--glass-refraction, blur(3px)) brightness(1.24) saturate(1.18);
+  backdrop-filter: blur(3px) brightness(1.24) saturate(1.18);
+  -webkit-backdrop-filter: blur(3px) brightness(1.24) saturate(1.18);
 }
-:is(.eilo-glass:not(.drag-ghost), .eilo-glass-surface)::after {
+
+:is(.eilo-glass, .eilo-glass-surface)::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -98,7 +47,7 @@
   border-radius: inherit;
   pointer-events: none;
   background: linear-gradient(
-    var(--glass-light-angle, 135deg),
+    135deg,
     #ffffff3d,
     #ffffff05 18%,
     transparent 42%,
@@ -116,90 +65,23 @@
   mask-composite: exclude;
 }
 
-.eilo-glass-stage {
-  perspective: 1200px;
+.eilo-glass-control {
+  display: inline-flex;
+  min-width: 0;
+  border-radius: 14px;
+  background: #1012145c;
+  border: 1px solid #ffffff18;
+  box-shadow:
+    inset 0 1px #ffffff0d,
+    0 8px 20px #0002;
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
 }
-.eilo-glass {
-  rotate: 0deg;
-  transition:
-    rotate 0.35s var(--ease-settle, ease-out),
-    --glass-light-x 0.25s ease-out,
-    --glass-light-y 0.25s ease-out,
-    --glass-light-angle 0.25s ease-out;
-}
-.eilo-glass.eilo-glass-hover {
-  transition-duration: 0.16s;
-}
-.editing .eilo-glass,
-.resize-active .eilo-glass,
-.eilo-glass:is(.is-dragging, .is-resizing, .keyboard-moving, .holding-widget, .drag-ghost) {
-  rotate: 0deg !important;
-}
-.is-dragging .eilo-glass,
-.drag-ghost .eilo-glass {
-  transition: none;
-  rotate: 0deg !important;
-}
-:root .eilo-glass.drag-ghost {
-  box-shadow: none;
-}
-:root .eilo-glass-widget.keyboard-moving {
-  box-shadow: inset 0 0 0 3px var(--peach);
-}
-
-/* Progress used dark text on an opaque peach surface before the glass port. */
-.eilo-glass-widget[data-type='progress'] {
-  --cue-rest: #b6b6bd;
-  --cue-text: #e2e5df;
-  --cue-surface: #36383f;
-  --cue-active: var(--peach);
-}
-.eilo-glass-widget[data-type='progress']
-  :is(.widget-subtitle, .practice-count span, .text-button, .move-widget) {
-  color: var(--muted);
-}
-.eilo-glass-widget[data-type='progress'] .live-meter {
-  background: #ffffff1a;
-}
-.eilo-glass-widget[data-type='progress'] .live-meter::-webkit-progress-bar {
-  background: #ffffff1a;
-}
-.eilo-glass-widget[data-type='progress'] .live-meter::-webkit-progress-value {
-  background: var(--peach);
-}
-.eilo-glass-widget[data-type='progress'] .live-meter::-moz-progress-bar {
-  background: var(--peach);
-}
-.eilo-glass.live-composer .live-input {
+.eilo-glass-control > :is(input, select) {
+  width: 100%;
   background: transparent;
-  color: var(--ink);
 }
 
-/* Back-painted pigment is limited to prominent widget type, never editable text. */
-.eilo-glass.widget-content > h2,
-.eilo-glass .practice-count strong,
-.eilo-glass .clock-time {
-  color: #eeefe5;
-  filter: drop-shadow(0 0.7px 0.3px #07161399) drop-shadow(0 1px 1.5px #07161345);
-}
-@supports (background-clip: text) or (-webkit-background-clip: text) {
-  .eilo-glass.widget-content > h2,
-  .eilo-glass .practice-count strong,
-  .eilo-glass .clock-time {
-    background: linear-gradient(176deg, #fffff7 4%, #f1f2e9 38%, #e4e8de);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-}
-@media (prefers-reduced-motion: reduce), (hover: none) {
-  .eilo-glass {
-    rotate: 0deg !important;
-  }
-}
-.reduce-motion .eilo-glass {
-  rotate: 0deg !important;
-}
 @media (prefers-reduced-transparency: reduce) {
   :is(.eilo-glass, .eilo-glass-surface)::before {
     background-color: #202624f5;
@@ -219,184 +101,8 @@
     box-shadow: none;
     outline: 1px solid CanvasText;
   }
-  .eilo-glass::before,
-  :is(.eilo-glass:not(.drag-ghost), .eilo-glass-surface)::after {
+  :is(.eilo-glass, .eilo-glass-surface)::before,
+  :is(.eilo-glass, .eilo-glass-surface)::after {
     display: none;
-  }
-  .eilo-glass.widget-content > h2,
-  .eilo-glass .practice-count strong,
-  .eilo-glass .clock-time {
-    background: none;
-    color: CanvasText;
-    filter: none;
-  }
-}
-
-:root[data-source='live'] .workspace.unified-home .conversation-dock.eilo-glass-surface,
-:root[data-source='live'] .context-panel--embedded .context-panel__body.eilo-glass-surface {
-  position: relative;
-  isolation: isolate;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow:
-    inset 0 1px 0 #ffffff18,
-    inset 0 -1px 0 #00000058,
-    0 16px 24px -10px #00000080;
-}
-.eilo-glass-control {
-  display: inline-flex;
-  min-width: 0;
-  border-radius: 14px;
-}
-:root[data-source='live'] .context-panel--embedded .eilo-glass-control > :is(input, select) {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-:root[data-source='live'] .context-panel--embedded input:is([type='checkbox'], [role='switch']) {
-  border: 1px solid #ffffff30;
-  background: linear-gradient(160deg, #ffffff20, #ffffff04 50%, #00000035);
-  box-shadow:
-    inset 0 1px 2px #ffffff30,
-    inset 0 -1px 2px #0008,
-    0 3px 7px #0004;
-}
-:root[data-source='live']
-  .context-panel--embedded
-  input:is([type='checkbox'], [role='switch']):checked {
-  background: linear-gradient(150deg, #cfbda77a, #8b796259);
-}
-:root[data-source='live']
-  .context-panel--embedded
-  input:is([type='checkbox'], [role='switch'])::after {
-  background: linear-gradient(145deg, #faf6f0, #beb8b0);
-  box-shadow:
-    inset 0 1px 1px #fff8,
-    0 1px 3px #0008;
-}
-.context-panel--embedded input[type='range'] {
-  appearance: none;
-  height: 6px;
-  border-radius: 8px;
-  background: linear-gradient(#ffffff20, #0003);
-  box-shadow:
-    inset 0 1px 2px #0008,
-    0 1px 0 #fff3;
-}
-.context-panel--embedded input[type='range']::-webkit-slider-thumb {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 1px solid #ffffff50;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ebe3d8, #94877a);
-  box-shadow:
-    inset 0 1px 2px #fff8,
-    0 2px 5px #0008;
-}
-@media (prefers-reduced-transparency: reduce) {
-  .eilo-glass-surface::before {
-    background-color: #202624f5;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-@media (forced-colors: active) {
-  .eilo-glass-surface::before,
-  .eilo-glass-surface::after {
-    display: none;
-  }
-  :root[data-source='live'] .workspace .eilo-glass-surface {
-    background: Canvas;
-    outline: 1px solid CanvasText;
-  }
-}
-
-:root[data-source='live'] .workspace .eilo-glass {
-  transition:
-    rotate 350ms var(--ease-settle, ease-out),
-    translate 180ms var(--ease-settle, ease-out),
-    border-color 180ms ease-out,
-    --glass-light-x 250ms ease-out,
-    --glass-light-y 250ms ease-out,
-    --glass-light-angle 250ms ease-out;
-}
-:root[data-source='live'] .workspace .eilo-glass.eilo-glass-hover {
-  transition-duration: 160ms;
-}
-@media (hover: hover) and (pointer: fine) {
-  :root[data-source='live']
-    .workspace
-    .eilo-glass:is(button, .eilo-glass-control):hover:not(:disabled) {
-    border-color: #ffffff60;
-  }
-}
-:root[data-source='live'] .workspace button.eilo-glass:active:not(:disabled) {
-  translate: 0 1px;
-  transform: none;
-}
-:root[data-source='live'] .workspace .eilo-glass:focus-visible,
-:root[data-source='live'] .workspace .eilo-glass-control:focus-within {
-  outline: 2px solid var(--peach);
-  outline-offset: 3px;
-}
-:root[data-source='live'] .context-panel--embedded .context-panel__tab[aria-selected='true'] {
-  border-color: #e5c4a7;
-  color: #fff5eb;
-}
-.context-panel--embedded input:is([type='checkbox'], [role='switch'])::after {
-  transition:
-    transform 180ms var(--ease-settle, ease-out),
-    background 180ms ease-out;
-}
-.unified-disclosure {
-  transition: transform 180ms var(--ease-settle, ease-out);
-}
-@media (prefers-reduced-motion: reduce) {
-  :root[data-source='live'] .workspace .eilo-glass {
-    transition: none;
-    rotate: 0deg !important;
-    translate: none;
-  }
-}
-:root[data-source='live'] .reduce-motion .workspace .eilo-glass {
-  transition: none;
-  rotate: 0deg !important;
-  translate: none;
-}
-
-:root[data-source='live'] .context-panel--embedded,
-:root[data-source='live']
-  .workspace:is([data-page='settings'], [data-page='connections'])
-  > .workspace-page {
-  overflow: visible;
-}
-:root[data-source='live'] .workspace .workspace-inspector > .workspace-page {
-  padding: 12px;
-  margin: -12px;
-}
-
-:root[data-source='live'] .context-panel--embedded .context-panel__body {
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  overflow: visible;
-}
-.context-panel--embedded .context-panel__scroll {
-  flex: 1;
-  min-height: 0;
-  padding: 26px;
-  border-radius: inherit;
-  overflow: auto;
-  scrollbar-width: thin;
-}
-@media (max-width: 800px) {
-  .context-panel--embedded .context-panel__scroll {
-    padding: 20px;
   }
 }

@@ -1634,3 +1634,404 @@
   .unified-agent-open {
   grid-column: 4;
 }
+
+/* Settings shares Home's instrument-panel system without becoming another dashboard. */
+:root[data-source='live']
+  body:has(.workspace:is([data-page='settings'], [data-page='connections'])) {
+  background: #0b0a0e;
+}
+:root[data-source='live']
+  body:has(.workspace:is([data-page='settings'], [data-page='connections']))
+  .hero-gradient {
+  display: none;
+}
+:root[data-source='live']
+  body:has(.workspace:is([data-page='settings'], [data-page='connections']))
+  .home-aura {
+  display: block;
+  opacity: 0.72;
+}
+:root[data-source='live'] .workspace:is([data-page='settings'], [data-page='connections']) {
+  --home-text: #f5eef0;
+  --home-quiet: #bdb4b9;
+  --home-rose: #e85d92;
+  --home-rose-hot: #f7a8c4;
+  --home-line: #e85d9238;
+  --home-mono: 'Geist Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  --home-sans: 'Geist Sans', Source, system-ui, sans-serif;
+  width: min(1440px, 100%);
+  max-width: 1440px;
+  padding: 42px clamp(24px, 4vw, 58px) 26px;
+  color: var(--home-text);
+  font: 400 13px/1.48 var(--home-mono);
+  letter-spacing: 0.015em;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  > .home-header {
+  min-height: 70px;
+  padding: 0 0 18px;
+  align-items: center;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .home-header
+  h1 {
+  color: var(--home-text);
+  font: 450 clamp(23px, 2.4vw, 32px)/1.15 var(--home-mono);
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .workspace-back {
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #141116;
+  box-shadow: none;
+  color: var(--home-text);
+  font: 450 12px/1.2 var(--home-mono);
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel--embedded {
+  width: 100%;
+  max-width: 1180px;
+  gap: 14px;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__tab {
+  min-height: 43px;
+  padding: 9px 12px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #100e13;
+  box-shadow: none;
+  color: var(--home-quiet);
+  font: 420 12px/1.2 var(--home-mono);
+  text-transform: lowercase;
+  transition:
+    color 170ms ease,
+    border-color 170ms ease,
+    background-color 170ms ease;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__tab[aria-selected='true'] {
+  border-color: var(--home-rose);
+  background: #1b1118;
+  color: var(--home-text);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__body,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__body.eilo-glass-surface {
+  padding: 0 0 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__body::before,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-panel__body::after {
+  display: none;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .general-settings {
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.settings-group, .context-section, .settings-account) {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #100e13;
+  box-shadow: inset 0 1px 0 #f5eef007;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.settings-group h3, .context-section__title, .settings-account h2) {
+  color: var(--home-text);
+  font: 450 14px/1.25 var(--home-mono);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.check-option, .speech-preference, .context-setting strong, .context-retention) {
+  color: var(--home-text);
+  font-family: var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.context-setting__detail, .context-caption, .settings-account p) {
+  color: var(--home-quiet);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.button, .context-navigation-row, select, input[type='text'], input[type='search']) {
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #171319;
+  box-shadow: none;
+  color: var(--home-text);
+  font-family: var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.context-switch, .general-settings input[type='checkbox']) {
+  accent-color: var(--home-rose);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-switch:checked {
+  background: var(--home-rose);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(button, input, select, summary):focus-visible {
+  outline-color: var(--home-rose-hot);
+}
+@media (hover: hover) {
+  :root[data-source='live']
+    .workspace:is([data-page='settings'], [data-page='connections'])
+    :is(.context-panel__tab, .button, .context-navigation-row):hover:not(:disabled) {
+    border-color: #e85d9270;
+    background: #20141c;
+  }
+}
+@media (max-width: 800px) {
+  :root[data-source='live'] .workspace:is([data-page='settings'], [data-page='connections']) {
+    padding: 72px 18px 20px;
+    overflow: auto;
+  }
+  :root[data-source='live']
+    .workspace:is([data-page='settings'], [data-page='connections'])
+    .context-panel__tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager {
+  max-width: none;
+  padding: 4px 0 28px;
+  color: var(--home-text);
+  font-family: var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__header {
+  padding: 8px 0 18px;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager
+  :is(h1, h2) {
+  color: var(--home-text);
+  font: 450 18px/1.2 var(--home-mono);
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__title-wrap
+  p {
+  margin-top: 7px;
+  color: var(--home-quiet);
+  font: 400 12px/1.45 var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__toolbar {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__tabs {
+  gap: 6px;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__tab {
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--home-quiet);
+  font: 420 12px/1.2 var(--home-mono);
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__tab[aria-pressed='true'] {
+  border-color: var(--home-rose);
+  background: #1b1118;
+  color: var(--home-text);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager
+  input[type='search'] {
+  min-height: 42px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #100e13;
+  color: var(--home-text);
+  font: 400 12px/1.2 var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__list {
+  gap: 8px;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row.eilo-glass {
+  padding: 11px 13px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #100e13;
+  box-shadow: inset 0 1px 0 #f5eef007;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row::before,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row::after {
+  display: none;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row:hover,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row.is-open {
+  border-color: #e85d9270;
+  background: #171116;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__icon {
+  display: none;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__select {
+  gap: 0;
+  padding: 5px 2px;
+  border-radius: 0;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row-copy
+  strong {
+  color: var(--home-text);
+  font: 450 13px/1.35 var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__row-copy
+  small {
+  margin-top: 4px;
+  color: var(--home-quiet);
+  font: 400 12px/1.4 var(--home-mono);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__details-toggle {
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--home-line);
+  border-radius: 2px;
+  background: #171319;
+  color: var(--home-text);
+  font: 420 12px/1.2 var(--home-mono);
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__details-toggle:hover,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__details-toggle[aria-expanded='true'] {
+  border-color: var(--home-rose);
+  background: #20141c;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__state.state-connected,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__state.state-enabled {
+  color: var(--home-rose-hot);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .connections-manager__switch
+  input:checked,
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .briefing-sources__switch
+  input:checked {
+  background: var(--home-rose);
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .context-disclosure
+  > summary {
+  color: var(--home-quiet);
+  font: 400 12px/1.3 var(--home-mono);
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  .settings-section-heading {
+  color: var(--home-text);
+  font: 450 18px/1.2 var(--home-mono);
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+}
+:root[data-source='live']
+  .workspace:is([data-page='settings'], [data-page='connections'])
+  :is(.button, .context-navigation-row, .connections-manager__button) {
+  text-transform: lowercase;
+}

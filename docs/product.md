@@ -14,38 +14,28 @@ priorities, breaks, and external actions.
 
 ## Current experience
 
-- **First setup** starts with a goal conversation beside a proposed arrangement
-  of up to three existing widgets. Approval saves the goal and reveals that Home;
-  optional source setup follows with separate collection, AI-sharing, check-in
-  and alert choices. Existing profiles retain their current workspace.
-- **Home** combines a date-aware, non-duplicative current-focus/Calendar/activity
-  summary with an expandable conversation dock. The canonical Goals, Tracking, and Usage
-  cards that merely repeat that strip are removed from the app-owned starter board; personal
-  and adaptive context widgets stay in the saved arrangement. Opening conversation keeps the
-  compact context strip visible and gives the widget board space to the message history;
-  collapsing it restores the compact dock at the bottom. The **Next move** action pre-fills a
-  reviewable conversation draft and never sends it by itself. A recovery card appears only
-  when a connected source or check-ins need attention and links to the relevant repair
-  surface. Returning from Settings preserves whether the conversation was open. Goal details
-  open in place; **Edit home** opens the saved widget arrangement directly, and Done restores
-  the briefing and dock. Tracking shows current browser, Calendar, and Gmail access; Browser
-  usage shows retained recorded time by site and day.
-- **Talk** expands within Home, keeping the summary cards and compact widget
-  context visible. Goals and Activity open as detail panels over this workspace. History stays inside the
-  dock; drafts and the selected conversation survive collapsing and reopening.
-- **Goals** opens from its Home widget and provides a detail view of active, completed, cancelled,
-  and recoverable deleted goals.
-- **Activity** opens from its Home widget and starts with a concise, honest
-  reflection of available activity plus explicit check-in and recording controls. The recorded rows remain available on demand, while repeated unfinished check-ins are summarized before their individual audit entries. A pause keeps a visible **Resume recording** action in the same Activity header. Recoverable deleted
-  items appear when they contain data. Observed time is evidence of an admitted
-  signal, never proof of attention, progress, or completion.
-- **Permissions** combines activity capture, detail level, AI sharing, and connected-app management in one destination with independent controls. Calendar entries are
-  separate from goals; source access does not automatically authorize sharing
-  that data with the model.
-- **Speech** includes local transcription into an editable draft and optional
-  spoken felis replies. Spoken replies run only while the Home conversation is
-  open and the felis window is active; a visible Stop voice control ends the
-  current reply.
+- **First setup** starts with a goal conversation and a compact preview of the
+  proposed goal. Approval saves it, enters the unified Home, and offers optional
+  source setup through independent permission choices.
+- **Home** combines current focus, the next Calendar item when connected,
+  retained activity analytics, source health, check-in state, and the expandable
+  conversation. There is one app-owned composition with no edit or gallery mode.
+- **Talk** expands inside Home while the focus and activity surfaces remain
+  visible. Drafts, replies, history, and the selected conversation survive
+  collapsing and reopening.
+- **Goals** opens from Home as a dismissible detail view. Conversation, **New
+  goal**, and `/goal` are the primary creation paths; direct controls handle
+  search, corrections, progress, completion, cancellation, and recovery.
+- **Activity** opens from Home and presents recorded evidence, source state,
+  check-in history, and recording controls. Pausing leaves a visible **Resume
+  recording** action. Recorded time never proves attention, progress, or
+  completion.
+- **Settings** is the only separate destination. General, Permissions, Memory,
+  and Account keep presentation, source collection, AI sharing, retention, and
+  sign-in decisions explicit and separate.
+- **Speech** includes user-started transcription into an editable draft and
+  optional spoken felis replies. Spoken replies run only while Home is active
+  and stop through a visible control.
 
 ## Product limits
 
@@ -62,21 +52,24 @@ input.
 
 ## Design principles
 
-### One Home component design
+### One unified Home
 
-The saved Home board holds normal widgets with the same move, resize, remove, and keyboard controls. The fixed day strip is a concise workspace summary, not a second editable board. Permitted context can add relevant widgets and update their contents; it must not hide personal widgets or replace the board with a separate fixed layout. Preserve saved positions and sizes through content updates. Removed automatic widgets stay removed until explicitly added again; whole-card pages use a compact arrow-and-dot control when all widgets cannot fit. A chosen note remains editable and separate from the layout.
+Home is a stable agent workspace, not a user-arranged canvas. Focus, activity,
+agent status, and conversation share one visual system and update from the
+current server state. Goals and Activity open over Home and return focus to the
+originating control. Settings remains separate with an explicit return to Home.
 
-**Settings** remains a separate page reached from Home, with an explicit Back to Home control, organized into General, Widgets & layout, Permissions, Memory, and Account. Source collection and AI sharing remain separate controls. Connection setup opens in Settings; other pages link there rather than hosting competing setup menus. **Add relevant widgets** is a separate presentation choice; it grants no source or AI permission. Guided first setup replaces the empty Home before approval. After approval, its optional support invitation sits beside the conversation, and connection steps open inline. Settings stays outside the widget canvas. Keep the Check-ins switch and recording state/control in the Activity header across its views. Put status details and desktop alerts behind the adjacent settings icon. Empty Activity has one source action; recorded sessions must not open to a blank Overview. Expose history filters and recovery categories when they contain records.
-
-The ordinary starter Home uses warm surfaces, a **Next move** action, and a separate progress card; an approved first workspace starts with only its chosen widgets. The action card exposes only a reviewable planning draft and a focus review, so it never implies that felis has started work or sent a message. Its title stays visible at compact widget heights, and long summary labels clamp rather than overlap nearby metadata. On Home, Talk expands as a dock while the day summary remains visible; collapsing it reveals saved widgets and keeps the compact dock available. Message scrolling and composer height share normal layout so long drafts cannot overlap the conversation.
+Conversation is the primary interface for creating goals and asking for a next
+step. Direct controls exist for quick, reviewable corrections. Source problems
+appear only when actionable and route to the relevant permission or connection
+surface. Analytics state their time window and retention limit instead of
+inventing data.
 
 ### Frontend instructions
 
 Use familiar controls, alignment, and selected states to make interactions apparent. Home is the primary workspace; Goals and Activity expand over it without a sidebar. Settings is separate. The orb remains in the Home conversation dock and first setup. Keep populated messages and the composer free of decorative logos and extra branding bars; History stays within Talk. Avoid visible counts, captions, or instructions that merely explain the interface. Keep clear text for navigation, consent, errors, and recovery. When a procedure needs instructions, show one short instruction and one immediate action at a time. Multi-step setup uses a visible current step with Back/Next; do not show the entire procedure at once. Put optional explanation, troubleshooting, and keyboard reference behind a concise disclosure. Favor less copy over additional instructional panels.
 
 Do not use thin line dividers as a section-separation component. Group related content with spacing, alignment, typography, material, shape, or a meaningful visual instead. Lines remain valid only when they encode data or define a control's necessary boundary; they must not be decorative separators between stacked content.
-
-Adding a Home widget starts an unsaved placement preview. Let the person drag and resize it, show which existing widgets would move to another page, and commit only with Place. Cancel or reload keeps the prior layout; confirmed placement supports Undo. Adaptive state cards display source-owned text read-only; ordinary Notes widgets remain editable.
 
 Routine chat status and context usage belong with the composer. Keep the percentage and compact progress ring in its toolbar. Its inline detail shows the whole context window as an estimated, labeled category breakdown, including available space and the auto-summary reserve; omit categories that are not actually loaded. Keep exact counts and summary controls with that visual. Do not turn the composer into a tabbed settings panel or a modal. Keep typing and the conversation available. App-owned detail and confirmation flows open inline; preserve explicit confirmation controls.
 
@@ -90,7 +83,7 @@ When a focused task's distinctive terms appear in one permitted work context and
 
 When a new eligible check-in arrives while felis is out of focus, a small native glass overlay can show the already-delivered felis message without activating its window. A delivered check-in remains eligible for that short handoff even when the source observation later ages out; a reply, goal change, new conversation, explicit pause, recovery, or its delivery window suppresses it. The overlay stays long enough to read, disappears on its own, or opens the existing conversation only after a deliberate click. Desktop alerts remain a separate optional preference.
 
-Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actual selected states, editing carets, Home arrangement cues, and visible focus when navigating by keyboard.
+Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actual selected states, editing carets, Home controls, and visible focus when navigating by keyboard.
 
 ### Product composition
 
@@ -98,9 +91,7 @@ Pointer clicks must not leave a bright keyboard-focus outline behind. Keep actua
   reflect the person's actual task and available evidence: a meaningful status,
   next step, or an appropriate unit when a count is useful. Do not default every
   task to problems solved, a fixed checklist, or a universal focus score.
-- Do not restore the floating sidebar. Keep Goals and Activity accessible from
-  Home widgets, with Close and Escape returning to the workspace. Keep full
-  Home cards within the page; never slice a widget at the canvas boundary.
+- Do not restore the floating sidebar, configurable widget board, or parallel Home mode. Keep Goals and Activity accessible from Home panels, with Close and Escape returning to the workspace.
 - Favor automatic upkeep from conversation and explicitly permitted context over
   repetitive forms.
 - Consolidate goals, activity, and conversation into Home. Preserve their controls
@@ -119,8 +110,7 @@ current code and these product boundaries define what is supported now.
 ## Starting and returning
 
 First setup centers one real goal and **Save goal & start**, which saves the goal
-and asks for a small first step in the ordinary conversation. No mandatory timer,
-daily planning ritual or widget arrangement precedes ordinary use.
+and asks for a small first step in the ordinary conversation. No mandatory timer or daily planning ritual precedes ordinary use.
 
 A daily return briefing is on by default. On the first connected Home visit of
 a local day, or after at least four hours away, it expands the conversation only

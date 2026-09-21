@@ -716,3 +716,9 @@
     bottom: 86px;
   }
 }
+:root[data-source='live'] .workspace:not(.unified-home) > .scene-wordmark {
+  display: none;
+}
+.workspace:is([data-page='settings'], [data-page='connections']) > .scene-wordmark {
+  display: none !important;
+}

@@ -11,7 +11,7 @@ npm run dev
 
 `setup` installs the locked Python and root Node dependencies, installs Electron dependencies on macOS, and enables the repository’s source/privacy Git guards. Existing custom Git hooks are preserved; if the guard installer reports a conflict, follow [the hook integration instructions](data-boundary.md#local-git-guards).
 
-`dev` starts the full interactive test app at **http://127.0.0.1:8774/home/** with synthetic activity and temporary state. It never logs into an account, invokes a model, reads personal activity, or connects the Chrome extension. **Ctrl+C** stops it and discards its temporary fixture state. The older Home-only static preview is available explicitly as `npm run dev:static`.
+`dev` starts the full interactive test app at **http://127.0.0.1:8774/home/** with synthetic activity and temporary state. It never logs into an account, invokes a model, reads personal activity, or connects the Chrome extension. **Ctrl+C** stops it and discards its temporary fixture state.
 
 ## First-setup fixture
 
@@ -22,7 +22,7 @@ uv run --no-sync python scripts/preview-context.py --port 8797 --onboarding
 ```
 
 Open **http://127.0.0.1:8797/home/**. The visible sample banner identifies synthetic
-replies; goal staging, validation, approval, Home layout and support UI use the
+replies; goal staging, validation, approval, unified Home and support UI use the
 real implementation with temporary state. Try a goal, refine the proposal, reload,
 and approve it. **Ctrl+C** discards that fixture's backend state. No account,
 source capture or OS grant is enabled. Real provider and native permission checks
@@ -49,22 +49,6 @@ It creates an isolated saved focus goal, **Read chapter 4**, with yesterday's
 ISO date as its deadline. Its synthetic Calendar response contains **Study
 group** at 3–4 PM local time; if 3 PM has passed, the fixture moves it to the
 next upcoming local time. The sample-data banner remains visible.
-
-## Home layout regression checks
-
-Run `python3 scripts/preview-home-layout.py` and open **http://127.0.0.1:8794/**.
-This renders the real Home launcher and populated Browser usage cards with the
-production stylesheet order and synthetic content. It does not start a model,
-read personal state, or expose files outside the public asset allowlist.
-
-The matrix covers 192 combinations of narrow/wide card widths, short/tall saved
-heights, absent goals and long titles, including container-query boundaries.
-Check both typography options. **Check geometry** reports overlapping controls,
-controls outside their cards, missing launcher actions and invalid usage fixtures.
-Inspect representative cards visually and exercise their controls too; a geometry
-pass alone does not prove label readability or working navigation. After changing
-Home content, verify the real app at its existing saved card sizes and the ordinary
-preview at compact and wide window sizes. Window width alone is insufficient.
 
 ## Chat context verification
 

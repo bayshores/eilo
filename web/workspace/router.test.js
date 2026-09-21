@@ -59,39 +59,30 @@ test('dispose unregisters history listeners and start can mount them again after
   assert.equal(h.listeners.size, 2);
 });
 
-test('Settings is a restorable destination and Home controls stay available', () => {
+test('Settings is a restorable destination without introducing Home layout controls', () => {
   const h = harness('#settings');
-  const controls = new Map(
-    [
-      '.edit-toggle',
-      '.add-toggle',
-      '.save-state',
-      '.overflow-toggle',
-      '.home-context',
-      '.home-header p',
-    ].map((key) => [
+  const elements = new Map(
+    ['.home-header h1', '.home-context', '.home-header p'].map((key) => [
       key,
       {
         hidden: false,
         textContent: key === '.home-header p' ? 'Connected' : '',
+        focus() {},
         toggleAttribute(_name, hidden) {
           this.hidden = hidden;
         },
       },
     ]),
   );
-  h.documentRef.querySelector = (key) => controls.get(key) || null;
+  h.documentRef.querySelector = (key) => elements.get(key) || null;
   const rendered = [];
   const router = createWorkspaceRouter({ ...h, renderPage: (page) => rendered.push(page) });
   router.start();
   assert.deepEqual(rendered, ['settings']);
   assert.equal(h.documentRef.title, 'felis — Settings');
-  assert.equal(controls.get('.add-toggle').hidden, true);
   router.showPage('home');
-  assert.equal(controls.get('.add-toggle').hidden, false);
-  assert.equal(controls.get('.edit-toggle').hidden, false);
-  assert.equal(controls.get('.overflow-toggle').hidden, true);
-  assert.equal(controls.get('.home-context').hidden, false);
+  assert.equal(elements.get('.home-context').hidden, false);
+  assert.equal(elements.get('.home-header h1').textContent, 'Home');
 });
 
 test('Home hides empty status chrome and shows a current status only on Home', () => {
@@ -152,27 +143,17 @@ test('Settings focuses the shared heading while Connections uses its manager hea
   assert.deepEqual(headings.get('.connections-manager h2').focusOptions, { preventScroll: true });
 });
 
-test('Talk changes shared chrome without losing the workspace route or Home controls', () => {
+test('Talk changes shared chrome without losing the workspace route', () => {
   const h = harness();
-  const elements = new Map([
-    ['.home-header h1', { textContent: '', focus() {} }],
-    ['.add-toggle', { hidden: false }],
-    ['.edit-toggle', { hidden: false }],
-  ]);
-  h.documentRef.querySelector = (key) => elements.get(key) || null;
+  const heading = { textContent: '', focus() {} };
+  h.documentRef.querySelector = (key) => (key === '.home-header h1' ? heading : null);
   const router = createWorkspaceRouter({ ...h });
   router.showPage('goals');
   router.updateNavigation('goals', { talking: true });
   assert.equal(h.documentRef.title, 'felis — Talk');
   assert.equal(h.windowRef.location.hash, '#goals');
   assert.deepEqual(h.windowRef.history.pushes, ['/home/?demo=1#goals']);
-  assert.equal(elements.get('.home-header h1').textContent, 'Talk');
-  assert.equal(elements.get('.add-toggle').hidden, true);
+  assert.equal(heading.textContent, 'Talk');
   router.updateNavigation('goals');
-  assert.equal(elements.get('.home-header h1').textContent, 'Goals');
-  router.updateNavigation('home', { talking: true });
-  assert.equal(elements.get('.edit-toggle').hidden, true);
-  router.updateNavigation('home');
-  assert.equal(elements.get('.edit-toggle').hidden, false);
-  assert.equal(elements.get('.add-toggle').hidden, false);
+  assert.equal(heading.textContent, 'Goals');
 });

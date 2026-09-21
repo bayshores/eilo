@@ -33,12 +33,11 @@ Runtime setup is a one-time download of the pinned Hermes source and Python depe
 npm run check
 ```
 
-| Command              | Use it for                                                           |
-| -------------------- | -------------------------------------------------------------------- |
-| `npm run dev`        | Normal UI development and interaction testing with sample data.      |
-| `npm start`          | Real Mac app, local account, and permitted capture.                  |
-| `npm run check`      | All local code, test, and privacy-boundary checks.                   |
-| `npm run dev:static` | The older lightweight Home-only prototype, when specifically needed. |
+| Command         | Use it for                                                      |
+| --------------- | --------------------------------------------------------------- |
+| `npm run dev`   | Normal UI development and interaction testing with sample data. |
+| `npm start`     | Real Mac app, local account, and permitted capture.             |
+| `npm run check` | All local code, test, and privacy-boundary checks.              |
 
 The app is not publicly released. Pushing source does not publish an app build. See [development](docs/development.md) for prerequisites and troubleshooting.
 
