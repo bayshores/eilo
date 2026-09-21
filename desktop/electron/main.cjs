@@ -30,6 +30,9 @@ const {
 } = require('./security.cjs');
 
 const CHECK_IN_OVERLAY_DURATION_MS = 45_000;
+const CHECK_IN_OVERLAY_WIDTH = 440;
+const CHECK_IN_OVERLAY_HEIGHT = 218;
+const CHECK_IN_OVERLAY_MARGIN = 24;
 
 function runDesktop() {
   app.setName('felis');
@@ -277,8 +280,8 @@ function runDesktop() {
       )
         return {};
       return {
-        x: Math.max(area.x, area.x + area.width - 424),
-        y: Math.max(area.y, area.y + 34),
+        x: Math.max(area.x, area.x + area.width - CHECK_IN_OVERLAY_WIDTH - CHECK_IN_OVERLAY_MARGIN),
+        y: Math.max(area.y, area.y + CHECK_IN_OVERLAY_MARGIN),
       };
     } catch {
       return {};
@@ -308,12 +311,12 @@ function runDesktop() {
     }
     try {
       const currentOverlay = new BrowserWindow({
-        width: 396,
-        height: 188,
-        minWidth: 396,
-        maxWidth: 396,
-        minHeight: 188,
-        maxHeight: 188,
+        width: CHECK_IN_OVERLAY_WIDTH,
+        height: CHECK_IN_OVERLAY_HEIGHT,
+        minWidth: CHECK_IN_OVERLAY_WIDTH,
+        maxWidth: CHECK_IN_OVERLAY_WIDTH,
+        minHeight: CHECK_IN_OVERLAY_HEIGHT,
+        maxHeight: CHECK_IN_OVERLAY_HEIGHT,
         show: false,
         frame: false,
         transparent: true,

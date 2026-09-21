@@ -501,6 +501,12 @@ test('a fresh background check-in opens a non-activating native overlay and only
 
   const overlay = h.windows[1];
   assert.ok(overlay, 'a fresh eligible check-in gets a native overlay');
+  assert.equal(overlay.options.width, 440);
+  assert.equal(overlay.options.height, 218);
+  assert.equal(overlay.options.x, 976);
+  assert.equal(overlay.options.y, 24);
+  assert.equal(overlay.options.transparent, true);
+  assert.equal(overlay.options.frame, false);
   assert.equal(overlay.shownInactive, undefined, 'the overlay waits for its renderer listener');
   h.ipcMain.emit('eilo:overlay-ready', { sender: {} });
   assert.equal(overlay.shownInactive, undefined, 'untrusted renderer readiness cannot show it');

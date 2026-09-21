@@ -1,76 +1,35 @@
 <!doctype html>
 <html lang="en">
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>felis check-in</title>
-  <style>
-    :root { color-scheme: dark; font-family: "SF Pro Display", "Helvetica Neue", Arial, sans-serif; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; overflow: hidden; background: transparent;
-      color: #f7f2ea; -webkit-font-smoothing: antialiased;
-    }
-    .card {
-      position: relative; display: grid; grid-template-columns: 34px 1fr; gap: 12px;
-      min-height: 176px; padding: 18px 17px 15px; border: 1px solid #f7e3c850;
-      border-radius: 28px; overflow: hidden;
-      background:
-        radial-gradient(circle at 7% 0%, #e3a76020, transparent 40%),
-        linear-gradient(138deg, #3b241ce8 0%, #1b1919f0 54%, #101113ed 100%);
-      box-shadow: 0 19px 48px #0000006e, inset 0 1px #ffffff1d;
-      backdrop-filter: blur(25px) saturate(124%);
-      opacity: 0; transform: translateY(-10px) scale(.98);
-    }
-    .card.ready { animation: arrive 360ms cubic-bezier(.2,.9,.28,1.15) forwards; }
-    .orb {
-      width: 31px; height: 31px; margin-top: 1px; border-radius: 50%;
-      background:
-        radial-gradient(circle at 31% 25%, #fff9ed 0 5%, transparent 6%),
-        radial-gradient(circle at 47% 43%, #e7c18e 0 11%, #9a6745 35%, #402c29 66%, #151619 100%);
-      box-shadow: 0 0 0 1px #fff4dc38, 0 7px 16px #0008;
-    }
-    .copy { min-width: 0; }
-    .eyebrow { display: flex; align-items: center; gap: 8px; color: #e2c9a8; font-size: 12px; font-weight: 650; letter-spacing: .05em; text-transform: uppercase; }
-    .eyebrow span { height: 5px; width: 5px; border-radius: 50%; background: #d4a564; box-shadow: 0 0 10px #e9b96d; }
-    p { margin: 9px 0 13px; font-size: 15px; line-height: 1.42; letter-spacing: -.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
-    footer { display: flex; align-items: center; gap: 12px; }
-    button { appearance: none; font: inherit; border: 0; cursor: pointer; }
-    #open {
-      padding: 8px 12px; border-radius: 11px; color: #20150f; background: linear-gradient(135deg, #f3d4a7, #c9925d);
-      font-size: 13px; font-weight: 700; box-shadow: inset 0 1px #fff8eb92, 0 5px 15px #0004;
-    }
-    #open:hover { filter: brightness(1.08); transform: translateY(-1px); }
-    #dismiss { padding: 8px 5px; color: #d6c9bd; background: transparent; font-size: 13px; }
-    #dismiss:hover { color: #fff7ee; }
-    @keyframes arrive { to { opacity: 1; transform: translateY(0) scale(1); } }
-    @media (prefers-reduced-motion: reduce) { .card.ready { animation: none; opacity: 1; transform: none; } #open:hover { transform: none; } }
-  </style>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>felis check-in</title>
+    <link rel="stylesheet" href="./overlay.css" />
+  </head>
   <body>
-    <main class="card" aria-live="polite">
-      <div class="orb" aria-hidden="true"></div>
-      <section class="copy">
-        <div class="eyebrow"><span></span> felis check-in</div>
-        <p id="message"></p>
-        <footer>
-          <button id="open" type="button">Open conversation</button>
-          <button id="dismiss" type="button">Later</button>
+    <main class="overlay" aria-label="felis check-in">
+      <div class="overlay-aura" aria-hidden="true"></div>
+      <section class="overlay-presence" aria-hidden="true">
+        <div id="orb" class="overlay-orb"></div>
+      </section>
+      <section class="overlay-content">
+        <header class="overlay-header">
+          <span class="overlay-signal" aria-hidden="true"></span>
+          <span>felis check-in</span>
+        </header>
+        <p id="message" class="overlay-message" aria-live="polite"></p>
+        <footer class="overlay-actions">
+          <button id="open" class="overlay-action overlay-action--primary" type="button">
+            open conversation
+          </button>
+          <button id="dismiss" class="overlay-action" type="button">later</button>
         </footer>
       </section>
     </main>
-    <script>
-      const card = document.querySelector('.card');
-      const message = document.querySelector('#message');
-      globalThis.eiloOverlay?.onCheckIn((value) => {
-        message.textContent = value.text;
-        card.classList.remove('ready');
-        requestAnimationFrame(() => card.classList.add('ready'));
-      });
-      globalThis.eiloOverlay?.ready();
-      document.querySelector('#open').addEventListener('click', () => globalThis.eiloOverlay?.open());
-      document.querySelector('#dismiss').addEventListener('click', () => globalThis.eiloOverlay?.dismiss());
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') globalThis.eiloOverlay?.dismiss();
-      });
-    </script>
+    <script type="module" src="./overlay.js"></script>
   </body>
 </html>

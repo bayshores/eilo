@@ -27,7 +27,12 @@ export default [
     },
   },
   {
-    files: ['web/**/*.js', 'prototypes/**/*.js', 'activity/extension/**/*.js'],
+    files: [
+      'web/**/*.js',
+      'prototypes/**/*.js',
+      'activity/extension/**/*.js',
+      'desktop/electron/overlay.js',
+    ],
     languageOptions: { sourceType: 'module', globals: globals.browser },
   },
   {

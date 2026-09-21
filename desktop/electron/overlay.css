@@ -1,0 +1,318 @@
+:root {
+  color-scheme: dark;
+  --overlay-panel: #100e13;
+  --overlay-text: #f5eef0;
+  --overlay-quiet: #bdb4b9;
+  --overlay-rose: #e85d92;
+  --overlay-rose-hot: #f7a8c4;
+  --overlay-line: #e85d9252;
+  font-family: 'Geist Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--overlay-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+}
+
+.overlay {
+  position: relative;
+  display: grid;
+  grid-template-columns: 106px minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  height: 100%;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid var(--overlay-line);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--overlay-panel) 96%, transparent);
+  box-shadow:
+    0 24px 56px #000a,
+    inset 0 1px #ffffff08;
+  opacity: 0;
+  transform: translateY(-12px) scale(0.985);
+  transform-origin: 82% 0;
+  will-change: transform, opacity;
+  transition:
+    transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 240ms ease-out;
+}
+
+.overlay::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #ffffff08;
+  border-radius: inherit;
+  pointer-events: none;
+  content: '';
+}
+
+.overlay.is-ready {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.overlay[data-orb='unavailable'] {
+  grid-template-columns: 1fr;
+}
+
+.overlay[data-orb='unavailable'] .overlay-presence {
+  display: none;
+}
+
+.overlay.is-leaving {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.99);
+  pointer-events: none;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.overlay-aura {
+  position: absolute;
+  inset: -70% -25% -55% -70%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 34% 48%, #e85d922b 0, #e85d920e 21%, transparent 48%),
+    radial-gradient(circle at 78% 12%, #f7a8c40b 0, transparent 31%);
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    transform 580ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 420ms ease-out;
+}
+
+.overlay.is-ready .overlay-aura {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.overlay-presence {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--overlay-line);
+  opacity: 0;
+  transform: scale(0.88);
+  transition:
+    transform 460ms cubic-bezier(0.2, 0.8, 0.2, 1) 50ms,
+    opacity 260ms ease-out 50ms;
+}
+
+.overlay.is-ready .overlay-presence {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.overlay-orb {
+  position: relative;
+  width: 88px;
+  height: 88px;
+}
+
+.overlay-orb canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 5px #fac39955) drop-shadow(0 0 14px #e85d922c);
+}
+
+.overlay-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(7px);
+  transition:
+    transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1) 80ms,
+    opacity 220ms ease-out 80ms;
+}
+
+.overlay.is-ready .overlay-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--overlay-quiet);
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+.overlay-signal {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--overlay-rose);
+  box-shadow: 0 0 12px #e85d9299;
+  animation: overlay-signal 2.4s ease-in-out infinite;
+}
+
+.overlay-message {
+  min-height: 45px;
+  margin: 11px 0 14px;
+  overflow: hidden;
+  color: var(--overlay-text);
+  display: -webkit-box;
+  font:
+    430 15px/1.45 'Geist Sans',
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.overlay-message.is-refreshing {
+  animation: overlay-copy-refresh 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overlay-action {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--overlay-line);
+  border-radius: 2px;
+  background: #171319;
+  color: var(--overlay-text);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-transform: lowercase;
+  transition:
+    transform 140ms ease,
+    border-color 170ms ease,
+    background-color 170ms ease,
+    color 170ms ease;
+}
+
+.overlay-action--primary {
+  border-color: var(--overlay-rose);
+  background: var(--overlay-rose);
+  color: #180c12;
+}
+
+@media (hover: hover) {
+  .overlay-action:hover {
+    border-color: #f7a8c477;
+    background: #241820;
+  }
+
+  .overlay-action--primary:hover {
+    border-color: var(--overlay-rose-hot);
+    background: var(--overlay-rose-hot);
+    color: #180c12;
+  }
+}
+
+.overlay-action:active {
+  transform: translateY(1px);
+}
+
+.overlay-action:focus-visible {
+  outline: 2px solid var(--overlay-rose-hot);
+  outline-offset: 3px;
+}
+
+@keyframes overlay-signal {
+  0%,
+  100% {
+    opacity: 0.58;
+    transform: scale(0.84);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes overlay-copy-refresh {
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .overlay-aura,
+  .overlay-presence,
+  .overlay-content,
+  .overlay-action {
+    transition: none;
+  }
+
+  .overlay-signal,
+  .overlay-message.is-refreshing {
+    animation: none;
+  }
+
+  .overlay,
+  .overlay-aura,
+  .overlay-presence,
+  .overlay-content {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .overlay {
+    grid-template-columns: 1fr;
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .overlay-aura,
+  .overlay-presence {
+    display: none;
+  }
+
+  .overlay-action {
+    border: 1px solid ButtonText;
+  }
+}
